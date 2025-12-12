@@ -1,0 +1,21 @@
+# Node modules
+node_modules/ 
+
+# Build  / distribution
+dist/
+Build
+
+# Logs
+*.log
+
+# OS files 
+.DS_Store
+Thumbs.distribution
+
+# Temporary / cache files
+*.Temporary
+*.cache
+*.db
+
+# Optional: textures / big assets (if you want to track seperately)
+/textures/

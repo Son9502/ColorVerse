@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Chromatic</title>
+    <link rel="stylesheet" href="resources/css/index.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" defer></script>
+    <script type="module" src="./main.js" defer></script>
+
+</head>
+
+<body>
+    <!-- UI Screen -->
+    <div id="ui">
+        <!--Left Column: UI Info -->
+        <div id="ui-info">
+            <div id="ui-title">
+                <h1>The ColorVerse</h1>
+            </div>
+            <div id="ui-combo">
+                <div id="ui-left">
+                    <div id="hsltoggle">
+                        <p>HSL:</p>
+                        <label class="switch">
+                            <input type="checkbox" id="toggle">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <div id="shape-toggle">
+                        <p>Shape:</p>
+                        <select id="shape-select"></select>
+                    </div>
+
+                    <label for="dimensions">Dimension of Colorspace:</label>
+                    <select name="dimensions" id="dimensions">
+                        <option> Object Dimension </option>
+                        <option value="1-D">1-D</option>
+                        <option value="2-D">2-D</option>
+                        <option value="3-D">3-D</option>
+                    </select>
+                    <!-- One-Dimension Content-->
+                    <div id="info1D" class="dimension-info">
+                        <label for="1-D-Axis"> Adjustments: </label>
+                        <select name="1-D-Axis" id="Axis">
+                            <option disabled selected value="">Select axis...</option>
+                            <option value="1D-Red" class="RGB">Red</option>
+                            <option value="1D-Green" class="RGB">Green</option>
+                            <option value="1D-Blue" class="RGB">Blue</option>
+                            <option value="1D-Hue" class="HSL hidden">Hue</option>
+                            <option value="1D-Saturation" class="HSL hidden">Saturation</option>
+                            <option value="1D-Lightness" class="HSL hidden">Lightness</option>
+                        </select>
+                    </div>
+                    <!-- Two-Dimension Content-->
+                    <div id="info2D" class="dimension-info">
+                        <label for="X-Axis">X-Axis:</label>
+                        <select name="X-Axis" id="X-Axis">
+                            <option disabled selected value="">Select X axis...</option>
+                            <option value="X-Red" class="RGB">Red</option>
+                            <option value="X-Green" class="RGB">Green</option>
+                            <option value="X-Blue" class="RGB">Blue</option>
+                            <option value="X-Hue" class="HSL hidden">Hue</option>
+                            <option value="X-Saturation" class="HSL hidden">Saturation</option>
+                            <option value="X-Lightness" class="HSL hidden">Lightness</option>
+                        </select>
+                        <label for="Y-Axis">Y-Axis:</label>
+                        <select name="Y-Axis" id="Y-Axis">
+                            <option disabled selected value="">Select Y axis...</option>
+                            <option value="Y-Red" class="RGB">Red</option>
+                            <option value="Y-Green" class="RGB">Green</option>
+                            <option value="Y-Blue" class="RGB">Blue</option>
+                            <option value="Y-Hue" class="HSL hidden">Hue</option>
+                            <option value="Y-Saturation" class="HSL hidden">Saturation</option>
+                            <option value="Y-Lightness" class="HSL hidden">Lightness</option>
+                        </select>
+                    </div>
+                    <!-- Three-Dimension Content-->
+                    <div id="info3D" class="dimension-info">
+                        <label for="3dtext">Layer:</label>
+                        <input type="text" id="3dtext">
+                    </div>
+                </div>
+                <div id="ui-right">
+                    <div id="color-search">
+                        <label for="color-text">Color Search:</label>
+                        <div class="auto-container">
+                            <div class="autocomplete-wrap">
+                                <input type="text" id="color-text" placeholder="Search colors...">
+                                <input type="text" id="ghost-text" disabled>
+                                <div id="autocomplete"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Information about selected color-->
+                    <div id="base-color" class="color-info">
+                        <div id="base-circle" class="circle"></div>
+                        <div id="base-info">
+                            <h2 id="hex">#xxxxxx</h2>
+                            <h3 id="color-name">Color Name</h3>
+                            <h4 id="rgb">RGB(xxx,xxx,xxx)</h4>
+                            <h4 id="hsl">HSL(xxx,xxx,xxx)</h4>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            <div id="ui-container">
+                <!-- Each row becomes a “coolors-row” -->
+                <div class="colors-row">
+                    <div class="row-header">
+                        <h3>Complementary</h3>
+                        <button class="row-toggle" aria-expanded="true">▾</button>
+                    </div>
+
+                    <div class="row-body">
+                        <div id="comp" class="swatch-row">
+                            <div class="square-wrapper">
+                                <div id="comp1" class="square"></div>
+                                <p class="square-label">#xxxxxx</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+                <!-- Split Complementary -->
+                <div class="colors-row">
+                    <div class="row-header">
+                        <h3>Split-Complementary</h3>
+                        <button class="row-toggle" aria-expanded="true">▾</button>
+                    </div>
+
+                    <div class="row-body">
+                        <div id="split-comp" class="swatch-row">
+                            <div class="square-wrapper">
+                                <div id="split-comp1" class="square"></div>
+                                <p class="square-label">#xxxxxx</p>
+                            </div>
+                            <div class="square-wrapper">
+                                <div id="split-comp2" class="square"></div>
+                                <p class="square-label">#xxxxxx</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Triadic -->
+                <div class="colors-row">
+                    <div class="row-header">
+                        <h3>Triadic</h3>
+                        <button class="row-toggle" aria-expanded="true">▾</button>
+                    </div>
+
+                    <div class="row-body">
+                        <div id="triad" class="swatch-row">
+                            <div class="square-wrapper">
+                                <div id="triad1" class="square"></div>
+                                <p class="square-label">#xxxxxx</p>
+                            </div>
+                            <div class="square-wrapper">
+                                <div id="triad2" class="square"></div>
+                                <p class="square-label">#xxxxxx</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tetradic -->
+                <div class="colors-row">
+                    <div class="row-header">
+                        <h3>Tetradic</h3>
+                        <button class="row-toggle" aria-expanded="true">▾</button>
+                    </div>
+
+                    <div class="row-body">
+                        <div id="tetra" class="swatch-row">
+                            <div class="square-wrapper">
+                                <div id="tetra1" class="square"></div>
+                                <p class="square-label">#xxxxxx</p>
+                            </div>
+                            <div class="square-wrapper">
+                                <div id="tetra2" class="square"></div>
+                                <p class="square-label">#xxxxxx</p>
+                            </div>
+                            <div class="square-wrapper">
+                                <div id="tetra3" class="square"></div>
+                                <p class="square-label">#xxxxxx</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Double Complementary -->
+                <div class="colors-row">
+                    <div class="row-header">
+                        <h3>Double-Complementary</h3>
+                        <button class="row-toggle" aria-expanded="true">▾</button>
+                    </div>
+
+                    <div class="row-body">
+                        <div id="dcomp" class="swatch-row">
+                            <div class="square-wrapper">
+                                <div id="dcomp1" class="square"></div>
+                                <p class="square-label">#xxxxxx</p>
+                            </div>
+                            <div class="square-wrapper">
+                                <div id="dcomp2" class="square"></div>
+                                <p class="square-label">#xxxxxx</p>
+                            </div>
+                            <div class="square-wrapper">
+                                <div id="dcomp3" class="square"></div>
+                                <p class="square-label">#xxxxxx</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analogous -->
+                <div class="colors-row">
+                    <div class="row-header">
+                        <h3>Analogous</h3>
+                        <button class="row-toggle" aria-expanded="true">▾</button>
+                    </div>
+
+                    <div class="row-body">
+                        <div id="analog" class="swatch-row">
+                            <div class="square-wrapper">
+                                <div id="analog1" class="square"></div>
+                                <p class="square-label">#xxxxxx</p>
+                            </div>
+                            <div class="square-wrapper">
+                                <div id="analog2" class="square"></div>
+                                <p class="square-label">#xxxxxx</p>
+                            </div>
+                            <div class="square-wrapper">
+                                <div id="analog3" class="square"></div>
+                                <p class="square-label">#xxxxxx</p>
+                            </div>
+                            <div class="square-wrapper">
+                                <div id="analog4" class="square"></div>
+                                <p class="square-label">#xxxxxx</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Shades -->
+                <div class="colors-row">
+                    <div class="row-header">
+                        <h3>Shades</h3>
+                        <button class="row-toggle" aria-expanded="true">▾</button>
+                    </div>
+
+                    <div class="row-body">
+                        <div id="shades" class="swatch-row">
+                            <div class="square-wrapper">
+                                <div id="dark1" class="square"></div>
+                                <p class="square-label">#xxxxxx</p>
+                            </div>
+                            <div class="square-wrapper">
+                                <div id="dark2" class="square"></div>
+                                <p class="square-label">#xxxxxx</p>
+                            </div>
+                            <div class="square-wrapper">
+                                <div id="dark3" class="square"></div>
+                                <p class="square-label">#xxxxxx</p>
+                            </div>
+                            <div class="square-wrapper">
+                                <div id="dark4" class="square"></div>
+                                <p class="square-label">#xxxxxx</p>
+                            </div>
+                            <div class="square-wrapper">
+                                <div id="dark5" class="square"></div>
+                                <p class="square-label">#xxxxxx</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tints -->
+                <div class="colors-row">
+                    <div class="row-header">
+                        <h3>Tints</h3>
+                        <button class="row-toggle" aria-expanded="true">▾</button>
+                    </div>
+
+                    <div class="row-body">
+                        <div id="tints" class="swatch-row">
+                            <div class="square-wrapper">
+                                <div id="light1" class="square"></div>
+                                <p class="square-label">#xxxxxx</p>
+                            </div>
+                            <div class="square-wrapper">
+                                <div id="light2" class="square"></div>
+                                <p class="square-label">#xxxxxx</p>
+                            </div>
+                            <div class="square-wrapper">
+                                <div id="light3" class="square"></div>
+                                <p class="square-label">#xxxxxx</p>
+                            </div>
+                            <div class="square-wrapper">
+                                <div id="light4" class="square"></div>
+                                <p class="square-label">#xxxxxx</p>
+                            </div>
+                            <div class="square-wrapper">
+                                <div id="light5" class="square"></div>
+                                <p class="square-label">#xxxxxx</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tones -->
+                <div class="colors-row">
+                    <div class="row-header">
+                        <h3>Tones</h3>
+                        <button class="row-toggle" aria-expanded="true">▾</button>
+                    </div>
+
+                    <div class="row-body">
+                        <div id="tones" class="swatch-row">
+                            <div class="square-wrapper">
+                                <div id="tone1" class="square"></div>
+                                <p class="square-label">#xxxxxx</p>
+                            </div>
+                            <div class="square-wrapper">
+                                <div id="tone2" class="square"></div>
+                                <p class="square-label">#xxxxxx</p>
+                            </div>
+                            <div class="square-wrapper">
+                                <div id="tone3" class="square"></div>
+                                <p class="square-label">#xxxxxx</p>
+                            </div>
+                            <div class="square-wrapper">
+                                <div id="tone4" class="square"></div>
+                                <p class="square-label">#xxxxxx</p>
+                            </div>
+                            <div class="square-wrapper">
+                                <div id="tone5" class="square"></div>
+                                <p class="square-label">#xxxxxx</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+
+        </div>
+
+        <!-- Three.js canvas-->
+        <div id="ui-canvas">
+            <!--Text above the object-->
+            <h1 id="ui-canvas-text">
+                Layer 127
+            </h1>
+            <!-- Loading Text-->
+            <div id="loader">
+                <div class="loader-card">
+                    <div class="spinner"></div>
+                    <div id="loader-text">Loading…</div>
+                    <div id="loader-subtext"></div>
+                    <div id="loader-progress-container">
+                        <div id="loader-progress">
+                            <div id="loader-shine"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

@@ -1,0 +1,573 @@
+/* -----------------------------------------------
+Global Reset
+----------------------------------------------- */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html,
+body {
+    width: 100%;
+    height: 100vh;
+    overflow: visible;
+    font-family: "Inter", "Segoe UI", sans-serif;
+    background: #f8f8f8;
+}
+
+body {
+    display: flex;
+    flex-direction: row;
+}
+
+/* -----------------------------------------------
+Page Layout: UI (Left) and Canvas (Right)
+----------------------------------------------- */
+#ui {
+    display: flex;
+    width: 100%;
+    height: 100vh;
+}
+
+#ui-info {
+    flex: 1 1 40%;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-width: 300px;
+    border-right: 6px solid #000;
+    box-shadow: 4px 0 16px rgba(0, 0, 0, 0.08);
+}
+
+/* -----------------------------------------------
+UI Grid: Title, Description, Controls
+----------------------------------------------- */
+#ui-title {
+    width: 100%;
+    border-bottom: #000 0.7vh solid;
+    padding: 0.8rem 1rem;
+    background: #fafafa;
+}
+
+#ui-combo {
+    display: flex;
+    gap: clamp(12px, 2vw, 32px);
+    /*padding: 1rem;*/
+    width: 100%;
+}
+
+#ui-left,
+#ui-right {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow-x: auto;
+    gap: clamp(10px, 1vw, 24px);
+}
+
+#ui-right {
+    border-left: #000 0.7vh solid;
+    padding-left: 1rem;
+}
+
+#ui-container {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    gap: clamp(0.6rem, 1vw, 11.2rem);
+    padding: 1rem;
+    width: 100%;
+    border-top: #000 0.7vh solid;
+}
+
+/* -----------------------------------------------
+Toggle Switch
+----------------------------------------------- */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 26px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background-color: #ccc;
+    border-radius: 26px;
+    transition: 0.25s;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 20px;
+    width: 20px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    border-radius: 50%;
+    transition: 0.25s;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+}
+
+input:checked+.slider {
+    background-color: #4caf50;
+}
+
+input:checked+.slider:before {
+    transform: translateX(24px);
+}
+
+.dimension-info {
+    display: none;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* -----------------------------------------------
+Color Info Section
+----------------------------------------------- */
+.color-info {
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.25s ease, visibility 0s linear 0.25s;
+}
+
+.color-info.show {
+    display: flex;
+    visibility: visible;
+    opacity: 1;
+    transition: opacity 0.25s ease;
+}
+
+.circle {
+    width: clamp(80px, 12vw, 200px);
+    aspect-ratio: 1 / 1;
+    border-radius: 50%;
+    border: 0.4vw solid black;
+}
+
+#base-color {
+    display: flex;
+    align-items: center;
+    gap: clamp(10px, 1vw, 20px);
+    margin: 10px 0;
+}
+
+#base-info {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100%;
+    font-size: clamp(0.7rem, 2vw, 1.2rem);
+}
+
+#color-name {
+    /*margin-top: clamp(4px, 0.5vw, 8px);
+    font-size: clamp(0.9rem, 1.5vw, 1.3rem);
+    font-weight: 600;*/
+    font-style: italic;
+}
+
+/*
+#rgb,
+#hsl,
+#hex {
+    font-family: "Courier New", Courier, monospace;
+}*/
+/* -----------------------------------------------
+Search Box + Autocomplete
+----------------------------------------------- */
+.autocomplete-wrap {
+    position: relative;
+    width: 100%;
+}
+
+#color-search {
+    position: relative;
+    width: clamp(200px, 70%, 300px);
+}
+
+#color-text,
+#ghost-text,
+#3dtext,
+select {
+    width: 100%;
+    font-size: clamp(0.8rem, 1.2vw, 1rem);
+    padding: clamp(4px, 0.8vw, 8px);
+    border-radius: 6px;
+    border: 1px solid #d6d6d6;
+}
+
+#color-text,
+#ghost-text {
+    width: 100%;
+    font-size: clamp(0.8rem, 1.2vw, 1rem);
+    padding: clamp(4px, 0.8vw, 8px);
+    border-radius: 6px;
+    border: 1px solid #d6d6d6;
+    box-sizing: border-box;
+    font-family: inherit;
+    line-height: 1.2;
+}
+
+#color-text {
+    position: relative;
+    background: transparent;
+    z-index: 2;
+}
+
+#ghost-text {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+
+    border: 1px solid transparent;
+
+    background: transparent;
+    color: rgba(0, 0, 0, 0.35);
+
+    pointer-events: none;
+    z-index: 1;
+}
+
+
+#autocomplete {
+    position: absolute;
+    width: 100%;
+    background: white;
+    border: 1px solid #dadada;
+    border-radius: 6px;
+    left: 0;
+    top: 100%;
+    margin-top: 0;
+    display: flex;
+    flex-direction: column;
+    max-height: 250px;
+    overflow-y: auto;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    z-index: 20;
+
+    clip-path: inset(0 0 100% 0);
+    opacity: 0;
+    transition: clip-path 0.25s ease, opacity 0.25s ease;
+}
+
+#autocomplete.open {
+    clip-path: inset(0 0 0 0);
+    /* <-- fully visible */
+    opacity: 1;
+}
+
+#autocomplete .autocomplete-item {
+    display: flex;
+    align-items: center;
+    gap: clamp(6px, 0.8vw, 12px);
+    padding: clamp(6px, 1vw, 12px);
+    font-size: clamp(0.8rem, 1.1vw, 1rem);
+    cursor: pointer;
+    transition: background 0.12s ease;
+}
+
+.autocomplete-item:hover,
+.autocomplete-item.selected {
+    background: #f1f1f1;
+}
+
+#autocomplete .dropdown-item.highlighted,
+#autocomplete .dropdown-item:hover {
+    background: #f1f1f1;
+}
+
+.swatch {
+    display: inline-block;
+    flex-shrink: 0;
+    width: clamp(14px, 1.2vw, 22px);
+    height: clamp(14px, 1.2vw, 22px);
+    border-radius: 4px;
+    margin-right: 8px;
+}
+
+/* -----------------------------------------------
+Color Categories + Squares
+----------------------------------------------- */
+.colors-row {
+    --pad: clamp(0.5rem, 1vw, 1.2rem);
+    --radius: 10px;
+
+    cursor: pointer;
+    border: 1px solid #dcdcdc;
+    transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.18s ease;
+    border-radius: var(--radius);
+    /*display: flex;*/
+    display: block;
+    flex-direction: column;
+    width: 100%;
+    padding: var(--pad);
+    gap: clamp(10px, 1vw, 20px);
+}
+
+.colors-row>.row-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--pad);
+}
+
+.row-header:hover {
+    background: #eaeaea;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.colors-row>.row-body {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(clamp(36px, 6vw, 60px), 1fr));
+    gap: clamp(6px, 1vw, 16px);
+    padding: 0;
+    overflow: hidden;
+    height: auto;
+    transition: height 0.28s ease, padding 0.28s ease;
+}
+
+.colors-row:hover {
+    background: #eaeaea;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.colors-row:nth-child(odd) {
+    background: #fafafa;
+}
+
+.colors-row:nth-child(even) {
+    background: #f2f2f2;
+}
+
+.colors-row h3 {
+    font-size: clamp(0.9rem, 1.2vh, 1.3rem);
+    width: clamp(100px, 12vw, 180px);
+    text-align: left;
+    flex-shrink: 0;
+}
+
+.colors-row>div {
+    flex: 1;
+    display: flex;
+    align-items: center;
+}
+
+#comp,
+#split-comp,
+#triad,
+#tetra,
+#dcomp,
+#mono,
+#analog,
+#shades,
+#tints,
+#tones {
+    display: flex;
+    align-items: center;
+    gap: clamp(6px, 1vw, 18px);
+}
+
+/* -----------------------------------------------
+Color Squares
+----------------------------------------------- */
+.square {
+    width: clamp(24px, 3vw, 46px);
+    height: clamp(24px, 3vw, 46px);
+    flex: 0 0 clamp(28px, 4vh, 60px);
+    border-radius: clamp(4px, 0.6vh, 12px);
+    border: clamp(2px, 0.32vh, 4px) solid black;
+    transition: transform 0.15s ease;
+}
+
+.square:hover {
+    transform: scale(1.08);
+}
+
+.square-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 0;
+    font-size: clamp(0.75rem, 1vw, 1.1rem);
+}
+
+.square-wrapper p {
+    margin-top: clamp(2px, 0.3vh, 6px);
+    font-size: clamp(0.7rem, 1.2vh, 1.1rem);
+    text-align: center;
+}
+
+.swatch-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(clamp(36px, 6vw, 60px), 1fr));
+    grid-auto-rows: auto;
+    gap: clamp(6px, 1vw, 16px);
+    padding: 0;
+}
+
+/* -----------------------------------------------
+Collapsible Sections (Fully JS-Compatible)
+----------------------------------------------- */
+.colors-row:not(.collapsed)>.row-body {
+    padding-top: clamp(6px, 0.7vh, 12px);
+    padding-bottom: clamp(6px, 0.7vh, 12px);
+}
+
+.colors-row.collapsed .row-body {
+    height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+/* -----------------------------------------------
+UI Canvas: Header Info + Worker Spinner 
+----------------------------------------------- */
+#ui-canvas {
+    flex: 2 1 60%;
+    position: relative;
+    height: 100%;
+    overflow: hidden;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    background-color: #f5f5f5;
+}
+
+#ui-canvas h1 {
+    color: gray;
+    top: 10px;
+    right: 10px;
+    z-index: 10;
+    position: absolute;
+}
+#loader {
+    position: absolute;
+    inset: 0;
+    display: none; /* shown by JS */
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(12px);
+    background: rgba(0, 0, 0, 0.45);/* dark background */
+    flex-direction: column;       
+    color: white;
+    font-size: 1.1rem;
+    z-index: 9999;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+}
+.loader-card {
+    padding: 28px 40px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    transform: translateY(20px);
+    transition: transform 0.45s ease;
+}
+
+.spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid rgba(255, 255, 255, 0.2);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+    margin-bottom: 1rem;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Main message */
+#loader-text {
+    font-size: 1.3rem;
+    font-weight: 500;
+    margin-top: 5px;
+
+    animation: fadeInUp 0.4s ease;
+}
+
+/* Sub-message (optional) */
+#loader-subtext {
+    font-size: 0.95rem;
+    opacity: 0.85;
+    margin-top: 6px;
+
+    animation: fadeInUp 0.4s ease;
+}
+
+/* Premium progress bar */
+#loader-progress-container {
+    width: 240px;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    margin-top: 18px;
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+}
+
+
+#loader-progress {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(to right, #66ccff, #0099ff);
+    position: relative; /* for shine */
+    overflow: hidden;
+    border-radius: 3px;
+    transition: width 0.25s ease; /* fallback smooth */
+}
+
+#loader-shine {
+    position: absolute;
+    top: 0;
+    left: -40%;
+    width: 40%;
+    height: 100%;
+    background: linear-gradient(
+        120deg,
+        rgba(255,255,255,0) 0%,
+        rgba(255,255,255,0.3) 50%,
+        rgba(255,255,255,0) 100%
+    );
+    animation: shine 1.5s infinite;
+}
+
+@keyframes shine {
+    0% { left: -40%; }
+    100% { left: 120%; }
+}
+/* Message animation */
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Fade-in 3D canvas only when ready */
+#ui-canvas canvas {
+    opacity: 0;
+    transition: opacity 0.25s ease;
+}
