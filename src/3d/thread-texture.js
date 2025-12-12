@@ -1,4 +1,4 @@
-import { hslToRgb, colorMap, computeColor } from "./color-utils.js";
+import { hslToRgb, colorMap, computeColor } from "../color-utils.js";
 // returns texture data for RGB and HSL color spaces
 
 // 
