@@ -66,10 +66,18 @@ export class LoaderManager {
         if (!this._layerStartTimes[currentLayer]) this._layerStartTimes[currentLayer] = now;
 
         const elapsed = now - this._layerStartTimes[currentLayer]; // ms
-        const estTotal = layerProgress > 0 ? elapsed / layerProgress : 0; // total time for this layer
-        const remaining = estTotal - elapsed;
+
+        const minPixelsForETA = 5; // small threshold to avoid 0s
+        let etaSeconds = "...";
+        if (layerProgress > 0 && loadedLayers >= minPixelsForETA) {
+            const estTotal = elapsed / layerProgress; // estimated total time for this layer
+            const remaining = estTotal - elapsed;
+            console.log(estTotal, remaining);
+            etaSeconds = Math.max(0, Math.round(remaining / 1000));
+        } 
         const percent = Math.round(layerProgress * 100);
-        const message = `Preloading Layers (${loadedLayers} / ${totalLayers}) - Layer ${currentLayer} (${percent}%) - ETA: ${Math.round(remaining / 1000)}s`;
+        const message = `Preloading Layers (${loadedLayers} / ${totalLayers}) - Layer ${currentLayer} (${percent}%) - ETA: ${etaSeconds}${etaSeconds !== "..." ? "s" : ""}`;
+
         this.setSubmessage(message);
         this.updateProgress(totalProgress);
     }
