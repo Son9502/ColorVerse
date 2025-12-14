@@ -77,76 +77,98 @@ export function computeColor(x, y, layer, faceMap, colorSpace, size) {
     return { h, s, l };
   }
 }
-// Shader material generators for RGB and HSL for the mini sphere
-export function makeRGBMat({ poleBlend = 0.15, tintStrength = 1.0, lineStrength = 0.2 } = {}) {
+// Shader material generators for RGB and HSL for the mini 3d objects
+export function makeRGBMat({ shininess = 30, specular = 0.5, snapStrength = 0.6 } = {}) {
   return new THREE.ShaderMaterial({
     uniforms: {
-      poleBlend: { value: poleBlend },
-      tintStrength: { value: tintStrength },
-      lineStrength: { value: lineStrength }
+      snapStrength: { value: snapStrength },
+      shininess: { value: shininess },
+      specular: { value: specular },
+      lightDir: { value: new THREE.Vector3(1, 1, 1).normalize() },
     },
     vertexShader: `
+      varying vec3 vNormal;
       varying vec3 vPos;
       void main() {
+        vNormal = normalize(normalMatrix * normal);
         vPos = position;
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
       }
     `,
     fragmentShader: `
-      uniform float poleBlend;
-      uniform float tintStrength;
-      uniform float lineStrength;
+      precision highp float;
+      
+      uniform vec3 lightDir;
+      uniform float shininess;  
+      uniform float specular;
+      uniform float snapStrength;
+
+      varying vec3 vNormal;
       varying vec3 vPos;
       void main() {
-        vec3 vNormal = normalize(vPos);
+        vec3 n = normalize(vNormal);
+        vec3 pos = vPos;
 
-        // Tints based on normal direction
-        vec3 color = mix(vec3(0.2,0,0), vec3(1,0.2,0.2),max(0.0, vNormal.x)) +
-                     mix(vec3(0,0.2,0), vec3(0.2,1,0.2),max(0.0, vNormal.y)) +
-                     mix(vec3(0,0,0.2), vec3(0.2,0.2,1),max(0.0, vNormal.z));
-        
-        color *= tintStrength;
-        
-        // Axis lines
-        float line = (1.0 - smoothstep(0.0, poleBlend, abs(vNormal.x))) +
-                      (1.0 - smoothstep(0.0, poleBlend, abs(vNormal.y))) +
-                      (1.0 - smoothstep(0.0, poleBlend, abs(vNormal.z)));
-        color = mix(color, vec3(1.0), line * lineStrength);
+        // RGB based on normal
+        vec3 color = clamp((pos + 1.0) * 0.5, 0.0, 1.0);
 
-        // Pole blending
-        float north = smoothstep(0.7, 1.0, vNormal.y);
-        float south = smoothstep(-1.0, -0.7, vNormal.y);
-        color = mix(color, vec3(1.0), north * poleBlend);
-        color = mix(color, vec3(0.0), south * poleBlend);
+        // -----------------------------
+        // Snap point glow (8 points)
+        // -----------------------------
+        float snap =
+          exp(-35.0 * distance(n, vec3( 1, 0, 0))) +
+          exp(-35.0 * distance(n, vec3(-1, 0, 0))) +
+          exp(-35.0 * distance(n, vec3( 0, 0, 1))) +
+          exp(-35.0 * distance(n, vec3( 0, 0,-1))) +
+          exp(-35.0 * distance(n, vec3( 0, 1, 0))) +
+          exp(-35.0 * distance(n, vec3( 0,-1, 0)));
+
+        color += snap * snapStrength;
+
+        // Blinn-Phong Specular highlight
+        vec3 L = normalize(lightDir);
+        vec3 V = normalize(-pos);
+        vec3 H = normalize(L + V);
+        float NdotH = max(dot(n, H), 0.0);
+        float spec = pow(NdotH, shininess) * specular;
+        color += spec;
 
         gl_FragColor = vec4(color, 1.0);
       }
     `
   });
 }
-export function makeHSLMat({ poleBlend = 1.0, hueRing = 0.2 } = {}) {
+export function makeHSLMat({ shininess = 30, specular = 0.5, snapStrength = 0.6 } = {}) {
   return new THREE.ShaderMaterial({
     uniforms: {
-      poleBlend: { value: poleBlend },
-      hueRing: { value: hueRing }
+      snapStrength: { value: snapStrength },
+      shininess: { value: shininess },
+      specular: { value: specular },
+      lightDir: { value: new THREE.Vector3(1, 1, 1).normalize() },
     },
     vertexShader: `
       varying vec3 vPos;
+      varying vec3 vNormal;
       void main() {
+        vNormal = normalize(normalMatrix * normal);
         vPos = position;
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
       }
     `,
     fragmentShader: `
-      uniform float poleBlend;
-      uniform float hueRing;
+      precision highp float;
+
+      uniform float shininess;  
+      uniform float specular;
+      uniform float snapStrength;
+      uniform vec3 lightDir;
+      
+      varying vec3 vNormal;
       varying vec3 vPos;
 
-      vec3 hsl2rgb(float h, float s, float l) {
-        float r, g, b; 
-        float q = l < 0.5 ? l * (1.0 + s) : l + s - l * s;
-        float p = 2.0 * l - q;
-        float hue2rgb(float p, float q, float t) {
+      const float PI = 3.14159265;
+
+      float hue2rgb(float p, float q, float t) {
           if(t < 0.0) t += 1.0;
           if(t > 1.0) t -= 1.0;
           if(t < 1.0/6.0) return p + (q - p) * 6.0 * t;
@@ -154,35 +176,52 @@ export function makeHSLMat({ poleBlend = 1.0, hueRing = 0.2 } = {}) {
           if(t < 2.0/3.0) return p + (q - p) * (2.0/3.0 - t) * 6.0;
           return p;
       }
-      r = hue2rgb(p, q, h + 1.0/3.0);
-      g = hue2rgb(p, q, h);
-      b = hue2rgb(p, q, h - 1.0/3.0);
-      return vec3(r, g, b);
-    }
-    void main() {
-      vec3 vNormal = normalize(vPos);
+      vec3 hsl2rgb(float h, float s, float l) {
+        float r, g, b; 
+        float q = l < 0.5 ? l * (1.0 + s) : l + s - l * s;
+        float p = 2.0 * l - q;
+        
+        r = hue2rgb(p, q, h + 1.0/3.0);
+        g = hue2rgb(p, q, h);
+        b = hue2rgb(p, q, h - 1.0/3.0);
+        return vec3(r, g, b);
+      }
+      void main() {
+        vec3 n = normalize(vNormal);
+        vec3 pos = vPos;
+        
 
-      // Compute HSL based on normal
-      float h = fract(atan(vNormal.y, vNormal.x) / (2.0 * 3.14159265));
-      float s = length(vNormal.xy);
-      float l = (vNormal.z + 1.0) / 2.0;
+        // Compute HSL (angle for H, radius for S, Y for L)
+        float radius = length(pos.xz);
+        float h = fract(atan(pos.z, pos.x) / (2.0 * PI));
+        float s = clamp(radius, 0.0, 1.0); 
+        float l = clamp(pos.y * 0.5 + 0.5, 0.05, 0.95);
+         
+        // Base Lightness color
+        vec3 color = hsl2rgb(h, s, l);
+        
+        // -----------------------------
+        // Snap point glow (8 points)
+        // -----------------------------
+        float snap =
+          exp(-35.0 * distance(n, vec3( 1, 0, 0))) +
+          exp(-35.0 * distance(n, vec3(-1, 0, 0))) +
+          exp(-35.0 * distance(n, vec3( 0, 0, 1))) +
+          exp(-35.0 * distance(n, vec3( 0, 0,-1))) +
+          exp(-35.0 * distance(n, vec3( 0, 1, 0))) +
+          exp(-35.0 * distance(n, vec3( 0,-1, 0)));
 
-      // Apply hue ring effect
-      vec3 color = hsl2rgb(h, 1, 0.5);
-      color = mix(vec3(l), color, s);
+        color += snap * snapStrength;
 
-      // Achromatic component
-      float core = 1.0 - s;
-      color = mix(color, vec3(l), core);
+        // Blinn-Phong Specular highlight
+        vec3 L = normalize(lightDir);
+        vec3 V = normalize(-pos);
+        vec3 H = normalize(L + V);
+        float NdotH = max(dot(n, H), 0.0);
+        float spec = pow(NdotH, shininess) * specular;
+        color += spec;
 
-      // Pole blending
-      float north = smoothstep(0.7, 1.0, vNormal.z);
-      float south = smoothstep(-1.0, -0.7, vNormal.z);
-      color = mix(color, vec3(1.0), north * poleBlend);
-      color = mix(color, vec3(0.0), south * poleBlend);
-
-      gl_FragColor = vec4(color, 1.0);
-    }
-    `
+        gl_FragColor = vec4(color, 1.0);
+      }`
   });
 }

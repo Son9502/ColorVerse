@@ -9,5 +9,5 @@ document.addEventListener('DOMContentLoaded', () => {
 setupToggle();
 setupDimensionDropdown();
 setupDropdown();
-switchVisualization("cube");
-//switchVisualization("sphere");
+//switchVisualization("cube");
+switchVisualization("sphere");
