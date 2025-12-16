@@ -1,4 +1,4 @@
-import { cubeCanvases, sphereCanvases } from "./thread-texture.js";
+import { rgbCanvas, hslCanvas } from "./thread-texture.js";
 
 /**
  * LRU (Least Recently Used) Cache
@@ -292,12 +292,16 @@ export class LRUCache {
     switch (this.type) {
       case "cube":
         total = size * size * 6;
-        ({ canvases, textureData } = cubeCanvases(layer, colorSpace, sendProgress));
         break;
       case "sphere":
         total = size * size;
-        ({ canvases, textureData } = sphereCanvases(layer, colorSpace, sendProgress));
         break;
+    }
+    if (colorSpace == "RGB") {
+      ({ canvases, textureData } = rgbCanvas(layer, this.type, sendProgress));
+    }
+    else {
+      ({ canvases, textureData } = hslCanvas(layer, this.type, sendProgress));
     }
     const textures = canvases.map(canvas => {
       const tex = new THREE.CanvasTexture(canvas);
