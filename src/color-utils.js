@@ -1,3 +1,4 @@
+import {clamp} from './utils.js';
 // Color conversion and mapping utilities
 export function hslToRgb(h, s, l) {
   h = h % 360;
@@ -18,38 +19,34 @@ export function hslToRgb(h, s, l) {
   else if (5 <= hp && hp < 6) [r, g, b] = [c, 0, x];
 
   const m = l - c / 2;
+
+  let rLin = r + m;
+  let gLin = g + m;
+  let bLin = b + m;
+
   return {
-    r: Math.round((r + m) * 255),
-    g: Math.round((g + m) * 255),
-    b: Math.round((b + m) * 255)
+    r: rLin,
+    g: gLin,
+    b: bLin
   };
 }
-/**
- * Cube face mapping for RGB/HSL
- */
-export function colorMap(colorSpace) {
-  if (colorSpace === 'RGB') {
-    return [
-      { x: { channel: "r", start: 0 }, y: { channel: "g", start: 1 }, fixed: { channel: "b", value: 0 } },
-      { x: { channel: "b", start: 0 }, y: { channel: "g", start: 1 }, fixed: { channel: "r", value: 1 } },
-      { x: { channel: "r", start: 1 }, y: { channel: "g", start: 1 }, fixed: { channel: "b", value: 1 } },
-      { x: { channel: "b", start: 1 }, y: { channel: "g", start: 1 }, fixed: { channel: "r", value: 0 } },
-      { x: { channel: "r", start: 0 }, y: { channel: "b", start: 1 }, fixed: { channel: "g", value: 1 } },
-      { x: { channel: "r", start: 0 }, y: { channel: "b", start: 0 }, fixed: { channel: "g", value: 0 } },
-    ];
-  } else {
-    return [
-      { x: { channel: "h", start: 0 }, y: { channel: "s", start: 1 }, fixed: { channel: "l", value: 0 } },
-      { x: { channel: "l", start: 0 }, y: { channel: "s", start: 1 }, fixed: { channel: "h", value: 1 } },
-      { x: { channel: "h", start: 1 }, y: { channel: "s", start: 1 }, fixed: { channel: "l", value: 1 } },
-      { x: { channel: "l", start: 1 }, y: { channel: "s", start: 1 }, fixed: { channel: "h", value: 0 } },
-      { x: { channel: "h", start: 0 }, y: { channel: "l", start: 1 }, fixed: { channel: "s", value: 1 } },
-      { x: { channel: "h", start: 0 }, y: { channel: "l", start: 0 }, fixed: { channel: "s", value: 0 } },
-    ];
-  }
+// Gamma correction from linear to sRGB (Expect 0-1 input -> 0-255 output)
+export function linearToSRGB(c) {
+  let s;
+  s = c <= 0.0031308
+    ? 12.92 * c
+    : 1.055 * Math.pow(c, 1 / 2.4) - 0.055;
+  return Math.round(clamp(s, 0, 1) * 255);
+}
+// Gamma correction from sRGB to linear (Expect 0-255 input -> 0-1 output)
+export function SRGBtoLinear(s) {
+  let c = s / 255;
+  return c <= 0.04045
+    ? c / 12.92
+    : Math.pow((c + 0.055) / 1.055, 2.4);
 }
 // Compute color for given x, y, layer, faceMap, colorSpace, and size
-export function computeColor(x, y, layer, faceMap, colorSpace, size) {
+export function computeCubeColor(x, y, layer, faceMap, colorSpace, size) {
   const cx = x / (size - 1);
   const cy = y / (size - 1);
 
@@ -60,21 +57,118 @@ export function computeColor(x, y, layer, faceMap, colorSpace, size) {
       case 'g': g = faceMap.fixed.value; r = cx; b = cy; break;
       case 'b': b = faceMap.fixed.value; r = cx; g = cy; break;
     }
-    r = layer + Math.round(r * (size - 1));
-    g = layer + Math.round(g * (size - 1));
-    b = layer + Math.round(b * (size - 1));
-    return { r, g, b };
+    // Adjust based on layer 
+    const rLin = clamp((layer + r * (size - 1)) / 255, 0, 1);
+    const gLin = clamp((layer + g * (size - 1)) / 255, 0, 1);
+    const bLin = clamp((layer + b * (size - 1)) / 255, 0, 1);
+    
+    // Values returned are in linear space [0,1]
+    return {
+      r: rLin,
+      g: gLin,
+      b: bLin
+    };
   } else {
     let h, s, l;
-    switch (faceMap.fixed.channel) {
-      case 'h': h = faceMap.fixed.value; s = cy; l = cx; break;
-      case 's': s = faceMap.fixed.value; h = cx; l = cy; break;
-      case 'l': l = faceMap.fixed.value; h = cx; s = cy; break;
+
+    const t = layer / 127;
+
+    const u = x / (size - 1);
+    const v = y / (size - 1);
+
+    const center = (size - 1) / 2;
+
+    // Hue evaluation
+    if (faceMap.loop) {
+      const dx = x - center;
+      const dy = y - center;
+      let angle = Math.atan2(dy, dx);
+      if (angle < 0) angle += 2 * Math.PI;
+      h = angle / (2 * Math.PI);
     }
-    h = Math.min(360, Math.max(0, (layer / 255) * 360 + (h * (size - 1) / 255) * 360));
-    s = Math.min(100, Math.max(0, (layer / 255) * 100 + (s * (size - 1) / 255) * 100));
-    l = Math.min(100, Math.max(0, (layer / 255) * 100 + (l * (size - 1) / 255) * 100));
-    return { h, s, l };
+    else {
+      const shrink = t * 45;
+      const h_min = faceMap.x.start * 90 + shrink;
+      const h_max = (faceMap.x.start + 1) * 90 - shrink;
+      h = (h_min + u * (h_max - h_min)) / 360;
+    }
+
+    // Saturation evaluation
+    const maxR = Math.sqrt(2) * (size - 1) / 2;
+    const radius = Math.sqrt(Math.pow(x - center, 2) + Math.pow(y - center, 2)) / maxR;
+    s = ((127 - layer) / 127) * (0.7 + 0.3 * Math.min(radius, 1));
+
+    // Lightness evaluation
+    const L_min = 0.5 * t;
+    const L_max = 1 - (0.5 * t);
+    // Top and Bottom faces have inverted Lightness
+    l = faceMap.loop ? (faceMap.y_start === 0 ? L_max : L_min) : L_min + v * (L_max - L_min);
+
+    return hslToRgb(h * 360, s * 100, l * 100);
+  }
+
+}
+
+export function computeSphereColor(x, y, layer, colorSpace, size) {
+  // Normalize x and y to [-1, 1]
+  const nx = (x + 0.5) / size * 2 - 1;
+  const ny = (y + 0.5) / size * 2 - 1;
+
+  // Compute z based on sphere equation
+  const r = Math.sqrt(nx * nx + ny * ny);
+  if (r > 1) {
+    return { r: 0, g: 0, b: 0 };
+  }
+  const nz = Math.sqrt(1 - r * r);
+
+  // Normalize the vector
+  const length = Math.sqrt(nx * nx + ny * ny + nz * nz);
+  const dx = nx / length;
+  const dy = ny / length;
+  const dz = nz / length;
+  if (colorSpace === 'RGB') {
+    // Map to RGB values
+    const mini = layer;
+    const maxi = 255 - layer;
+    const center = (mini + maxi) / 2;
+    const halfRange = (maxi - mini) / 2;
+
+    // Find the scaling factor to fit within the RGB cube
+    const tx = dx !== 0 ? halfRange / Math.abs(dx) : Infinity;
+    const ty = dy !== 0 ? halfRange / Math.abs(dy) : Infinity;
+    const tz = dz !== 0 ? halfRange / Math.abs(dz) : Infinity;
+
+    const t = Math.min(tx, ty, tz);
+
+    // Linear RGB in [0,1] space
+    let rLin = clamp((center + dx * t) / 255, 0, 1);
+    let gLin = clamp((center + dy * t) / 255, 0, 1);
+    let bLin = clamp((center + dz * t) / 255, 0, 1);
+
+    return { r: rLin, g: gLin, b: bLin };
+  } else {
+    // Compute HSL values
+
+    // Angluar for Hue
+    let h = Math.atan2(dz, dx) / (2 * Math.PI);
+    if (h < 0) h += 1;
+
+    // Radius for Saturation
+    let s = Math.sqrt(dx * dx + dz * dz);
+
+    // Y for Lightness
+    let l = (dy + 1) / 2;
+
+    // Clamp and scale
+    const t = layer / 127;
+    const mini = t * 0.5;
+    const maxi = 1 - (t * 0.5);
+
+    s = clamp(s, mini, maxi);
+    l = clamp(l, mini, maxi);
+
+    return hslToRgb(h * 360, s * 100, l * 100);
+
   }
 }
 // Shader material generators for RGB and HSL for the mini 3d objects
@@ -138,6 +232,7 @@ export function makeRGBMat({ shininess = 30, specular = 0.5, snapStrength = 0.6 
     `
   });
 }
+
 export function makeHSLMat({ shininess = 30, specular = 0.5, snapStrength = 0.6 } = {}) {
   return new THREE.ShaderMaterial({
     uniforms: {
