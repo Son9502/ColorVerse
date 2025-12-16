@@ -58,8 +58,12 @@ export class MainCube {
         for (let i = 0; i < 6; i++) {
             const geometry = new THREE.PlaneGeometry(this.size, this.size);
 
+            const texture = entry.textures[i];
+            texture.colorSpace = THREE.SRGBColorSpace; // Ensure correct color space
+            texture.needsUpdate = true;
+
             const material = new THREE.MeshBasicMaterial({
-                map: entry.textures[i],
+                map: texture,
                 side: THREE.DoubleSide
             });
 
@@ -100,8 +104,11 @@ export class MainCube {
         this.cubeSides.forEach((side, i) => {
             // Replace Texture 
             if (side.plane.material.map) side.plane.material.map.dispose();
-
-            side.plane.material.map = entry.textures[i];
+            
+            const texture = entry.textures[i];
+            texture.colorSpace = THREE.SRGBColorSpace; // Ensure correct color space
+            texture.needsUpdate = true;
+            side.plane.material.map = texture;
             side.plane.material.map.needsUpdate = true;
             side.plane.material.userData.originalCanvas = entry.textures[i].userData.originalCanvas;
             // Reset Geometry
@@ -221,11 +228,4 @@ export class MainCube {
         };
         animateReset();
     }
-    // --------------------------
-    // Optional: external controls
-    // --------------------------
-    /*
-    setupControls(previewCube) {
-        this.previewCube = previewCube;
-    }*/
 }

@@ -19,18 +19,23 @@ export class PreviewCube {
         this.mainCube = null;
     }
 
-    async createPreview(scene, layer, colorSpace = "RGB", toggle = false) {
+    async createPreview(scene, layer, colorSpace = "RGB") {
         this.scene = scene;
         if (this.object) this.removePreview();
-        
+
         const nextSpace = toggle ? (colorSpace === "RGB" ? "HSL" : "RGB") : colorSpace;
         const entry = await this.textureCache.get(nextSpace, layer);
 
         const group = new THREE.Group();
         for (let i = 0; i < 6; i++) {
             const geometry = new THREE.PlaneGeometry(this.size * this.scale, this.size * this.scale);
+
+            const texture = entry.textures[i];
+            texture.colorSpace = THREE.SRGBColorSpace; // Ensure correct color space
+            texture.needsUpdate = true;
+
             const material = new THREE.MeshBasicMaterial({
-                map: entry.textures[i],
+                map: texture,
                 side: THREE.DoubleSide,
                 transparent: true,
                 opacity: this.opacity
@@ -53,13 +58,23 @@ export class PreviewCube {
 
     removePreview() {
         if (!this.object || !this.scene) return;
+
         this.scene.remove(this.object);
+
         this.object.traverse(obj => {
             if (obj.geometry) obj.geometry.dispose();
-            if (obj.material) obj.material.dispose();
+            if (obj.material) {
+                if (obj.material.map) {
+                    // DO NOT dispose cached textures
+                    obj.material.map = null;
+                }
+                obj.material.dispose();
+            }
         });
+
         this.object = null;
     }
+
 
     // Automatically sync position and rotation from MainCube
     syncRotation() {
