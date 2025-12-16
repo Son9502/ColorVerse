@@ -4,7 +4,7 @@ import { clamp } from "../utils.js";
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.166.0/build/three.module.js';
 
 // returns texture data for RGB and HSL color spaces
-function rgbCanvas(layer, type, onProgress, shininess = 15, specular = 0.5) {
+function rgbCanvas(layer, type, onProgress) {
   //console.log("Cube Canvases called:", layer, colorSpace);
   const size = 256 - (layer * 2);
   let faceMap = [];
@@ -12,12 +12,8 @@ function rgbCanvas(layer, type, onProgress, shininess = 15, specular = 0.5) {
   const canvases = [];
   const textureData = [];
 
-  const lightDir = new THREE.Vector3(0.4, 0.6, 1).normalize();
-  const V = new THREE.Vector3(0, 0, 1);
-  const H = lightDir.clone().add(V).normalize();
-
   switch (type) {
-    case "cube":
+    case "cube": {
       faceMap = [
         { x: { channel: "r", start: 0 }, y: { channel: "g", start: 1 }, fixed: { channel: "b", value: 0 } },
         { x: { channel: "b", start: 0 }, y: { channel: "g", start: 1 }, fixed: { channel: "r", value: 1 } },
@@ -56,36 +52,11 @@ function rgbCanvas(layer, type, onProgress, shininess = 15, specular = 0.5) {
             faceColors[yIndex][xIndex] = color;
 
             const idx = (yIndex * size + xIndex) * 4;
-            // Compute base RGB values
-            let r, g, b;
-            r = color.r;
-            g = color.g;
-            b = color.b;
 
-            // Compure normal for lighting
-            const nx = (2 * (xIndex / (size - 1))) - 1;
-            const ny = (2 * (yIndex / (size - 1))) - 1;
-            let nz = 1 - Math.abs(nx) - Math.abs(ny);
-            if (nz < 0) nz = 0;
-            const N = new THREE.Vector3(nx, ny, nz).normalize();
-
-            // Compute lighting
-            const NdotH = Math.max(N.dot(H), 0);
-            const spec = Math.pow(NdotH, shininess) * specular * 255;
-
-            //Gamma correction to linear space
-            let rLin = Math.min(color.r + spec, 1);
-            let gLin = Math.min(color.g + spec, 1);
-            let bLin = Math.min(color.b + spec, 1);
-
-            r = linearToSRGB(rLin);
-            g = linearToSRGB(gLin);
-            b = linearToSRGB(bLin);
-
-            // Apply lighting to base color
-            cubeImg.data[idx] = r;
-            cubeImg.data[idx + 1] = g;
-            cubeImg.data[idx + 2] = b;
+            // Apply gamma correction to linear RGB values
+            cubeImg.data[idx] = linearToSRGB(color.r);
+            cubeImg.data[idx + 1] = linearToSRGB(color.g);
+            cubeImg.data[idx + 2] = linearToSRGB(color.b);
             cubeImg.data[idx + 3] = 255;
           }
         }
@@ -94,12 +65,14 @@ function rgbCanvas(layer, type, onProgress, shininess = 15, specular = 0.5) {
         textureData.push(faceColors);
       }
       break;
-    case "sphere":
+    }
+    case "sphere": {
       const sphereCanvas = new OffscreenCanvas(size, size);
       const sphereCtx = sphereCanvas.getContext("2d", { willReadFrequently: true });
       const sphereImg = sphereCtx.createImageData(size, size);
       const sphereColors = Array.from({ length: size }, () => new Array(size));
 
+      let nonZero = 0;
       for (let y = 0; y < size; y++) {
         for (let x = 0; x < size; x++) {
           onProgress?.();
@@ -107,44 +80,28 @@ function rgbCanvas(layer, type, onProgress, shininess = 15, specular = 0.5) {
           const color = computeSphereColor(x, y, layer, "RGB", size);
           sphereColors[y][x] = color;
 
-          // Sphere normals 
-          const nx = (2 * (x / (size - 1))) - 1;
-          const ny = 1 - (2 * (y / (size - 1)));
-          const rLen = Math.sqrt(nx * nx + ny * ny);
-          if (rLen > 1) {
-            // Outside sphere
-            color.r = color.g = color.b = 0;
-          } else {
-            // On sphere
-            const nz = Math.sqrt(1 - rLen * rLen);
-            const N = new THREE.Vector3(nx, ny, nz).normalize();
-
-            // Compute lighting
-            const NdotH = Math.max(N.dot(H), 0);
-            const spec = Math.pow(NdotH, shininess) * specular * 255;
-
-            color.r = Math.min(color.r + spec, 1);
-            color.g = Math.min(color.g + spec, 1);
-            color.b = Math.min(color.b + spec, 1);
-          }
-
           const idx = (y * size + x) * 4;
           sphereImg.data[idx] = linearToSRGB(color.r);
           sphereImg.data[idx + 1] = linearToSRGB(color.g);
           sphereImg.data[idx + 2] = linearToSRGB(color.b);
           sphereImg.data[idx + 3] = 255;
+          //if (color.r !== 0 || color.g !== 0 || color.b !== 0) nonZero++;
         }
       }
+      //console.log(sphereImg.data)
+      //console.log(`Sphere RGB layer ${layer} non-zero pixels: ${nonZero} / ${size * size}`);
       sphereCtx.putImageData(sphereImg, 0, 0);
       canvases.push(sphereCanvas);
       textureData.push(sphereColors);
+
       break;
+    }
     default:
       throw new Error(`Unknown type: ${type}`);
   }
   return { canvases, textureData };
 }
-function hslCanvas(layer, type, onProgress, shininess = 15, specular = 0.5) {
+function hslCanvas(layer, type, onProgress) {
 
   const size = 256 - (layer * 2);
 
@@ -152,12 +109,8 @@ function hslCanvas(layer, type, onProgress, shininess = 15, specular = 0.5) {
   const textureData = [];
   let faceMap = [];
 
-  const lightDir = new THREE.Vector3(0.4, 0.6, 1).normalize();
-  const V = new THREE.Vector3(0, 0, 1);
-  const H = lightDir.clone().add(V).normalize();
-
   switch (type) {
-    case "cube":
+    case "cube": {
       faceMap = [
         { x_start: 0, y_start: 0, loop: false }, // Front
         { x_start: 1, y_start: 0, loop: false }, // Right
@@ -174,7 +127,6 @@ function hslCanvas(layer, type, onProgress, shininess = 15, specular = 0.5) {
         const cubeImg = cubeCtx.createImageData(size, size);
 
         const faceColors = Array.from({ length: size }, () => new Array(size));
-
         for (let y = size - 1; y >= 0; y--) {
           //let xIndex = 0;
           for (let x = 0; x < size; x++) {
@@ -185,51 +137,27 @@ function hslCanvas(layer, type, onProgress, shininess = 15, specular = 0.5) {
             faceColors[y][x] = color;
 
             const idx = (y * size + x) * 4;
-            // Compute base RGB values
-            let r, g, b;
-            r = color.r;
-            g = color.g;
-            b = color.b;
-
-            // Compure normal for lighting
-            const nx = (2 * (x / (size - 1))) - 1;
-            const ny = (2 * (y / (size - 1))) - 1;
-            let nz = 1 - Math.abs(nx) - Math.abs(ny);
-            if (nz < 0) nz = 0;
-            const N = new THREE.Vector3(nx, ny, nz).normalize();
-
-            // Compute lighting
-            const NdotH = Math.max(N.dot(H), 0);
-            const spec = Math.pow(NdotH, shininess) * specular * 255;
-
-            //Gamma correction to linear space
-            let rLin = Math.min(color.r + spec, 1);
-            let gLin = Math.min(color.g + spec, 1);
-            let bLin = Math.min(color.b + spec, 1);
-
-            r = linearToSRGB(rLin);
-            g = linearToSRGB(gLin);
-            b = linearToSRGB(bLin);
-
-            // Apply lighting to base color
-            cubeImg.data[idx] = r;
-            cubeImg.data[idx + 1] = g;
-            cubeImg.data[idx + 2] = b;
+            
+            // Apply gamma correction to linear RGB values
+            cubeImg.data[idx] = linearToSRGB(color.r);
+            cubeImg.data[idx + 1] = linearToSRGB(color.g);
+            cubeImg.data[idx + 2] = linearToSRGB(color.b);
             cubeImg.data[idx + 3] = 255;
+
           }
         }
-
         cubeCtx.putImageData(cubeImg, 0, 0);
         canvases.push(cubeCanvas);
         textureData.push(faceColors);
       }
       break;
-    case "sphere":
+    }
+    case "sphere": {
       const sphereCanvas = new OffscreenCanvas(size, size);
       const sphereCtx = sphereCanvas.getContext("2d", { willReadFrequently: true });
       const sphereImg = sphereCtx.createImageData(size, size);
       const sphereColors = Array.from({ length: size }, () => new Array(size));
-
+      let nonZero = 0;
       for (let y = 0; y < size; y++) {
         for (let x = 0; x < size; x++) {
           onProgress?.();
@@ -237,38 +165,24 @@ function hslCanvas(layer, type, onProgress, shininess = 15, specular = 0.5) {
           const color = computeSphereColor(x, y, layer, "HSL", size);
           sphereColors[y][x] = color;
 
-          // Sphere normals 
-          const nx = (2 * (x / (size - 1))) - 1;
-          const ny = 1 - (2 * (y / (size - 1)));
-          const rLen = Math.sqrt(nx * nx + ny * ny);
-          if (rLen > 1) {
-            // Outside sphere
-            color.r = color.g = color.b = 0;
-          } else {
-            // On sphere
-            const nz = Math.sqrt(1 - rLen * rLen);
-            const N = new THREE.Vector3(nx, ny, nz).normalize();
+          //console.log(linearToSRGB(color.r),linearToSRGB(color.g),linearToSRGB(color.b));
 
-            // Compute lighting
-            const NdotH = Math.max(N.dot(H), 0);
-            const spec = Math.pow(NdotH, shininess) * specular * 255;
+          const idx = (y * size + x) * 4
 
-            color.r = Math.min(color.r + spec, 1);
-            color.g = Math.min(color.g + spec, 1);
-            color.b = Math.min(color.b + spec, 1);
-          }
-
-          const idx = (y * size + x) * 4;
+          // Apply gamma correction to linear RGB values
           sphereImg.data[idx] = linearToSRGB(color.r);
           sphereImg.data[idx + 1] = linearToSRGB(color.g);
           sphereImg.data[idx + 2] = linearToSRGB(color.b);
           sphereImg.data[idx + 3] = 255;
+          //if (color.r !== 0 || color.g !== 0 || color.b !== 0) nonZero++;
         }
       }
       sphereCtx.putImageData(sphereImg, 0, 0);
       canvases.push(sphereCanvas);
       textureData.push(sphereColors);
+      //console.log(`Sphere HSL layer ${layer} non-zero pixels: ${nonZero} / ${size * size}`);
       break;
+    }
     default:
       throw new Error(`Unknown type: ${type}`);
   }

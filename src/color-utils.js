@@ -47,20 +47,27 @@ export function SRGBtoLinear(s) {
 }
 // Compute color for given x, y, layer, faceMap, colorSpace, and size
 export function computeCubeColor(x, y, layer, faceMap, colorSpace, size) {
-  const cx = x / (size - 1);
-  const cy = y / (size - 1);
+  const t = layer / 127;
+  const u = x / (size - 1);
+  const v = y / (size - 1);
 
   if (colorSpace === 'RGB') {
     let r, g, b;
     switch (faceMap.fixed.channel) {
-      case 'r': r = faceMap.fixed.value; g = cy; b = cx; break;
-      case 'g': g = faceMap.fixed.value; r = cx; b = cy; break;
-      case 'b': b = faceMap.fixed.value; r = cx; g = cy; break;
+      case 'r': r = faceMap.fixed.value; g = v; b = u; break;
+      case 'g': g = faceMap.fixed.value; r = u; b = v; break;
+      case 'b': b = faceMap.fixed.value; r = u; g = v; break;
     }
     // Adjust based on layer 
-    const rLin = clamp((layer + r * (size - 1)) / 255, 0, 1);
-    const gLin = clamp((layer + g * (size - 1)) / 255, 0, 1);
-    const bLin = clamp((layer + b * (size - 1)) / 255, 0, 1);
+    const mini = layer;;
+    const maxi = 255 - layer;
+
+    r = mini + r * (maxi - mini) / 255;
+    g = mini + g * (maxi - mini) / 255;
+    b = mini + b * (maxi - mini) / 255;
+    const rLin = clamp(r, 0, 1);
+    const gLin = clamp(g, 0, 1);
+    const bLin = clamp(b, 0, 1);
     
     // Values returned are in linear space [0,1]
     return {
@@ -70,11 +77,6 @@ export function computeCubeColor(x, y, layer, faceMap, colorSpace, size) {
     };
   } else {
     let h, s, l;
-
-    const t = layer / 127;
-
-    const u = x / (size - 1);
-    const v = y / (size - 1);
 
     const center = (size - 1) / 2;
 
@@ -88,21 +90,21 @@ export function computeCubeColor(x, y, layer, faceMap, colorSpace, size) {
     }
     else {
       const shrink = t * 45;
-      const h_min = faceMap.x.start * 90 + shrink;
-      const h_max = (faceMap.x.start + 1) * 90 - shrink;
+      const h_min = faceMap.x_start * 90 + shrink;
+      const h_max = (faceMap.x_start + 1) * 90 - shrink;
       h = (h_min + u * (h_max - h_min)) / 360;
     }
 
     // Saturation evaluation
-    const maxR = Math.sqrt(2) * (size - 1) / 2;
-    const radius = Math.sqrt(Math.pow(x - center, 2) + Math.pow(y - center, 2)) / maxR;
-    s = ((127 - layer) / 127) * (0.7 + 0.3 * Math.min(radius, 1));
+    const maxR = Math.sqrt(2) * center;
+    const radius = Math.sqrt(Math.pow(x - center, 2) + Math.pow(y - center, 2));
+    s = ((127 - layer) / 127) * (0.7 + 0.3 * Math.min(radius / maxR, 1));
 
     // Lightness evaluation
     const L_min = 0.5 * t;
     const L_max = 1 - (0.5 * t);
     // Top and Bottom faces have inverted Lightness
-    l = faceMap.loop ? (faceMap.y_start === 0 ? L_max : L_min) : L_min + v * (L_max - L_min);
+    l = faceMap.loop ? (faceMap.y_start === 0 ? L_max - v * (L_max - L_min): L_min + v * (L_max - L_min)) : L_min + v * (L_max - L_min);
 
     return hslToRgb(h * 360, s * 100, l * 100);
   }
@@ -111,13 +113,15 @@ export function computeCubeColor(x, y, layer, faceMap, colorSpace, size) {
 
 export function computeSphereColor(x, y, layer, colorSpace, size) {
   // Normalize x and y to [-1, 1]
+  const t = layer / 127;
+
   const nx = (x + 0.5) / size * 2 - 1;
   const ny = (y + 0.5) / size * 2 - 1;
 
   // Compute z based on sphere equation
   const r = Math.sqrt(nx * nx + ny * ny);
   if (r > 1) {
-    return { r: 0, g: 0, b: 0 };
+    return { r: 0, g: 0, b: 0};
   }
   const nz = Math.sqrt(1 - r * r);
 
@@ -138,12 +142,12 @@ export function computeSphereColor(x, y, layer, colorSpace, size) {
     const ty = dy !== 0 ? halfRange / Math.abs(dy) : Infinity;
     const tz = dz !== 0 ? halfRange / Math.abs(dz) : Infinity;
 
-    const t = Math.min(tx, ty, tz);
+    const scale = Math.min(tx, ty, tz);
 
     // Linear RGB in [0,1] space
-    let rLin = clamp((center + dx * t) / 255, 0, 1);
-    let gLin = clamp((center + dy * t) / 255, 0, 1);
-    let bLin = clamp((center + dz * t) / 255, 0, 1);
+    let rLin = clamp((center + dx * scale) / 255, 0, 1);
+    let gLin = clamp((center + dy * scale) / 255, 0, 1);
+    let bLin = clamp((center + dz * scale) / 255, 0, 1);
 
     return { r: rLin, g: gLin, b: bLin };
   } else {
@@ -155,17 +159,19 @@ export function computeSphereColor(x, y, layer, colorSpace, size) {
 
     // Radius for Saturation
     let s = Math.sqrt(dx * dx + dz * dz);
+    s = ((127 - layer) / 127) * s;
 
     // Y for Lightness
-    let l = (dy + 1) / 2;
-
-    // Clamp and scale
-    const t = layer / 127;
+    
     const mini = t * 0.5;
     const maxi = 1 - (t * 0.5);
+    let l = (dy + 1) / 2;
+    l = mini + l * (maxi - mini);
 
-    s = clamp(s, mini, maxi);
-    l = clamp(l, mini, maxi);
+    // Clamp S and L
+
+    s = clamp(s, 0, 1);
+    l = clamp(l, 0, 1);
 
     return hslToRgb(h * 360, s * 100, l * 100);
 

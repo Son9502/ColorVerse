@@ -3,7 +3,7 @@ import { clamp } from "../utils.js";
 // returns texture data for RGB and HSL color spaces
 
 // 
-export function rgbCanvas(layer, type, onProgress, shininess = 15, specular = 0.5) {
+export function rgbCanvas(layer, type, onProgress) {
     const size = 256 - (layer * 2);
     let faceMap = [];
 
@@ -13,12 +13,8 @@ export function rgbCanvas(layer, type, onProgress, shininess = 15, specular = 0.
     let processed = 0;
     let total = 0;
     const progressInterval = Math.max(1000, Math.floor(total / 100));
-
-    const lightDir = new THREE.Vector3(0.4, 0.6, 1).normalize();
-    const V = new THREE.Vector3(0, 0, 1);
-    const H = lightDir.clone().add(V).normalize();
     switch (type) {
-        case "cube":
+        case "cube": {
             total = size * size * 6;
             faceMap = [
                 { x: { channel: "r", start: 0 }, y: { channel: "g", start: 1 }, fixed: { channel: "b", value: 0 } },
@@ -54,36 +50,11 @@ export function rgbCanvas(layer, type, onProgress, shininess = 15, specular = 0.
                         faceColors[yIndex][xIndex] = color;
 
                         const idx = (yIndex * size + xIndex) * 4;
-                        // Compute base RGB values
-                        let r, g, b;
-                        r = color.r;
-                        g = color.g;
-                        b = color.b;
 
-                        // Compure normal for lighting
-                        const nx = (2 * (xIndex / (size - 1))) - 1;
-                        const ny = (2 * (yIndex / (size - 1))) - 1;
-                        let nz = 1 - Math.abs(nx) - Math.abs(ny);
-                        if (nz < 0) nz = 0;
-                        const N = new THREE.Vector3(nx, ny, nz).normalize();
-
-                        // Compute lighting
-                        const NdotH = Math.max(N.dot(H), 0);
-                        const spec = Math.pow(NdotH, shininess) * specular * 255;
-
-                        //Gamma correction to linear space
-                        let rLin = Math.min(color.r + spec, 1);
-                        let gLin = Math.min(color.g + spec, 1);
-                        let bLin = Math.min(color.b + spec, 1);
-
-                        r = linearToSRGB(rLin);
-                        g = linearToSRGB(gLin);
-                        b = linearToSRGB(bLin);
-
-                        // Apply lighting to base color
-                        cubeImg.data[idx] = r;
-                        cubeImg.data[idx + 1] = g;
-                        cubeImg.data[idx + 2] = b;
+                        // Apply gamma correction to linear RGB values
+                        cubeImg.data[idx] = linearToSRGB(color.r);
+                        cubeImg.data[idx + 1] = linearToSRGB(color.g);
+                        cubeImg.data[idx + 2] = linearToSRGB(color.b);
                         cubeImg.data[idx + 3] = 255;
 
                         // Increment processed count
@@ -100,7 +71,8 @@ export function rgbCanvas(layer, type, onProgress, shininess = 15, specular = 0.
                 textureData.push(faceColors);
             });
             break;
-        case "sphere":
+        }
+        case "sphere": {
             total = size * size;
             const sphereCanvas = document.createElement('canvas');
             sphereCanvas.width = sphereCanvas.height = size;
@@ -113,27 +85,6 @@ export function rgbCanvas(layer, type, onProgress, shininess = 15, specular = 0.
                 for (let x = 0; x < size; x++) {
                     const color = computeSphereColor(x, y, layer, "RGB", size);
                     sphereColors[y][x] = color;
-
-                    // Sphere normals 
-                    const nx = (2 * (x / (size - 1))) - 1;
-                    const ny = 1 - (2 * (y / (size - 1)));
-                    const rLen = Math.sqrt(nx * nx + ny * ny);
-                    if (rLen > 1) {
-                        // Outside sphere
-                        color.r = color.g = color.b = 0;
-                    } else {
-                        // On sphere
-                        const nz = Math.sqrt(1 - rLen * rLen);
-                        const N = new THREE.Vector3(nx, ny, nz).normalize();
-
-                        // Compute lighting
-                        const NdotH = Math.max(N.dot(H), 0);
-                        const spec = Math.pow(NdotH, shininess) * specular * 255;
-
-                        color.r = Math.min(color.r + spec, 1);
-                        color.g = Math.min(color.g + spec, 1);
-                        color.b = Math.min(color.b + spec, 1);
-                    }
 
                     const idx = (y * size + x) * 4;
                     sphereImg.data[idx] = linearToSRGB(color.r);
@@ -154,12 +105,13 @@ export function rgbCanvas(layer, type, onProgress, shininess = 15, specular = 0.
             canvases.push(sphereCanvas);
             textureData.push(sphereColors);
             break;
+        }
         default:
             throw new Error(`Unknown texture type: ${type}`);
     }
     return { canvases, textureData };
 }
-export function hslCanvas(layer, type, onProgress, shininess = 15, specular = 0.5) {
+export function hslCanvas(layer, type, onProgress) {
     const size = 256 - (layer * 2);
     let faceMap = [];
 
@@ -170,11 +122,8 @@ export function hslCanvas(layer, type, onProgress, shininess = 15, specular = 0.
     let total = 0;
     const progressInterval = Math.max(1000, Math.floor(total / 100));
 
-    const lightDir = new THREE.Vector3(0.4, 0.6, 1).normalize();
-    const V = new THREE.Vector3(0, 0, 1);
-    const H = lightDir.clone().add(V).normalize();
     switch (type) {
-        case "cube":
+        case "cube": {
             total = size * size * 6;
             faceMap = [
                 { x_start: 0, y_start: 0, loop: false }, // Front
@@ -198,36 +147,11 @@ export function hslCanvas(layer, type, onProgress, shininess = 15, specular = 0.
                         faceColors[y][x] = color;
 
                         const idx = (y * size + x) * 4;
-                        // Compute base RGB values
-                        let r, g, b;
-                        r = color.r;
-                        g = color.g;
-                        b = color.b;
-
-                        // Compure normal for lighting
-                        const nx = (2 * (x / (size - 1))) - 1;
-                        const ny = (2 * (y / (size - 1))) - 1;
-                        let nz = 1 - Math.abs(nx) - Math.abs(ny);
-                        if (nz < 0) nz = 0;
-                        const N = new THREE.Vector3(nx, ny, nz).normalize();
-
-                        // Compute lighting
-                        const NdotH = Math.max(N.dot(H), 0);
-                        const spec = Math.pow(NdotH, shininess) * specular * 255;
-
-                        //Gamma correction to linear space
-                        let rLin = Math.min(color.r + spec, 1);
-                        let gLin = Math.min(color.g + spec, 1);
-                        let bLin = Math.min(color.b + spec, 1);
-
-                        r = linearToSRGB(rLin);
-                        g = linearToSRGB(gLin);
-                        b = linearToSRGB(bLin);
-
-                        // Apply lighting to base color
-                        cubeImg.data[idx] = r;
-                        cubeImg.data[idx + 1] = g;
-                        cubeImg.data[idx + 2] = b;
+                        
+                        // Apply gamma correction to linear RGB values
+                        cubeImg.data[idx] = linearToSRGB(color.r);
+                        cubeImg.data[idx + 1] = linearToSRGB(color.g);
+                        cubeImg.data[idx + 2] = linearToSRGB(color.b);
                         cubeImg.data[idx + 3] = 255;
 
                         // Increment processed count
@@ -245,7 +169,8 @@ export function hslCanvas(layer, type, onProgress, shininess = 15, specular = 0.
                 textureData.push(faceColors);
             });
             break;
-        case "sphere":
+        }
+        case "sphere": {
             total = size * size;
             const sphereCanvas = document.createElement('canvas');
             sphereCanvas.width = sphereCanvas.height = size;
@@ -258,28 +183,7 @@ export function hslCanvas(layer, type, onProgress, shininess = 15, specular = 0.
                 for (let x = 0; x < size; x++) {
                     const color = computeSphereColor(x, y, layer, "HSL", size);
                     sphereColors[y][x] = color;
-
-                    // Sphere normals 
-                    const nx = (2 * (x / (size - 1))) - 1;
-                    const ny = 1 - (2 * (y / (size - 1)));
-                    const rLen = Math.sqrt(nx * nx + ny * ny);
-                    if (rLen > 1) {
-                        // Outside sphere
-                        color.r = color.g = color.b = 0;
-                    } else {
-                        // On sphere
-                        const nz = Math.sqrt(1 - rLen * rLen);
-                        const N = new THREE.Vector3(nx, ny, nz).normalize();
-
-                        // Compute lighting
-                        const NdotH = Math.max(N.dot(H), 0);
-                        const spec = Math.pow(NdotH, shininess) * specular * 255;
-
-                        color.r = Math.min(color.r + spec, 1);
-                        color.g = Math.min(color.g + spec, 1);
-                        color.b = Math.min(color.b + spec, 1);
-                    }
-
+                    // Apply gamma correction to linear RGB values
                     const idx = (y * size + x) * 4;
                     sphereImg.data[idx] = linearToSRGB(color.r);
                     sphereImg.data[idx + 1] = linearToSRGB(color.g);
@@ -299,6 +203,7 @@ export function hslCanvas(layer, type, onProgress, shininess = 15, specular = 0.
             canvases.push(sphereCanvas);
             textureData.push(sphereColors);
             break;
+        }
         default:
             throw new Error(`Unknown texture type: ${type}`);
     }
