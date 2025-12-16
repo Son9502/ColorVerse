@@ -47,7 +47,7 @@ export function SRGBtoLinear(s) {
 }
 // Compute color for given x, y, layer, faceMap, colorSpace, and size
 export function computeCubeColor(x, y, layer, faceMap, colorSpace, size) {
-  const t = layer / 127;
+  // Normalize x and y to [0, 1]
   const u = x / (size - 1);
   const v = y / (size - 1);
 
@@ -59,12 +59,12 @@ export function computeCubeColor(x, y, layer, faceMap, colorSpace, size) {
       case 'b': b = faceMap.fixed.value; r = u; g = v; break;
     }
     // Adjust based on layer 
-    const mini = layer;;
+    const mini = layer;
     const maxi = 255 - layer;
 
-    r = mini + r * (maxi - mini) / 255;
-    g = mini + g * (maxi - mini) / 255;
-    b = mini + b * (maxi - mini) / 255;
+    r = (mini + r * (maxi - mini)) / 255;
+    g = (mini + g * (maxi - mini)) / 255;
+    b = (mini + b * (maxi - mini)) / 255;
     const rLin = clamp(r, 0, 1);
     const gLin = clamp(g, 0, 1);
     const bLin = clamp(b, 0, 1);
@@ -77,7 +77,8 @@ export function computeCubeColor(x, y, layer, faceMap, colorSpace, size) {
     };
   } else {
     let h, s, l;
-
+    
+    const t = layer / 127;
     const center = (size - 1) / 2;
 
     // Hue evaluation
@@ -110,68 +111,50 @@ export function computeCubeColor(x, y, layer, faceMap, colorSpace, size) {
   }
 
 }
-
+// Compute color for given x, y, layer, colorSpace, and size on a sphere using latitude-longitude mapping
 export function computeSphereColor(x, y, layer, colorSpace, size) {
   // Normalize x and y to [-1, 1]
-  const t = layer / 127;
 
-  const nx = (x + 0.5) / size * 2 - 1;
-  const ny = (y + 0.5) / size * 2 - 1;
+  const u = x / (size - 1); 
+  const v = y / (size - 1);
 
-  // Compute z based on sphere equation
-  const r = Math.sqrt(nx * nx + ny * ny);
-  if (r > 1) {
-    return { r: 0, g: 0, b: 0};
-  }
-  const nz = Math.sqrt(1 - r * r);
+  const longitude = u  * 2 * Math.PI;  // [0, 2PI]
+  const latitude =  v * Math.PI;       // [0, PI]
 
-  // Normalize the vector
-  const length = Math.sqrt(nx * nx + ny * ny + nz * nz);
-  const dx = nx / length;
-  const dy = ny / length;
-  const dz = nz / length;
+  // Spherical to Cartesian
+  const nx = Math.sin(latitude) * Math.cos(longitude);
+  const ny = Math.cos(latitude);
+  const nz = Math.sin(latitude) * Math.sin(longitude);
+
+  // Bounds of color values
+  const mini = layer / 255;
+  const maxi = (layer + size - 1) / 255;
+
   if (colorSpace === 'RGB') {
-    // Map to RGB values
-    const mini = layer;
-    const maxi = 255 - layer;
-    const center = (mini + maxi) / 2;
-    const halfRange = (maxi - mini) / 2;
-
-    // Find the scaling factor to fit within the RGB cube
-    const tx = dx !== 0 ? halfRange / Math.abs(dx) : Infinity;
-    const ty = dy !== 0 ? halfRange / Math.abs(dy) : Infinity;
-    const tz = dz !== 0 ? halfRange / Math.abs(dz) : Infinity;
-
-    const scale = Math.min(tx, ty, tz);
-
-    // Linear RGB in [0,1] space
-    let rLin = clamp((center + dx * scale) / 255, 0, 1);
-    let gLin = clamp((center + dy * scale) / 255, 0, 1);
-    let bLin = clamp((center + dz * scale) / 255, 0, 1);
+    const scale = maxi - mini;
+    
+    let rLin = mini + ((nx + 1) / 2) * scale;
+    let gLin = mini + ((ny + 1) / 2) * scale;
+    let bLin = mini + ((nz + 1) / 2) * scale;
 
     return { r: rLin, g: gLin, b: bLin };
   } else {
     // Compute HSL values
 
     // Angluar for Hue
-    let h = Math.atan2(dz, dx) / (2 * Math.PI);
+    let h = Math.atan2(nz, nx) / (2 * Math.PI); // [ -0.5 , 0.5 ]
     if (h < 0) h += 1;
 
+
     // Radius for Saturation
-    let s = Math.sqrt(dx * dx + dz * dz);
-    s = ((127 - layer) / 127) * s;
+    let s = Math.sqrt(nx * nx + nz * nz);
+    s = s * (maxi - mini) + mini;
 
     // Y for Lightness
-    
-    const mini = t * 0.5;
-    const maxi = 1 - (t * 0.5);
-    let l = (dy + 1) / 2;
-    l = mini + l * (maxi - mini);
+    let l = (ny + 1) / 2;
+    l = l * (maxi - mini) + mini;
 
     // Clamp S and L
-
-    s = clamp(s, 0, 1);
-    l = clamp(l, 0, 1);
 
     return hslToRgb(h * 360, s * 100, l * 100);
 
