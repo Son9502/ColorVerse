@@ -1,4 +1,4 @@
-import { rgbCanvas, hslCanvas } from "./thread-texture.js";
+import { generateCanvas } from "./thread-texture.js";
 
 /**
  * LRU (Least Recently Used) Cache
@@ -110,7 +110,7 @@ export class LRUCache {
 
     const layerPixelCounts = {};
     let totalPixels = 0;
-
+    //console.log("Preloading layers:", orderedLayers);
     for (const layer of layers) {
       const size = 256 - (2 * layer);
       switch (this.type) {
@@ -297,12 +297,8 @@ export class LRUCache {
         total = size * size;
         break;
     }
-    if (colorSpace == "RGB") {
-      ({ canvases, textureData } = rgbCanvas(layer, this.type, sendProgress));
-    }
-    else {
-      ({ canvases, textureData } = hslCanvas(layer, this.type, sendProgress));
-    }
+    ({ canvases, textureData } = generateCanvas(layer, colorSpace, this.type, sendProgress));
+    
     const textures = canvases.map(canvas => {
       const tex = new THREE.CanvasTexture(canvas);
       tex.userData = tex.userData || {};

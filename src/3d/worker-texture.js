@@ -1,116 +1,45 @@
-import { hslToRgb, computeCubeColor, computeSphereColor, SRGBtoLinear, linearToSRGB } from "../color-utils.js";
-import { clamp } from "../utils.js";
+import { computeCubeColor, computeSphereColor, SRGBtoLinear, linearToSRGB } from "../color-utils.js";
 // thread-texture.js
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.166.0/build/three.module.js';
+// import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.166.0/build/three.module.js';
 
 // returns texture data for RGB and HSL color spaces
-function rgbCanvas(layer, type, onProgress) {
-  //console.log("Cube Canvases called:", layer, colorSpace);
-  const size = 256 - (layer * 2);
-  let faceMap = [];
-
-  const canvases = [];
-  const textureData = [];
-
+function generateCanvas(layer, colorSpace, type, onProgress) {
   switch (type) {
-    case "cube": {
-      faceMap = [
-        { x: { channel: "r", start: 0 }, y: { channel: "g", start: 1 }, fixed: { channel: "b", value: 0 } },
-        { x: { channel: "b", start: 0 }, y: { channel: "g", start: 1 }, fixed: { channel: "r", value: 1 } },
-        { x: { channel: "r", start: 1 }, y: { channel: "g", start: 1 }, fixed: { channel: "b", value: 1 } },
-        { x: { channel: "b", start: 1 }, y: { channel: "g", start: 1 }, fixed: { channel: "r", value: 0 } },
-        { x: { channel: "r", start: 0 }, y: { channel: "b", start: 1 }, fixed: { channel: "g", value: 1 } },
-        { x: { channel: "r", start: 0 }, y: { channel: "b", start: 0 }, fixed: { channel: "g", value: 0 } },
-      ];
-      for (const face of faceMap) {
-
-        const cubeCanvas = new OffscreenCanvas(size, size);
-
-        const cubeCtx = cubeCanvas.getContext("2d", { willReadFrequently: true });
-        const cubeImg = cubeCtx.createImageData(size, size);
-
-        const faceColors = Array.from({ length: size }, () => new Array(size));
-
-        const yStep = face.y.start === 0 ? 1 : -1;
-        const yStart = face.y.start === 0 ? 0 : size - 1;
-        const yEnd = face.y.start === 0 ? size : -1;
-
-        const xStep = face.x.start === 0 ? 1 : -1;
-        const xStart = face.x.start === 0 ? 0 : size - 1;
-        const xEnd = face.x.start === 0 ? size : -1;
-
-        let yIndex = 0;
-
-        for (let y = yStart; y !== yEnd; y += yStep, yIndex++) {
-          let xIndex = 0;
-
-          for (let x = xStart; x !== xEnd; x += xStep, xIndex++) {
-            // Notify worker that 1 pixel was processed.
-            // Worker handles incrementing and batching progress messages.
-            onProgress?.();
-            const color = computeCubeColor(x, y, layer, face, "RGB", size);
-            faceColors[yIndex][xIndex] = color;
-
-            const idx = (yIndex * size + xIndex) * 4;
-
-            // Apply gamma correction to linear RGB values
-            cubeImg.data[idx] = linearToSRGB(color.r);
-            cubeImg.data[idx + 1] = linearToSRGB(color.g);
-            cubeImg.data[idx + 2] = linearToSRGB(color.b);
-            cubeImg.data[idx + 3] = 255;
-          }
-        }
-        cubeCtx.putImageData(cubeImg, 0, 0);
-        canvases.push(cubeCanvas);
-        textureData.push(faceColors);
-      }
-      break;
-    }
-    case "sphere": {
-      const sphereCanvas = new OffscreenCanvas(size, size);
-      const sphereCtx = sphereCanvas.getContext("2d", { willReadFrequently: true });
-      const sphereImg = sphereCtx.createImageData(size, size);
-      const sphereColors = Array.from({ length: size }, () => new Array(size));
-
-      let nonZero = 0;
-      for (let y = 0; y < size; y++) {
-        for (let x = 0; x < size; x++) {
-          onProgress?.();
-
-          const color = computeSphereColor(x, y, layer, "RGB", size);
-          sphereColors[y][x] = color;
-
-          const idx = (y * size + x) * 4;
-          sphereImg.data[idx] = linearToSRGB(color.r);
-          sphereImg.data[idx + 1] = linearToSRGB(color.g);
-          sphereImg.data[idx + 2] = linearToSRGB(color.b);
-          sphereImg.data[idx + 3] = 255;
-          //if (color.r !== 0 || color.g !== 0 || color.b !== 0) nonZero++;
-        }
-      }
-      //console.log(sphereImg.data)
-      //console.log(`Sphere RGB layer ${layer} non-zero pixels: ${nonZero} / ${size * size}`);
-      sphereCtx.putImageData(sphereImg, 0, 0);
-      canvases.push(sphereCanvas);
-      textureData.push(sphereColors);
-
-      break;
-    }
+    case "cube":
+      return cubeCanvas(layer, colorSpace, onProgress);
+    case "sphere":
+      return sphereCanvas(layer, colorSpace, onProgress);
     default:
       throw new Error(`Unknown type: ${type}`);
   }
-  return { canvases, textureData };
 }
-function hslCanvas(layer, type, onProgress) {
-
+function cubeCanvas(layer, colorSpace, onProgress) {
+  //console.log("Cube Canvases called:", layer, colorSpace);
+  
+  // Helper function to map coordinates based on flip
+  function mapCoord(index, size, flip) {
+    return flip ? size - 1 - index : index;
+  }
+  
   const size = 256 - (layer * 2);
+  let faceMap = [];
 
   const canvases = [];
   const textureData = [];
-  let faceMap = [];
 
-  switch (type) {
-    case "cube": {
+  switch (colorSpace) {
+    case "RGB": {
+      faceMap = [
+        { x: { channel: "r", flip: false }, y: { channel: "g", flip: true }, fixed: { channel: "b", value: 0 } }, // Front
+        { x: { channel: "b", flip: false }, y: { channel: "g", flip: true }, fixed: { channel: "r", value: 1 } }, // Right
+        { x: { channel: "r", flip: true }, y: { channel: "g", flip: true }, fixed: { channel: "b", value: 1 } }, // Back
+        { x: { channel: "b", flip: true }, y: { channel: "g", flip: true }, fixed: { channel: "r", value: 0 } }, // Left
+        { x: { channel: "r", flip: false }, y: { channel: "b", flip: true }, fixed: { channel: "g", value: 1 } }, // Top
+        { x: { channel: "r", flip: false }, y: { channel: "b", flip: false }, fixed: { channel: "g", value: 0 } }, // Bottom
+      ];
+      break;
+    }
+    case "HSL": {
       faceMap = [
         { x_start: 0, y_start: 0, loop: false }, // Front
         { x_start: 1, y_start: 0, loop: false }, // Right
@@ -119,76 +48,79 @@ function hslCanvas(layer, type, onProgress) {
         { x_start: 0, y_start: 1, loop: true },  // Top
         { x_start: 0, y_start: 0, loop: true }   // Bottom
       ];
-      for (const face of faceMap) {
-
-        const cubeCanvas = new OffscreenCanvas(size, size);
-
-        const cubeCtx = cubeCanvas.getContext("2d", { willReadFrequently: true });
-        const cubeImg = cubeCtx.createImageData(size, size);
-
-        const faceColors = Array.from({ length: size }, () => new Array(size));
-        for (let y = size - 1; y >= 0; y--) {
-          //let xIndex = 0;
-          for (let x = 0; x < size; x++) {
-            // Notify worker that 1 pixel was processed.
-            // Worker handles incrementing and batching progress messages.
-            onProgress?.();
-            const color = computeCubeColor(x, y, layer, face, "HSL", size);
-            faceColors[y][x] = color;
-
-            const idx = (y * size + x) * 4;
-            
-            // Apply gamma correction to linear RGB values
-            cubeImg.data[idx] = linearToSRGB(color.r);
-            cubeImg.data[idx + 1] = linearToSRGB(color.g);
-            cubeImg.data[idx + 2] = linearToSRGB(color.b);
-            cubeImg.data[idx + 3] = 255;
-
-          }
-        }
-        cubeCtx.putImageData(cubeImg, 0, 0);
-        canvases.push(cubeCanvas);
-        textureData.push(faceColors);
-      }
       break;
     }
-    case "sphere": {
-      const sphereCanvas = new OffscreenCanvas(size, size);
-      const sphereCtx = sphereCanvas.getContext("2d", { willReadFrequently: true });
-      const sphereImg = sphereCtx.createImageData(size, size);
-      const sphereColors = Array.from({ length: size }, () => new Array(size));
-      let nonZero = 0;
-      for (let y = 0; y < size; y++) {
-        for (let x = 0; x < size; x++) {
-          onProgress?.();
+  }
+  for (const face of faceMap) {
 
-          const color = computeSphereColor(x, y, layer, "HSL", size);
-          sphereColors[y][x] = color;
+    const cubeCanvas = new OffscreenCanvas(size, size);
+    const cubeCtx = cubeCanvas.getContext("2d", { willReadFrequently: true });
+    const cubeImg = cubeCtx.createImageData(size, size);
+    const faceColors = Array.from({ length: size }, () => new Array(size));
 
-          //console.log(linearToSRGB(color.r),linearToSRGB(color.g),linearToSRGB(color.b));
+    for (let y = 0; y < size; y += 1) {
+      let mapY = colorSpace == "RGB" ? mapCoord(y, size, face.y.flip) : mapCoord(y, size, true);
+      for (let x = 0; x < size; x += 1) {
+        // Notify worker that 1 pixel was processed.
+        // Worker handles incrementing and batching progress messages.
+        onProgress?.();
+        
+        let mapX = colorSpace == "RGB" ? mapCoord(x, size, face.x.flip) : mapCoord(x, size, false);
+        
+        const color = computeCubeColor(mapX, mapY, layer, face, colorSpace, size);
+        faceColors[y][x] = color;
 
-          const idx = (y * size + x) * 4
+        const idx = (y * size + x) * 4;
 
-          // Apply gamma correction to linear RGB values
-          sphereImg.data[idx] = linearToSRGB(color.r);
-          sphereImg.data[idx + 1] = linearToSRGB(color.g);
-          sphereImg.data[idx + 2] = linearToSRGB(color.b);
-          sphereImg.data[idx + 3] = 255;
-          //if (color.r !== 0 || color.g !== 0 || color.b !== 0) nonZero++;
-        }
+        // Apply gamma correction to linear RGB values
+        cubeImg.data[idx] = linearToSRGB(color.r);
+        cubeImg.data[idx + 1] = linearToSRGB(color.g);
+        cubeImg.data[idx + 2] = linearToSRGB(color.b);
+        cubeImg.data[idx + 3] = 255;
       }
-      sphereCtx.putImageData(sphereImg, 0, 0);
-      canvases.push(sphereCanvas);
-      textureData.push(sphereColors);
-      //console.log(`Sphere HSL layer ${layer} non-zero pixels: ${nonZero} / ${size * size}`);
-      break;
     }
-    default:
-      throw new Error(`Unknown type: ${type}`);
+    cubeCtx.putImageData(cubeImg, 0, 0);
+    canvases.push(cubeCanvas);
+    textureData.push(faceColors);
   }
   return { canvases, textureData };
-
 }
+function sphereCanvas(layer, colorSpace, onProgress) {
+
+  const size = 256 - (layer * 2);
+
+  const canvases = [];
+  const textureData = [];
+
+  const sphereCanvas = new OffscreenCanvas(size, size);
+  const sphereCtx = sphereCanvas.getContext("2d", { willReadFrequently: true });
+  const sphereImg = sphereCtx.createImageData(size, size);
+  const sphereColors = Array.from({ length: size }, () => new Array(size));
+
+  // et nonZero = 0;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      onProgress?.();
+
+      const color = computeSphereColor(x, y, layer, colorSpace, size);
+      sphereColors[y][x] = color;
+
+      const idx = (y * size + x) * 4;
+      sphereImg.data[idx] = linearToSRGB(color.r);
+      sphereImg.data[idx + 1] = linearToSRGB(color.g);
+      sphereImg.data[idx + 2] = linearToSRGB(color.b);
+      sphereImg.data[idx + 3] = 255;
+      //if (color.r !== 0 || color.g !== 0 || color.b !== 0) nonZero++;
+    }
+  }
+  //console.log(sphereImg.data)
+  //console.log(`Sphere RGB layer ${layer} non-zero pixels: ${nonZero} / ${size * size}`);
+  sphereCtx.putImageData(sphereImg, 0, 0);
+  canvases.push(sphereCanvas);
+  textureData.push(sphereColors);
+  return { canvases, textureData };
+}
+
 /**
  * Worker for generating cube textures using OffscreenCanvas.
  * Receives: { id, colorSpace, layer }
@@ -213,13 +145,7 @@ self.addEventListener('message', async (ev) => {
     };
 
     let canvases, textureData;
-
-    if (colorSpace == "RGB") {
-      ({ canvases, textureData } = rgbCanvas(layer, type, sendProgress));
-    }
-    else {
-      ({ canvases, textureData } = hslCanvas(layer, type, sendProgress));
-    }
+    ({ canvases, textureData } = generateCanvas(layer, colorSpace, type, sendProgress));
 
     const imageBitmaps = await Promise.all(
       canvases.map(off => createImageBitmap(off))
