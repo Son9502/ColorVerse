@@ -1,4 +1,4 @@
-import {clamp} from './utils.js';
+import { clamp, lerp } from './utils.js';
 // Color conversion and mapping utilities
 export function hslToRgb(h, s, l) {
   h = h % 360;
@@ -51,75 +51,66 @@ export function computeCubeColor(x, y, layer, faceMap, colorSpace, size) {
   const u = x / (size - 1);
   const v = y / (size - 1);
 
-  if (colorSpace === 'RGB') {
-    let r, g, b;
-    switch (faceMap.fixed.channel) {
-      case 'r': r = faceMap.fixed.value; g = v; b = u; break;
-      case 'g': g = faceMap.fixed.value; r = u; b = v; break;
-      case 'b': b = faceMap.fixed.value; r = u; g = v; break;
-    }
-    // Adjust based on layer 
-    const mini = layer;
-    const maxi = 255 - layer;
+  // Bounds of color values
+  const mini = layer / 255;
+  const maxi = (layer + size - 1) / 255;
+  const t = layer / 127;
 
-    r = (mini + r * (maxi - mini)) / 255;
-    g = (mini + g * (maxi - mini)) / 255;
-    b = (mini + b * (maxi - mini)) / 255;
-    const rLin = clamp(r, 0, 1);
-    const gLin = clamp(g, 0, 1);
-    const bLin = clamp(b, 0, 1);
-    
-    // Values returned are in linear space [0,1]
-    return {
-      r: rLin,
-      g: gLin,
-      b: bLin
-    };
+  if (colorSpace === 'RGB') {
+    const color = { r: 0, g: 0, b: 0 };
+
+    color[faceMap.x.channel] = lerp(mini, maxi, u);
+    color[faceMap.y.channel] = lerp(mini, maxi, v);
+    color[faceMap.fixed.channel] = faceMap.fixed.value === 1 ? maxi : mini;
+
+    return color;
   } else {
     let h, s, l;
-    
-    const t = layer / 127;
-    const center = (size - 1) / 2;
-
-    // Hue evaluation
-    if (faceMap.loop) {
-      const dx = x - center;
-      const dy = y - center;
-      let angle = Math.atan2(dy, dx);
-      if (angle < 0) angle += 2 * Math.PI;
-      h = angle / (2 * Math.PI);
-    }
-    else {
+    // Non-looping faces (Front, Right, Back, Left)
+    if (!faceMap.loop) {
+      // Hue (shrink with layer)
       const shrink = t * 45;
       const h_min = faceMap.x_start * 90 + shrink;
       const h_max = (faceMap.x_start + 1) * 90 - shrink;
-      h = (h_min + u * (h_max - h_min)) / 360;
+      h = lerp(h_min, h_max, u);
+
+      // Saturation (decreases with layer)
+      s = 1 - t;
+
+      // Lightness
+      l = lerp(mini, maxi, v);
     }
+    // Looping faces (Top, Bottom)
+    else {
+      // Convert (u,v) to polar coordinates
+      const cx = u - 0.5;
+      const cy = v - 0.5;
 
-    // Saturation evaluation
-    const maxR = Math.sqrt(2) * center;
-    const radius = Math.sqrt(Math.pow(x - center, 2) + Math.pow(y - center, 2));
-    s = ((127 - layer) / 127) * (0.7 + 0.3 * Math.min(radius / maxR, 1));
+      // Angle to Hue
+      let angle = Math.atan2(cy, cx);
+      if (angle < 0) angle += 2 * Math.PI;
+      h = angle * (180 / Math.PI);
 
-    // Lightness evaluation
-    const L_min = 0.5 * t;
-    const L_max = 1 - (0.5 * t);
-    // Top and Bottom faces have inverted Lightness
-    l = faceMap.loop ? (faceMap.y_start === 0 ? L_max - v * (L_max - L_min): L_min + v * (L_max - L_min)) : L_min + v * (L_max - L_min);
+      // Radius to Saturation
+      const radius = Math.sqrt(cx * cx + cy * cy);
+      s = clamp(radius * (1 - t), 0, 1);
 
-    return hslToRgb(h * 360, s * 100, l * 100);
+      // Lightness
+      l = faceMap.y_start === 0 ? mini : maxi;
+    }
+    return hslToRgb(h, s * 100, l * 100);
   }
 
 }
 // Compute color for given x, y, layer, colorSpace, and size on a sphere using latitude-longitude mapping
 export function computeSphereColor(x, y, layer, colorSpace, size) {
   // Normalize x and y to [-1, 1]
+  const u = (x + 0.5) / size;
+  const v = (y + 0.5) / size;
 
-  const u = x / (size - 1); 
-  const v = y / (size - 1);
-
-  const longitude = u  * 2 * Math.PI;  // [0, 2PI]
-  const latitude =  v * Math.PI;       // [0, PI]
+  // Latitude-Longitude mapping
+  const longitude = u * 2 * Math.PI;  // [0, 2PI]
+  const latitude = v * Math.PI;       // [0, PI]
 
   // Spherical to Cartesian
   const nx = Math.sin(latitude) * Math.cos(longitude);
@@ -131,34 +122,23 @@ export function computeSphereColor(x, y, layer, colorSpace, size) {
   const maxi = (layer + size - 1) / 255;
 
   if (colorSpace === 'RGB') {
-    const scale = maxi - mini;
-    
-    let rLin = mini + ((nx + 1) / 2) * scale;
-    let gLin = mini + ((ny + 1) / 2) * scale;
-    let bLin = mini + ((nz + 1) / 2) * scale;
-
+    let rLin = lerp(mini, maxi, (nx + 1) * 0.5);
+    let gLin = lerp(mini, maxi, (ny + 1) * 0.5);
+    let bLin = lerp(mini, maxi, (nz + 1) * 0.5);
     return { r: rLin, g: gLin, b: bLin };
   } else {
-    // Compute HSL values
-
-    // Angluar for Hue
-    let h = Math.atan2(nz, nx) / (2 * Math.PI); // [ -0.5 , 0.5 ]
+    let h, s, l, t;
+    // Hue, Saturation, Lightness
+    t = 1 - (layer / 127);
+    h = Math.atan2(nz, nx) / (2 * Math.PI);
     if (h < 0) h += 1;
+    h *= 360;
+    s = Math.sqrt(nx * nx + nz * nz) * t;
+    l = lerp(mini, maxi, (ny + 1) * 0.5);
 
-
-    // Radius for Saturation
-    let s = Math.sqrt(nx * nx + nz * nz);
-    s = s * (maxi - mini) + mini;
-
-    // Y for Lightness
-    let l = (ny + 1) / 2;
-    l = l * (maxi - mini) + mini;
-
-    // Clamp S and L
-
-    return hslToRgb(h * 360, s * 100, l * 100);
-
+    return hslToRgb(h, s * 100, l * 100);
   }
+
 }
 // Shader material generators for RGB and HSL for the mini 3d objects
 export function makeRGBMat({ shininess = 30, specular = 0.5, snapStrength = 0.6 } = {}) {
