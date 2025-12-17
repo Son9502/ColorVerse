@@ -23,7 +23,7 @@ export class PreviewCube {
         this.scene = scene;
         if (this.object) this.removePreview();
 
-        const nextSpace = toggle ? (colorSpace === "RGB" ? "HSL" : "RGB") : colorSpace;
+        const nextSpace = colorSpace;
         const entry = await this.textureCache.get(nextSpace, layer);
 
         const group = new THREE.Group();

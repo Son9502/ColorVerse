@@ -9,13 +9,11 @@ export class PreviewSphere {
         this.scene = null;
         this.mainSphere = null;
     }
-    async createPreview(scene, layer, colorSpace = "RGB", toggle = false) {
+    async createPreview(scene, layer, colorSpace = "RGB") {
         this.scene = scene;
         if (this.object) this.removePreview();
 
-        const nextSpace = toggle
-            ? (colorSpace === "RGB" ? "HSL" : "RGB")
-            : colorSpace;
+        const nextSpace = colorSpace;
 
         const entry = await this.textureCache.get(nextSpace, layer);
         const texture = entry.textures[0];
