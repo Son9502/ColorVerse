@@ -72,7 +72,7 @@ export class LoaderManager {
         if (layerProgress > 0 && loadedLayers >= minPixelsForETA) {
             const estTotal = elapsed / layerProgress; // estimated total time for this layer
             const remaining = estTotal - elapsed;
-            console.log(estTotal, remaining);
+            //console.log(estTotal, remaining);
             etaSeconds = Math.max(0, Math.round(remaining / 1000));
         } 
         const percent = Math.round(layerProgress * 100);
