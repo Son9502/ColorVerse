@@ -1,4 +1,4 @@
-import { computeCubeColor, computeSphereColor, SRGBtoLinear, linearToSRGB } from "../color-utils.js";
+import { computeCubeColor, computeSphereColor, SRGBtoLinear, linearToSRGB } from "../../color-utils.js";
 // thread-texture.js
 // import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.166.0/build/three.module.js';
 

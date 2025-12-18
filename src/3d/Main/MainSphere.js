@@ -39,7 +39,7 @@ export class MainSphere {
     }
     async _initObject() {
         const entry = await this.textureCache.get(this.colorSpace, this.currentLayer, this.onProgress);
-        console.log("MainSphere texture entry:", entry);
+        //console.log("MainSphere texture entry:", entry);
         const geometry = new THREE.SphereGeometry(this.size, 64, 64); // radius, widthSegments, heightSegments
         const texture = entry.textures[0];
         texture.colorSpace = THREE.SRGBColorSpace; // Ensure correct color space
