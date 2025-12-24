@@ -14,9 +14,14 @@ export class MiniCube extends MiniBase {
         const geometry = new THREE.BoxGeometry(this.size, this.size, this.size);
         this.object = new THREE.Mesh(geometry, this.materials[this.colorSpace]);
         this.root.add(this.object);
-
-        this.object.rotation.y = Math.PI;
-        this.object.scale.x = -1;
+        // Adjust orientation based on color space
+        if (this.colorSpace === "RGB") {
+            this.object.rotation.y = Math.PI;
+            this.object.scale.x = -1;
+        } else {
+            this.object.rotation.y = 0;
+            this.object.scale.x = 1;
+        }
 
         this.viewportSize = 150;
 
@@ -78,11 +83,11 @@ export class MiniCube extends MiniBase {
     updateColorSpace(colorSpace = "RGB") {
         super.updateColorSpace(colorSpace);
         if (colorSpace === "RGB") {
-            this.axesCube.scale.x = -1;
-            this.axesCube.rotation.y = Math.PI;
+            this.object.scale.x = -1;
+            this.object.rotation.y = Math.PI;
         } else {
-            this.axesCube.scale.x = 1;
-            this.axesCube.rotation.y = 0;
+            this.object.scale.x = 1;
+            this.object.rotation.y = 0;
         }   
     }
 }

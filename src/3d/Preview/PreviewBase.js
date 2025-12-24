@@ -13,13 +13,17 @@ export class PreviewBase {
         if (!this.scene) this.scene = scene;
         if (!this.object) {
             await this._createObject(layerNum, colorSpace);
+            if (!this.scene.children.includes(this.object)) {
+                this.scene.add(this.object);
+            }
+
         }
         await this.updateLayer(layerNum, colorSpace);
         this.object.visible = true;
         this.isVisible = true;
     }
-    hide(){
-        if (this.object && this.isVisible){
+    hide() {
+        if (this.object) {
             this.object.visible = false;
             this.isVisible = false;
         }
@@ -32,10 +36,10 @@ export class PreviewBase {
         }
     }
 
-    async _createObject(layerNum, colorSpace){
+    async _createObject(layerNum, colorSpace) {
         throw new Error("_createObject method must be implemented in subclass");
     }
-    async updateLayer(layerNum, colorSpace){
+    async updateLayer(layerNum, colorSpace) {
         throw new Error("updateLayer method must be implemented in subclass");
     }
     syncRotation() {
@@ -43,7 +47,7 @@ export class PreviewBase {
             this.object.rotation.copy(this.mainObject.object.rotation);
         }
     }
-    setupControls(mainObject){
+    setupControls(mainObject) {
         this.mainObject = mainObject;
     }
 }

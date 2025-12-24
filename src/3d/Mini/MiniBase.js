@@ -26,6 +26,8 @@ export class MiniBase {
             { len: 3, dir: new THREE.Vector3(0, 0, 1), color: 0x0000ff },
         ]);
 
+        this.camera.position.set(0, 0, this.size * 3);
+        this.camera.lookAt(0, 0, 0);
     }
 
     createObject() {

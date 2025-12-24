@@ -1,4 +1,4 @@
-import { PreviewBase } from "./Preview/PreviewBase.js";
+import { PreviewBase } from "./PreviewBase.js";
 export class PreviewCube extends PreviewBase {
     constructor(lruCache, size = 1, opacity = 0.25, scale = 1.5) {
         super(lruCache, size, opacity, scale);
@@ -50,7 +50,7 @@ export class PreviewCube extends PreviewBase {
 
         this.object = group;
     }
-    updateLayer(layer, colorSpace = "RGB") {
+    async updateLayer(layer, colorSpace = "RGB") {
         if (!this.object) return;
         
         const nextSpace = colorSpace;
