@@ -1,10 +1,8 @@
 import { MiniBase } from "./MiniBase.js";
-import { makeRGBMat, makeHSLMat } from "../../color-utils.js";
+
 export class MiniCube extends MiniBase {
     constructor(renderer, colorSpace = "RGB") {
         super(renderer, colorSpace);
-
-        this.buildMaterials({ "RGB": makeRGBMat(), "HSL": makeHSLMat() });
 
         this.createObject();
 

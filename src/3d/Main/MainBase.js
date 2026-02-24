@@ -1,5 +1,5 @@
 export class MainBase {
-    constructor(scene, textureCache, camera, onProgress,{
+    constructor(scene, cache, camera, onProgress, {
         size = 1,
         colorSpace = "RGB",
         startLayer = 127,
@@ -7,7 +7,7 @@ export class MainBase {
 
         // Core
         this.scene = scene;
-        this.textureCache = textureCache;
+        this.textureCache = cache;
         this.camera = camera;
         this.onProgress = onProgress;
 
@@ -15,7 +15,6 @@ export class MainBase {
         this.colorSpace = colorSpace;
         this.currentLayer = startLayer;
         this.size = size;
-
         this.object = null;
         this.ready = false;
 
@@ -42,25 +41,32 @@ export class MainBase {
         // Auto-rotation
         this.faceMap = {};              // 👈 subclass fills this
         this.faceQuaternions = [];      // 👈 subclass fills this
-
         this.targetQuat = new THREE.Quaternion();
         this.rotateStartQuat = new THREE.Quaternion();
         this.rotateDuration = 700;
         this.rotateTime = 0;
         this.isAutoRotating = false;
 
+        // Layer animation
+        this.layerFloat = this.currentLayer;
+        this.layerTarget = this.currentLayer;
+        this.layerSpeed = 0; // animated velocity
+        this.layerLerpSpeed = 0.1;
+
         // Init
         this._initControls();
-        this._initObject(); // async, subclass implemented
     }
 
-    // -------- Lifecycle --------
-    async _initObject() {
-        throw new Error("_initObject() must be implemented by subclass");
+    // -------- Abstract functions --------
+    async initObject() {
+        throw new Error("initObject() must be implemented by subclass");
     }
 
     async updateLayer(layer) {
-        throw new Error("updateLayer() must be implemented by subclass");
+        throw new Error("updateLayer must be implemented by subclass");
+    }
+    async switchColorSpace(colorSpace, duration = 500) {
+        throw new Error("switchColorSpace must be implemented by subclass");
     }
     // -------- Controls --------
     _initControls() {
@@ -72,13 +78,13 @@ export class MainBase {
             this.lastMouseY = event.clientY;
         });
 
-        window.addEventListener("mouseup", () => {
-            this.isDragging = false;
-        });
+        window.addEventListener("mouseup", () => { this.isDragging = false; });
 
         window.addEventListener("mousemove", event => this._onMouseMove(event));
         window.addEventListener("keydown", event => this._onKeyDown(event));
         window.addEventListener("keyup", event => this._onKeyUp(event));
+
+       
     }
 
     _onKeyDown(event) {
@@ -103,7 +109,31 @@ export class MainBase {
         this.lastMouseX = event.clientX;
         this.lastMouseY = event.clientY;
     }
+    _updateAutoRotation() {
+        const t = (performance.now() - this.rotateTime) / this.rotateDuration;
+        if (t >= 1) {
+            this.object.quaternion.copy(this.targetQuat);
+            this.isAutoRotating = false;
+        } else {
+            const eased = 1 - Math.pow(1 - t, 3);
+            this.object.quaternion.slerpQuaternions(this.rotateStartQuat, this.targetQuat, eased);
+        }
+    }
+    // -------- Layer Blending --------
+    async _updateInterpolatedLayer() {
+        const z0 = Math.floor(this.layerFloat); // lower layer
+        const t = this.layerFloat - z0;
 
+        if (z0 === this.currentLayer && Math.abs(t - this._lastT) < 0.001) return;
+
+        this.currentLayer = z0;
+
+        const layerA = z0;
+        this._lastT = t;
+
+        await this.updateLayer(layerA + t);
+
+    }
     // -------- Rotation --------
     rotateTo(faceIndex) {
         if (!this.faceQuaternions[faceIndex] || !this.object) return;
@@ -115,8 +145,7 @@ export class MainBase {
     }
 
     // -------- Per-frame update --------
-    update() {
-        if (!this.ready || !this.object) return;
+    update(delta = 1 / 60) {
 
         // keyboard input
         if (this.keys.up) this.velX -= this.acc;
@@ -127,24 +156,25 @@ export class MainBase {
         this.velX *= this.friction;
         this.velY *= this.friction;
 
+        if (!this.ready || !this.object) return;
+
+        // Layer animation
+        if (this.layerFloat !== this.layerTarget) {
+            const k = 1 - Math.exp(-this.layerLerpSpeed * delta * 60);
+            this.layerFloat += (this.layerTarget - this.layerFloat) * k;
+
+            if (Math.abs(this.layerTarget - this.layerFloat) < 0.001) {
+                this.layerFloat = this.layerTarget;
+            }
+            this._updateInterpolatedLayer(this.layerFloat);
+        }
+
+        // Apply rotation
         this.object.rotation.x += this.velX;
         this.object.rotation.y += this.velY;
 
         // auto-rotation
-        if (this.isAutoRotating) {
-            const t = (performance.now() - this.rotateTime) / this.rotateDuration;
-            if (t >= 1) {
-                this.object.quaternion.copy(this.targetQuat);
-                this.isAutoRotating = false;
-            } else {
-                const eased = 1 - Math.pow(1 - t, 3);
-                this.object.quaternion.slerpQuaternions(
-                    this.rotateStartQuat,
-                    this.targetQuat,
-                    eased
-                );
-            }
-        }
+        if (this.isAutoRotating) this._updateAutoRotation();
     }
 
     getRotation() {

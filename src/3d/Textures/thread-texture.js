@@ -1,18 +1,18 @@
-import { computeCubeColor, computeSphereColor, linearToSRGB, SRGBtoLinear } from "../color-utils.js";
+import { computeCubeColor, computeSphereColor} from "../../color-utils.js";
 // returns texture data for RGB and HSL color spaces
 
 // 
-export function generateCanvas(layer, colorSpace, type, onProgress) {
+export function generatePixelLayer(layer, colorSpace, type, onProgress) {
     switch (type) {
         case "cube":
-            return cubeCanvas(layer, colorSpace, onProgress);
+            return generateCubeLayer(layer, colorSpace, onProgress);
         case "sphere":
-            return sphereCanvas(layer, colorSpace, onProgress);
+            return generateSphereLayer(layer, colorSpace, onProgress);
         default:
             throw new Error(`Unknown type: ${type}`);
     }
 }
-function cubeCanvas(layer, colorSpace, onProgress) {
+function generateCubeLayer(layer, colorSpace, onProgress) {
 
     // Helper function to map coordinates based on flip
     function mapCoord(index, size, flip) {
@@ -21,9 +21,7 @@ function cubeCanvas(layer, colorSpace, onProgress) {
 
     const size = 256 - (layer * 2);
     let faceMap = [];
-
-    let canvases = [];
-    let textureData = [];
+    let buffers = [];
 
     let processed = 0;
     let total = 0;
@@ -56,12 +54,7 @@ function cubeCanvas(layer, colorSpace, onProgress) {
         }
     }
     faceMap.forEach(face => {
-        const cubeCanvas = document.createElement('canvas');
-        cubeCanvas.width = cubeCanvas.height = size;
-        const cubeCtx = cubeCanvas.getContext("2d", { willReadFrequently: true });
-        const cubeImg = cubeCtx.createImageData(size, size);
-
-        const faceColors = Array.from({ length: size }, () => new Array(size));
+        const buffer = new Uint8ClampedArray(size * size * 4);
 
         for (let y = 0; y < size; y += 1) {
             let mapY = colorSpace == "RGB" ? mapCoord(y, size, face.y.flip) : mapCoord(y, size, true);
@@ -69,15 +62,13 @@ function cubeCanvas(layer, colorSpace, onProgress) {
                 let mapX = colorSpace == "RGB" ? mapCoord(x, size, face.x.flip) : mapCoord(x, size, false);
 
                 const color = computeCubeColor(mapX, mapY, layer, face, colorSpace, size);
-                faceColors[y][x] = color;
 
                 const idx = (y * size + x) * 4;
 
-                // Apply gamma correction to linear RGB values
-                cubeImg.data[idx] = linearToSRGB(color.r);
-                cubeImg.data[idx + 1] = linearToSRGB(color.g);
-                cubeImg.data[idx + 2] = linearToSRGB(color.b);
-                cubeImg.data[idx + 3] = 255;
+                buffer[idx] = color.r * 255;
+                buffer[idx + 1] = color.g * 255;
+                buffer[idx + 2] = color.b * 255;
+                buffer[idx + 3] = 255;
 
                 // Increment processed count
                 // Notify worker that 1 pixel was processed.
@@ -88,42 +79,33 @@ function cubeCanvas(layer, colorSpace, onProgress) {
                 }
             }
         }
-        cubeCtx.putImageData(cubeImg, 0, 0);
-        canvases.push(cubeCanvas);
-        textureData.push(faceColors);
+        buffers.push(buffer);
+
     });
-
-    return { canvases, textureData };
+    const safeBuffer = buffers.map(buf => ({ data: buf.buffer, width: size, height: size}));
+    return safeBuffer;
 }
-function sphereCanvas(layer, colorSpace, onProgress) {
+function generateSphereLayer(layer, colorSpace, onProgress) {
     const size = 256 - (layer * 2);
-
-    let canvases = [];
-    let textureData = [];
 
     let processed = 0;
     let total = 0;
     const progressInterval = Math.max(1000, Math.floor(total / 100));
 
     total = size * size;
-
-    const sphereCanvas = document.createElement('canvas');
-    sphereCanvas.width = sphereCanvas.height = size;
-    const sphereCtx = sphereCanvas.getContext("2d", { willReadFrequently: true });
-    const sphereImg = sphereCtx.createImageData(size, size);
-
-    const sphereColors = Array.from({ length: size }, () => new Array(size));
+    const buffers = [];
+    let buffer = new Uint8ClampedArray(size * size * 4);
 
     for (let y = 0; y < size; y++) {
         for (let x = 0; x < size; x++) {
             const color = computeSphereColor(x, y, layer, colorSpace, size);
-            sphereColors[y][x] = color;
-            // Apply gamma correction to linear RGB values
+
             const idx = (y * size + x) * 4;
-            sphereImg.data[idx] = linearToSRGB(color.r);
-            sphereImg.data[idx + 1] = linearToSRGB(color.g);
-            sphereImg.data[idx + 2] = linearToSRGB(color.b);
-            sphereImg.data[idx + 3] = 255;
+    
+            buffer[idx] = color.r * 255;
+            buffer[idx + 1] = color.g * 255;
+            buffer[idx + 2] = color.b * 255;
+            buffer[idx + 3] = 255;
 
             // Increment processed count
             // Notify worker that 1 pixel was processed.
@@ -134,8 +116,7 @@ function sphereCanvas(layer, colorSpace, onProgress) {
             }
         }
     }
-    sphereCtx.putImageData(sphereImg, 0, 0);
-    canvases.push(sphereCanvas);
-    textureData.push(sphereColors);
-    return { canvases, textureData };
+    buffers.push(buffer);
+    const safeBuffer = buffers.map(buf => ({ data: buf.buffer, width: size, height: size}));
+    return safeBuffer;
 }

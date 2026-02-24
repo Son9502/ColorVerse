@@ -17,6 +17,7 @@ export class TextureCache extends LRULayerCache {
         super(type, maxEntries, minLayer, maxLayer);
         this.defaultLayers = defaultLayers;
         this.workerCache = new WorkerCache({ type, maxEntries, minLayer, maxLayer, defaultLayers });
+        this.pending = new Map();
         this.colorSpaces = ["RGB", "HSL"];
     }
     /**
@@ -46,36 +47,40 @@ export class TextureCache extends LRULayerCache {
         texture.generateMipmaps = true;
 
         texture.userData = { canvas };
-        // texture.userData.rawBuffer = buffer.data;
-        // texture.userData.size = size; 
 
         return texture;
     }
     async getOrCreate(colorSpace, layer, onProgress) {
         let entry = this.get(layer);
-        if (!entry) entry = {layer, textures: {} };
-        
-        if (entry.textures[colorSpace]) return entry; 
-        // Load from worker cache
-
-        const buffer = await this.workerCache.getOrCreate(colorSpace, layer, onProgress)
-        //console.log(buffer);
-        if (!buffer) return null;
-
-        const textures = [];
-        // const size = 256 - (2 * layer);
-        // console.log("Texture size:", size);
-        for (let i = 0; i < this.faceCount; i++) {
-            //console.log(buffer[i]);
-            const texture = await this.makeTexture(buffer[i]);
-
-            textures.push(texture);
+        if (!entry) {
+            entry = { layer, textures: {} };
+            this.set(layer, entry);
         }
-        //console.log("Texture returned:", textures);
-        entry.textures[colorSpace] = textures;
+        if (entry.textures[colorSpace]) return entry;
+        // Load from worker cache
+        const pendingKey = `${layer}`;
+        if (this.pending.has(pendingKey)) {
+            await this.pending.get(pendingKey);
+            return this.get(layer);
+        }
+        const promise = (async () => {
+            const buffer = await this.workerCache.getOrCreate(colorSpace, layer, onProgress)
 
-        //console.log(layer, entry);
-        return this.set(layer, entry);
+            if (!buffer) return null;
+
+            const textures = [];
+
+            for (let i = 0; i < this.faceCount; i++) {
+                const texture = await this.makeTexture(buffer[i]);
+
+                textures.push(texture);
+            }
+            entry.textures[colorSpace] = textures;
+        })();
+        this.pending.set(pendingKey, promise);
+        await promise;
+        this.pending.delete(pendingKey);
+        return this.get(layer);
     }
     async preload(onProgress) {
         await this.workerCache.preload(this.defaultLayers, undefined, onProgress);

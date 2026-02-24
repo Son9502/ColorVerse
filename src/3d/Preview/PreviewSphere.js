@@ -1,55 +1,70 @@
 import { PreviewBase } from "./PreviewBase.js";
+import { createLayerFadeMaterial } from "../FaderTextures/layerMaterial.js";
 export class PreviewSphere extends PreviewBase {
-    constructor(textureCache, size = 1, opacity = 0.25, scale = 1.5) {
-        super(textureCache, size, opacity, scale);
+    constructor(textureCache, size = 1, opacity = 0.25, scale = 1.5, colorSpace = "RGB") {
+        super(textureCache, size, opacity, scale, colorSpace);
+        this.material = null;
     }
     async _createObject(layer, colorSpace = "RGB") {
-        const nextSpace = colorSpace;
-
-        const entry = await this.lruCache.get(nextSpace, layer);
-        const texture = entry.textures[0];
-
-        texture.colorSpace = THREE.SRGBColorSpace;
-        texture.needsUpdate = true;
-
-        const geometry = new THREE.SphereGeometry(
-            this.size * this.scale,
-            64,
-            64
+        const entry = await this.textureCache.getOrCreate(colorSpace, layer);
+        const geometry = new THREE.SphereGeometry(this.size * this.scale, 64, 64);
+    
+        this.material = createLayerFadeMaterial(
+            entry.textures[colorSpace][0],
+            entry.textures[colorSpace][0],
+            0,
+            this.opacity
         );
 
-        const material = new THREE.MeshBasicMaterial({
-            map: texture,
-            transparent: true,
-            opacity: this.opacity,
-            side: THREE.DoubleSide,
-            depthWrite: false,   // prevents z-fighting with main sphere
-            toneMapped: false
-        });
+        const sphere = new THREE.Mesh(geometry, this.material);
 
-        const newObject = new THREE.Mesh(geometry, material);
-
-        // Sync transform with main sphere
         if (this.mainObject?.object) {
-            newObject.position.copy(this.mainObject.object.position);
-            newObject.rotation.copy(this.mainObject.object.rotation);
+            sphere.position.copy(this.mainObject.object.position);
+            sphere.rotation.copy(this.mainObject.object.rotation);
         }
 
-        this.object = newObject;
+        this.object = sphere;
     }
-    async updateLayer(layer, colorSpace = "RGB") {
+    async updateLayer(layer, colorSpace = "RGB", {commit = false} = {}) {
         if (!this.object) return;
-        const nextSpace = colorSpace;
+        
+        const entry = await this.textureCache.getOrCreate(colorSpace, layer);
+        
+        if (commit) {
+            this._startBlend(this.material, this.material.uniforms.texB.value, entry.textures[colorSpace][0]);
+        }
+        else {
+            this.material.uniforms.texA.value = this.material.uniforms.texB.value;
+            this.material.uniforms.texB.value = entry.textures[colorSpace][0];
+            this.material.uniforms.mixFactor.value = 0.0;
+        }
+        this.colorSpace = colorSpace;
+        this.currentLayer = layer;
+    }
+    async switchColorSpace(colorSpace, duration = 500) {
+        const fromSpace = this.colorSpace;
+        const toSpace = colorSpace;
+        if (fromSpace === toSpace) return;
 
-        const entry = await this.lruCache.get(nextSpace, layer);
-        const newTexture = entry.textures[0];
+        const entryFrom = await this.textureCache.getOrCreate(fromSpace, this.currentLayer);
+        const entryTo = await this.textureCache.getOrCreate(toSpace, this.currentLayer);
 
-        newTexture.colorSpace = THREE.SRGBColorSpace;
-        newTexture.needsUpdate = true;
+        const startTime = performance.now();
 
-        // Swap texture
-        this.object.material.map = newTexture;
-        this.object.material.needsUpdate = true;
-        this.object.material.userData.originalCanvas = newTexture.userData.originalCanvas;
+        const animate = () => {
+            const elapsed = performance.now() - startTime;
+            const t = Math.min(elapsed / duration, 1);
+
+            this.material.uniforms.texA.value = entryFrom.textures[fromSpace][0];
+            this.material.uniforms.texB.value = entryTo.textures[toSpace][0];
+            this.material.uniforms.mixFactor.value = t;
+
+            if (t < 1) {
+                requestAnimationFrame(animate);
+            } else {
+                this.colorSpace = toSpace;
+            }
+        };
+        requestAnimationFrame(animate);
     }
 }

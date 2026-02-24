@@ -1,12 +1,11 @@
 import { MiniBase } from "./MiniBase.js";
-import { makeRGBMat, makeHSLMat } from "../../color-utils.js";
 
 export class MiniSphere extends MiniBase {
     constructor(renderer, colorSpace = "RGB") {
         super(renderer, colorSpace);
 
         // Mini scene and camera
-        this.buildMaterials({ "RGB": makeRGBMat(), "HSL": makeHSLMat() });
+        
         this.axisLength = this.size * 1.5;
         this.createObject();
     }

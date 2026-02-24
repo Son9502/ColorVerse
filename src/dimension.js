@@ -61,8 +61,7 @@ export
     if (currentVisual) {
         await currentVisual?.dispose?.();
         if (currentVisual.renderer) {
-            currentVisual.renderer.domElement.remove();
-            currentVisual.renderer.dispose();
+            await currentVisual.renderer.dispose();
         }
     }
     switch (type) {

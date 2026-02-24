@@ -1,6 +1,6 @@
-
+import { makeRGBMat, makeHSLMat } from "../../color-utils.js";
 export class MiniBase {
-    constructor(renderer, colorSpace = "RGB", size = 2, offset = 20, padding = 10) {
+    constructor(renderer, colorSpace = "RGB", size = 2, offset = 20, padding = 10, {fadeIn = 200, fadeOut = 400, idleDelay = 1500} = {}) {
         this.renderer = renderer;
         this.colorSpace = colorSpace;
 
@@ -18,6 +18,7 @@ export class MiniBase {
         this.padding = padding;
 
         this.materials = {};
+        this.buildMaterials({ "RGB": makeRGBMat(), "HSL": makeHSLMat() });
 
         // Axis arrows
         this.buildAxesHelper([
@@ -28,8 +29,21 @@ export class MiniBase {
 
         this.camera.position.set(0, 0, this.size * 3);
         this.camera.lookAt(0, 0, 0);
-    }
 
+        // Animation parameters
+        this.fadeIn = fadeIn;
+        this.fadeOut = fadeOut;
+        this.idleDelay = idleDelay;
+
+        this.opacity = 0;
+        this.targetOpacity = 0;
+        this.visible = false;
+        this.lastActiveTime = 0;
+        this.lastTickTime = null;
+
+        this.highlighted = null; 
+    }
+    
     createObject() {
         // To be implemented in subclasses
         throw new Error("createObject() must be implemented in subclass");
@@ -37,6 +51,7 @@ export class MiniBase {
     buildMaterials(materialsObj) {
         this.materials = materialsObj;
         Object.values(this.materials).forEach(mat => {
+            //if (mat.uniforms?.uOpacity) mat.uniforms.uOpacity.value = 0.0;
             mat.opacity = 0.9;
             mat.transparent = true;
         });
@@ -54,15 +69,6 @@ export class MiniBase {
 
     updateRotation(mainQuat) {
         this.root.quaternion.copy(mainQuat);
-        //if (this.object) this.object.quaternion.copy(mainQuat);
-        //if (this.axesHelper) this.axesHelper.quaternion.copy(mainQuat);
-        // Optional label syncing could go here
-        // Keep labels facing the MiniCube's camera
-        /*
-        this.labelGroup.children.forEach(label => {
-            const axisRot = label.userData.axisRot;
-            if (axisRot) label.rotateX(axisRot.x).rotateY(axisRot.y).rotateZ(axisRot.z);
-        });*/
     }
 
     updateColorSpace(colorSpace = "RGB") {
@@ -71,56 +77,109 @@ export class MiniBase {
             this.object.material = this.materials[colorSpace];
             this.object.material.needsUpdate = true;
         }
-        // Optional: labels update hook
+        this.activateFade();
     }
-    /*
-     _addLabel(text, color, x, y, z, rotation = new THREE.Euler(0, 0, 0), viewportSize = 150) {
-         try {
-             const canvas = document.createElement("canvas");
-             canvas.width = canvas.height = 256;
-             const ctx = canvas.getContext("2d");
-             ctx.font = `${Math.max(20, 140 * (viewportSize / 150))}px Arial`;
-             ctx.fillStyle = color;
-             ctx.textAlign = "center";
-             ctx.textBaseline = "middle";
-             ctx.fillText(text, canvas.width / 2, canvas.height / 2);
-     
-             const texture = new THREE.CanvasTexture(canvas);
-             texture.needsUpdate = true;
-             const material = new THREE.SpriteMaterial({ map: texture, transparent: true, side: THREE.DoubleSide });
-             const geometry = new THREE.PlaneGeometry(1, 1);
-             const mesh = new THREE.Mesh(geometry, material);
-     
-             mesh.position.set(x, y, z);
-             mesh.rotation.copy(rotation);
-     
-             mesh.userData.axisRot = rotation.clone();
-             this.labelGroup.add(mesh);
-     
-         } catch (error) {
-             console.error("Error creating label:", error);
-         }
-     }*/
-    /*
-     updateLabels(colorSpace = "RGB") {
-         // Clear old labels
-         while (this.labelGroup.children.length) {
-             this.labelGroup.remove(this.labelGroup.children[0]);
-         }
-     
-         const xLabel = colorSpace === "RGB" ? "R" : "H";
-         const yLabel = colorSpace === "RGB" ? "G" : "L";
-         const zLabel = colorSpace === "RGB" ? "B" : "S";
-     
-         const xRot = new THREE.Euler(-Math.PI / 2, Math.PI / 2, 0);
-         const yRot = new THREE.Euler(0, 0, 0);
-         const zRot = new THREE.Euler(-Math.PI / 2, Math.PI / 4, 0);
-     
-         this._addLabel(xLabel, "red", this.axisLength, 0, 0, xRot);
-         this._addLabel(yLabel, "green", 0, this.axisLength, 0, yRot);
-         this._addLabel(zLabel, "blue", 0, 0, this.axisLength, zRot);
-     }*/
+    activateFade() {
+        this.visible = true;
+        this.targetOpacity = 1.0;
+        this.lastActiveTime = performance.now();
+    }
+    deactivateFade() {
+        this.targetOpacity = 0.0;
+    }
+    setVisibility(visible) {
+        visible ? this.activateFade() : this.deactivateFade();
+    }
+    tickFade() {
+        if (!this.object) return;
+
+        const now = performance.now();  
+        this.lastTickTime ??= now;
+        const delta = Math.min(32, now - this.lastTickTime);
+        this.lastTickTime = now;
+        
+        if (this.visible && now - this.lastActiveTime > this.idleDelay) {
+            this.deactivateFade();
+        }
+
+        const speed = this.targetOpacity > this.opacity ? (1 / this.fadeIn) : (1 / this.fadeOut);
+        this.opacity += (this.targetOpacity - this.opacity) * speed * delta; 
+        this.opacity = Math.max(0, Math.min(1, this.opacity));
+        
+        this.root.visible = this.opacity > 0.01;
+        if (this.opacity < 0.01 && this.targetOpacity === 0.0) {
+            this.visible = false;
+        }
+        this.root.traverse(obj => {
+            const mat = obj.material;
+            if (!mat) return;
+            if (mat.uniforms?.uOpacity) mat.uniforms.uOpacity.value = this.opacity;
+            else if (mat.opacity !== undefined) {
+                mat.transparent = true;
+                mat.opacity = this.opacity;
+            }
+        });
+        this._tickHighlight();
+    }
+    _applyOpacity(alpha) {
+        // Traverse all objects inside root and update material opacity
+        this.root.traverse(obj => {
+            const mat = obj.material;
+            if (!mat) return;
+            if (mat.uniforms?.uOpacity !== undefined) {
+                mat.uniforms.uOpacity.value = alpha;
+            } else if (mat.opacity !== undefined) {
+                mat.transparent = true;
+                mat.opacity = alpha;
+            }
+        });
+    }
+    setHighlight(direction, strength = 1.0) {
+        if (!direction) return;
+        this.clearHighlight();
+        
+        const dir = direction.clone().normalize();
+        this.highlighted = {dir, strength};
+
+        this.root.traverse(obj => {
+            const u = obj.material?.uniforms;
+            if (!u) return;
+            if (u.uHighlightDir) u.uHighlightDir.value = dir;
+            if (u.uHighlightStrength) u.uHighlightStrength.value = strength;
+        });
+
+        this.activateFade();
+    }
+
+    clearHighlight() {
+        this.highlighted = null;
+        this.root.traverse(obj => {
+            const u = obj.material?.uniforms;
+            if (u?.uHighlightStrength) {
+                u.uHighlightStrength.value = 0.0;
+            }
+        });
+    }
+
+    _tickHighlight() {
+        if (!this.highlighted) return;
+
+        this.highlighted.strength *= 0.85;
+        this.root.traverse(obj => {
+            const u = obj.material?.uniforms;
+            if (u?.uHighlightStrength) {
+                u.uHighlightStrength.value = this.highlighted.strength;
+            }
+        });
+
+        if (this.highlighted.strength < 0.01) {
+            this.clearHighlight();
+        }
+    }
+
     renderMiniObject(minDivisor = 16, maxDivisor = 25) {
+        if (!this.visible) return;
+
         const sizeVec = this.renderer.getSize(new THREE.Vector2());
         let size = Math.min(sizeVec.x, sizeVec.y) / minDivisor;
         const minSize = Math.min(sizeVec.x, sizeVec.y) / maxDivisor;

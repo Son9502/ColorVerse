@@ -9,3 +9,4 @@ setupToggle();
 setupDimensionDropdown();
 setupDropdown();
 defaultVisualization("sphere");
+// defaultVisualization("cube");

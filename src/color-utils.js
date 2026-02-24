@@ -102,43 +102,44 @@ export function computeCubeColor(x, y, layer, faceMap, colorSpace, size) {
   }
 
 }
-// Compute color for given x, y, layer, colorSpace, and size on a sphere using latitude-longitude mapping
 export function computeSphereColor(x, y, layer, colorSpace, size) {
-  // Normalize x and y to [-1, 1]
+  // Normalize x and y to [0,1]
   const u = (x + 0.5) / size;
   const v = (y + 0.5) / size;
 
-  // Latitude-Longitude mapping
-  const longitude = u * 2 * Math.PI;  // [0, 2PI]
-  const latitude = v * Math.PI;       // [0, PI]
+  // Latitude-Longitude (equal area) mapping
+  const phi = 2 * Math.PI * u;             // longitude
+  const theta = Math.acos(1 - 2 * v);       // latitude, prevents pole collapse
 
-  // Spherical to Cartesian
-  const nx = Math.sin(latitude) * Math.cos(longitude);
-  const ny = Math.cos(latitude);
-  const nz = Math.sin(latitude) * Math.sin(longitude);
+  // Convert spherical to Cartesian coordinates
+  const nx = Math.sin(theta) * Math.cos(phi);
+  const ny = Math.cos(theta);
+  const nz = Math.sin(theta) * Math.sin(phi);
 
-  // Bounds of color values
+  // Define layer bounds for color mapping
   const mini = layer / 255;
   const maxi = (layer + size - 1) / 255;
 
-  if (colorSpace === 'RGB') {
-    let rLin = lerp(mini, maxi, (nx + 1) * 0.5);
-    let gLin = lerp(mini, maxi, (ny + 1) * 0.5);
-    let bLin = lerp(mini, maxi, (nz + 1) * 0.5);
-    return { r: rLin, g: gLin, b: bLin };
-  } else {
-    let h, s, l, t;
-    // Hue, Saturation, Lightness
-    t = 1 - (layer / 127);
-    h = Math.atan2(nz, nx) / (2 * Math.PI);
+  if (colorSpace === "RGB") {
+    // Simple linear interpolation between mini/maxi
+    const r = lerp(mini, maxi, (nx + 1) * 0.5);
+    const g = lerp(mini, maxi, (ny + 1) * 0.5);
+    const b = lerp(mini, maxi, (nz + 1) * 0.5);
+    return { r, g, b };
+  } else if (colorSpace === "HSL") {
+    // Convert direction to HSL
+    let h = Math.atan2(nz, nx) / (2 * Math.PI);
     if (h < 0) h += 1;
     h *= 360;
-    s = Math.sqrt(nx * nx + nz * nz) * t;
-    l = lerp(mini, maxi, (ny + 1) * 0.5);
+
+    const s = Math.sqrt(nx * nx + nz * nz) * (1 - layer / 127);
+    const l = lerp(mini, maxi, (ny + 1) * 0.5);
 
     return hslToRgb(h, s * 100, l * 100);
-  }
 
+  } else {
+    throw new Error(`Unknown colorSpace: ${colorSpace}`);
+  }
 }
 // Shader material generators for RGB and HSL for the mini 3d objects
 export function makeRGBMat({ shininess = 30, specular = 0.5, snapStrength = 0.6 } = {}) {
@@ -148,6 +149,10 @@ export function makeRGBMat({ shininess = 30, specular = 0.5, snapStrength = 0.6 
       shininess: { value: shininess },
       specular: { value: specular },
       lightDir: { value: new THREE.Vector3(1, 1, 1).normalize() },
+      uOpacity: { value: 1.0 },
+      uHighlightDir: { value: new THREE.Vector3(0, 0, 0) },
+      uHighlightStrength: { value: 0.0 },
+      uHighlightSharpness: { value: 8.0 }, // controls area size
     },
     vertexShader: `
       varying vec3 vNormal;
@@ -168,6 +173,12 @@ export function makeRGBMat({ shininess = 30, specular = 0.5, snapStrength = 0.6 
 
       varying vec3 vNormal;
       varying vec3 vPos;
+
+      uniform float uOpacity;
+      uniform vec3 uHighlightDir;
+      uniform float uHighlightStrength;
+      uniform float uHighlightSharpness;
+
       void main() {
         vec3 n = normalize(vNormal);
         vec3 pos = vPos;
@@ -188,6 +199,18 @@ export function makeRGBMat({ shininess = 30, specular = 0.5, snapStrength = 0.6 
 
         color += snap * snapStrength;
 
+        // Directional highlight
+        vec3 dir = normalize(vPos);
+        float alignment = dot(dir, normalize(uHighlightDir));
+
+        // Soft cone highlight
+        float highlight = exp(-uHighlightSharpness * (1.0 - alignment));
+
+        // Brighten existing color (not add white)
+        vec3 highlightColor = mix(color, vec3(1.0), 0.35);
+
+        color = mix(color, highlightColor, highlight * uHighlightStrength);
+
         // Blinn-Phong Specular highlight
         vec3 L = normalize(lightDir);
         vec3 V = normalize(-pos);
@@ -196,7 +219,7 @@ export function makeRGBMat({ shininess = 30, specular = 0.5, snapStrength = 0.6 
         float spec = pow(NdotH, shininess) * specular;
         color += spec;
 
-        gl_FragColor = vec4(color, 1.0);
+        gl_FragColor = vec4(color, uOpacity);
       }
     `
   });
@@ -209,6 +232,10 @@ export function makeHSLMat({ shininess = 30, specular = 0.5, snapStrength = 0.6 
       shininess: { value: shininess },
       specular: { value: specular },
       lightDir: { value: new THREE.Vector3(1, 1, 1).normalize() },
+      uOpacity: { value: 1.0 },
+      uHighlightDir: { value: new THREE.Vector3(0, 0, 0) },
+      uHighlightStrength: { value: 0.0 },
+      uHighlightSharpness: { value: 8.0 }, // controls area size
     },
     vertexShader: `
       varying vec3 vPos;
@@ -229,6 +256,11 @@ export function makeHSLMat({ shininess = 30, specular = 0.5, snapStrength = 0.6 
       
       varying vec3 vNormal;
       varying vec3 vPos;
+
+      uniform float uOpacity;
+      uniform vec3 uHighlightDir;
+      uniform float uHighlightStrength;
+      uniform float uHighlightSharpness;
 
       const float PI = 3.14159265;
 
@@ -277,6 +309,17 @@ export function makeHSLMat({ shininess = 30, specular = 0.5, snapStrength = 0.6 
 
         color += snap * snapStrength;
 
+        // Directional highlight
+        vec3 dir = normalize(vPos);
+        float alignment = dot(dir, normalize(uHighlightDir));
+
+        // Soft cone highlight
+        float highlight = exp(-uHighlightSharpness * (1.0 - alignment));
+
+        // Brighten existing color (not add white)
+        vec3 highlightColor = mix(color, vec3(1.0), 0.35);    
+        color = mix(color, highlightColor, highlight * uHighlightStrength);
+
         // Blinn-Phong Specular highlight
         vec3 L = normalize(lightDir);
         vec3 V = normalize(-pos);
@@ -285,7 +328,7 @@ export function makeHSLMat({ shininess = 30, specular = 0.5, snapStrength = 0.6 
         float spec = pow(NdotH, shininess) * specular;
         color += spec;
 
-        gl_FragColor = vec4(color, 1.0);
+        gl_FragColor = vec4(color, uOpacity);
       }`
   });
 }

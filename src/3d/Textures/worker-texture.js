@@ -1,31 +1,29 @@
-import { computeCubeColor, computeSphereColor, SRGBtoLinear, linearToSRGB } from "../../color-utils.js";
+import { computeCubeColor, computeSphereColor} from "../../color-utils.js";
 // thread-texture.js
 // import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.166.0/build/three.module.js';
 
 // returns texture data for RGB and HSL color spaces
-function generateCanvas(layer, colorSpace, type, onProgress) {
+function generatePixelLayer(layer, colorSpace, type, onProgress) {
   switch (type) {
     case "cube":
-      return cubeCanvas(layer, colorSpace, onProgress);
+      return generateCubeLayer(layer, colorSpace, onProgress);
     case "sphere":
-      return sphereCanvas(layer, colorSpace, onProgress);
+      return generateSphereLayer(layer, colorSpace, onProgress);
     default:
       throw new Error(`Unknown type: ${type}`);
   }
 }
-function cubeCanvas(layer, colorSpace, onProgress) {
+function generateCubeLayer(layer, colorSpace, onProgress) {
   //console.log("Cube Canvases called:", layer, colorSpace);
-  
+
   // Helper function to map coordinates based on flip
   function mapCoord(index, size, flip) {
     return flip ? size - 1 - index : index;
   }
-  
-  const size = 256 - (layer * 2);
-  let faceMap = [];
 
-  const canvases = [];
-  const textureData = [];
+  const size = 256 - (layer * 2);
+  const buffers = [];
+  let faceMap = [];
 
   switch (colorSpace) {
     case "RGB": {
@@ -52,11 +50,7 @@ function cubeCanvas(layer, colorSpace, onProgress) {
     }
   }
   for (const face of faceMap) {
-
-    const cubeCanvas = new OffscreenCanvas(size, size);
-    const cubeCtx = cubeCanvas.getContext("2d", { willReadFrequently: true });
-    const cubeImg = cubeCtx.createImageData(size, size);
-    const faceColors = Array.from({ length: size }, () => new Array(size));
+    const buffer = new Uint8ClampedArray(size * size * 4);
 
     for (let y = 0; y < size; y += 1) {
       let mapY = colorSpace == "RGB" ? mapCoord(y, size, face.y.flip) : mapCoord(y, size, true);
@@ -64,72 +58,60 @@ function cubeCanvas(layer, colorSpace, onProgress) {
         // Notify worker that 1 pixel was processed.
         // Worker handles incrementing and batching progress messages.
         onProgress?.();
-        
+
         let mapX = colorSpace == "RGB" ? mapCoord(x, size, face.x.flip) : mapCoord(x, size, false);
-        
+
         const color = computeCubeColor(mapX, mapY, layer, face, colorSpace, size);
-        faceColors[y][x] = color;
 
         const idx = (y * size + x) * 4;
 
-        // Apply gamma correction to linear RGB values
-        cubeImg.data[idx] = linearToSRGB(color.r);
-        cubeImg.data[idx + 1] = linearToSRGB(color.g);
-        cubeImg.data[idx + 2] = linearToSRGB(color.b);
-        cubeImg.data[idx + 3] = 255;
+        buffer[idx] = color.r * 255;
+        buffer[idx + 1] = color.g * 255;
+        buffer[idx + 2] = color.b * 255;
+        buffer[idx + 3] = 255;
       }
     }
-    cubeCtx.putImageData(cubeImg, 0, 0);
-    canvases.push(cubeCanvas);
-    textureData.push(faceColors);
+    buffers.push(buffer);
   }
-  return { canvases, textureData };
+  return buffers;
 }
-function sphereCanvas(layer, colorSpace, onProgress) {
+function generateSphereLayer(layer, colorSpace, onProgress) {
 
   const size = 256 - (layer * 2);
+  const buffers = [];
+  const buffer = new Uint8ClampedArray(size * size * 4);
+  
+  // let nonZero = 0;
 
-  const canvases = [];
-  const textureData = [];
-
-  const sphereCanvas = new OffscreenCanvas(size, size);
-  const sphereCtx = sphereCanvas.getContext("2d", { willReadFrequently: true });
-  const sphereImg = sphereCtx.createImageData(size, size);
-  const sphereColors = Array.from({ length: size }, () => new Array(size));
-
-  // et nonZero = 0;
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
       onProgress?.();
 
       const color = computeSphereColor(x, y, layer, colorSpace, size);
-      sphereColors[y][x] = color;
-
       const idx = (y * size + x) * 4;
-      sphereImg.data[idx] = linearToSRGB(color.r);
-      sphereImg.data[idx + 1] = linearToSRGB(color.g);
-      sphereImg.data[idx + 2] = linearToSRGB(color.b);
-      sphereImg.data[idx + 3] = 255;
+      
+      buffer[idx] = color.r * 255;
+      buffer[idx + 1] = color.g * 255;
+      buffer[idx + 2] = color.b * 255;
+      buffer[idx + 3] = 255;
       //if (color.r !== 0 || color.g !== 0 || color.b !== 0) nonZero++;
     }
   }
-  //console.log(sphereImg.data)
+  buffers.push(buffer);
+  //console.log(buffer);
   //console.log(`Sphere RGB layer ${layer} non-zero pixels: ${nonZero} / ${size * size}`);
-  sphereCtx.putImageData(sphereImg, 0, 0);
-  canvases.push(sphereCanvas);
-  textureData.push(sphereColors);
-  return { canvases, textureData };
+  return buffers;
 }
 
 /**
  * Worker for generating cube textures using OffscreenCanvas.
  * Receives: { id, colorSpace, layer }
- * Responds: { id, imageBitmaps, textureData } or { id, error }
+ * Responds: { id, imageBitmaps, buffers } or { id, error }
  */
 self.addEventListener('message', async (ev) => {
   const { id, colorSpace, layer, type } = ev.data;
   //console.log("Worker start", ev.data);
-
+  //console.log("Worker start", { id, colorSpace, layer, type });
   try {
     let processed = 0;
     let total = 0;
@@ -144,15 +126,14 @@ self.addEventListener('message', async (ev) => {
       }
     };
 
-    let canvases, textureData;
-    ({ canvases, textureData } = generateCanvas(layer, colorSpace, type, sendProgress));
-
-    const imageBitmaps = await Promise.all(
-      canvases.map(off => createImageBitmap(off))
-    );
-
+    let buffers;
+    buffers = generatePixelLayer(layer, colorSpace, type, sendProgress);
+    //console.log(buffers.buffer);
+    const safeBuffer = buffers.map(buf => ({ data: buf.buffer, width: size, height: size}));
+    //console.log(safeBuffer);
     // Send message that the process is completed 
-    self.postMessage({ id, type: "completed", imageBitmaps, textureData, layer }, imageBitmaps);
+    self.postMessage({ id, type: "completed", 
+      buffers: safeBuffer, layer});
 
   } catch (err) {
     console.log("Worker error", err);

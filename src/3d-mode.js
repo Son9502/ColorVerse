@@ -1,10 +1,11 @@
-import { MiniCube } from './3d/MiniCube.js';
-import { MiniSphere } from './3d/MiniSphere.js';
-import { MainCube } from './3d/MainCube.js';
-import { MainSphere } from './3d/MainSphere.js';
+import { MiniCube } from './3d/Mini/MiniCube.js';
+import { MiniSphere } from './3d/Mini/MiniSphere.js';
+import { MainCube } from './3d/Main/MainCube.js';
+import { MainSphere } from './3d/Main/MainSphere.js';
 import { setBaseColors, resetColors } from './harmony.js';
-import { LRUCache } from "./3d/LRUCache.js";
 import { LoaderManager } from './LoaderManager.js';
+import { getCaches } from './3d/TextureRegistry.js';
+import { getSharedRenderer, resizeSharedRenderer } from './3d/sharedRenderer.js';
 
 export const create3DEnvironment = async (objectType = "cube") => {
     // --- Loading Elements ---
@@ -14,97 +15,104 @@ export const create3DEnvironment = async (objectType = "cube") => {
 
     // --- Renderer + Scene ---
     const container = document.getElementById("ui-canvas");
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(window.devicePixelRatio);
-    container.appendChild(renderer.domElement);
+    const { renderer, camera } = getSharedRenderer(container);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.NoToneMapping;
+    resizeSharedRenderer(container);
 
-    const camera = new THREE.PerspectiveCamera(75, 2, 0.1, 20);
-    camera.position.z = 3;
+    // --- Responsive Renderer ---
+    window.addEventListener("resize", () => resizeSharedRenderer(container));
 
     const scene = new THREE.Scene();
+
     // --- Texture caches ---
-    //console.log("Loading 3D Object");
-    const lruCache = new LRUCache({ type: objectType });
-    //await lruCache.preloadLayers();
+    const caches = getCaches(objectType); // [0] = textureCache, [1] = shaderCache
+
+    // --- Preload Textures ---
+    loader.show("Preparing textures...");
+    await caches[0].preload((loaded, total, current, progress, totalProgress) => {
+        loader.handleLayerProgress(loaded, total, current, progress, totalProgress);
+    });
+    //console.log("Texture caches after preload:", [...caches[0].cache.keys()]);
 
     // --- Main,Preview and Mini 3D Object ---
     let mainObject, previewObject, miniObject;
     switch (objectType) {
         case "cube":
             loader.setMessage("Creating Cube...");
-            mainObject = new MainCube(scene, lruCache, camera, (loaded, total) => {
+            mainObject = new MainCube(scene, caches[0], camera, (loaded, total) => {
                 loader.handleProgress(loaded, total);
             });
-            loader.setMessage("Setting up Axes Helper for Cube...");
+            loader.setMessage("Setting up MiniObject for Cube...");
             miniObject = new MiniCube(renderer);
             break;
         case "sphere":
             loader.setMessage("Creating Sphere...");
-            mainObject = new MainSphere(scene, lruCache, camera, (loaded, total) => {
+            mainObject = new MainSphere(scene, caches[0], camera, (loaded, total) => {
                 loader.handleProgress(loaded, total);
             });
-            loader.setMessage("Setting up Axes Helper for Sphere...");
+            loader.setMessage("Setting up MiniObject for Sphere...");
             miniObject = new MiniSphere(renderer);
             break;
         default:
             throw new Error(`Unknown objectType: ${objectType}`);
     }
-    if (objectType == "cube") {
-        const { PreviewCube } = await import('./3d/PreviewCube.js');
-        previewObject = new PreviewCube(lruCache);
-    }
-    else if (objectType == "sphere") {
-        //console.log("Switch to Sphere");
-        const { PreviewSphere } = await import('./3d/PreviewSphere.js');
-        previewObject = new PreviewSphere(lruCache);
+
+    await mainObject.initObject();
+
+    if (!previewObject) {
+        switch (objectType) {
+            case "cube": {
+                const { PreviewCube } = await import('./3d/Preview/PreviewCube.js');
+                previewObject = new PreviewCube(caches[0]);
+                break;
+            }
+            case "sphere": {
+                const { PreviewSphere } = await import('./3d/Preview/PreviewSphere.js');
+                previewObject = new PreviewSphere(caches[0]);
+                break;
+            }
+        }
     }
     previewObject.setupControls(mainObject);
-    loader.show("Preparing textures...");
-    await mainObject.textureCache.preloadLayers(
-        undefined,  // default layers
-        undefined,  // default batchSize
-        (loaded, total, current, progress, totalProgress) => loader.handleLayerProgress(loaded, total, current, progress, totalProgress)
-    );
-
-    // --- Responsive Renderer ---
-    const fitRendererToContainer = () => {
-        const width = container.clientWidth;
-        const height = container.clientHeight;
-        renderer.setSize(width, height);
-        camera.aspect = width / height;
-        camera.updateProjectionMatrix();
-    };
-    fitRendererToContainer();
-    window.addEventListener("resize", fitRendererToContainer);
 
     // --- UI Elements ---
-    const threeDText = document.getElementById("3dtext");
     const toggleColorSpace = document.getElementById("toggle");
+    let colorSpace = toggleColorSpace.checked ? "HSL" : "RGB";
+
+    const threeDText = document.getElementById("3dtext");
     const canvasText = document.getElementById("ui-canvas-text");
+
     let currentLayer = 127;
-    let colorSpace = "RGB";
+    threeDText.value = "";
+
+    // --- Layer Input Logic ---
     const validLayer = (input) => Number.isInteger(input) && input >= 0 && input <= 127;
 
     // --- Preview Object Helper ---
-    const createPreview = (layerNum, newColorSpace = colorSpace, toggleSpace = false) => {
+    const createPreview = async (layerNum, newColorSpace = colorSpace) => {
         if (!previewObject) return;
-        previewObject.removePreview();
-        previewObject.createPreview(scene, layerNum, newColorSpace, toggleSpace);
+        previewObject.hide();
+        await previewObject.show(scene, layerNum, newColorSpace);
     };
     // --- Layer Input Handling ---
+    let previewRAF = null;
     threeDText.addEventListener("input", () => {
-        const layerNum = parseInt(threeDText.value);
-        if (!validLayer(layerNum) || layerNum === currentLayer) {
-            previewObject?.removePreview();
-            return;
-        }
-        createPreview(layerNum);
+        cancelAnimationFrame(previewRAF);
+        previewRAF = requestAnimationFrame(async () => {
+            const layerNum = parseInt(threeDText.value);
+            if (!validLayer(layerNum) || layerNum === currentLayer) {
+                previewObject?.hide();
+                return;
+            }
+            await createPreview(layerNum);
+        });
     });
 
-    threeDText.addEventListener("keydown", (event) => {
+    threeDText.addEventListener("keydown", async (event) => {
         if (event.key === "Escape") {
             threeDText.value = "";
-            previewObject?.removePreview();
+            previewObject?.hide();
             return;
         }
         if (event.key !== "Enter") return;
@@ -115,33 +123,47 @@ export const create3DEnvironment = async (objectType = "cube") => {
             return;
         }
 
-        previewObject?.removePreview();
+        previewObject?.hide();
         currentLayer = layerNum;
-        mainObject.updateLayer(currentLayer);
+        mainObject.layerTarget = currentLayer;
         threeDText.value = "";
         canvasText.textContent = `Layer ${currentLayer}`;
     });
 
     // --- Color Space Toggle ---
-    toggleColorSpace.addEventListener("click", () => {
+    toggleColorSpace.addEventListener("click", async () => {
         colorSpace = colorSpace === "RGB" ? "HSL" : "RGB";
-        mainObject.colorSpace = colorSpace;
-        mainObject.updateLayer(currentLayer);
-        miniObject.updateLabels(colorSpace);
+        await mainObject.switchColorSpace(colorSpace, 500);
 
+        // Update preview object if active
+
+        mainObject._lastBlendKey = null;
+
+        miniObject.updateColorSpace(colorSpace);
         if (previewObject && validLayer(parseInt(threeDText.value))) {
-            createPreview(parseInt(threeDText.value), colorSpace);
+            previewObject.switchColorSpace(colorSpace, 500);
         }
     });
 
     // --- Keyboard / Mouse / Wheel Controls ---
-    const faceMap = { "1": 0, "2": 1, "3": 2, "4": 3, "5": 4, "6": 5 };
+    const faceMap = mainObject.faceMap;
 
     window.addEventListener("keydown", (e) => {
         const activeEl = document.activeElement;
         const isTyping = activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA" || activeEl.isContentEditable;
-        if (!isTyping && objectType != "sphere") {
+        if (!isTyping) {
             if (faceMap[e.key] !== undefined) mainObject.rotateTo(faceMap[e.key]);
+            if (e.key === "]") {
+                mainObject.layerTarget = Math.min(127, mainObject.layerTarget + 1);
+                canvasText.textContent = `Layer ${mainObject.layerTarget}`;
+            }
+            if (e.key === "[") {
+                mainObject.layerTarget = Math.max(0, mainObject.layerTarget - 1);
+                canvasText.textContent = `Layer ${mainObject.layerTarget}`;
+            }
+            if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+                miniObject.activateFade();
+            }
         }
     });
 
@@ -155,6 +177,7 @@ export const create3DEnvironment = async (objectType = "cube") => {
     // --- Raycasting for color picker ---
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
+    // UI Elements for color info
     const infoBox = document.querySelectorAll(".color-info");
     const infoSearch = document.getElementById("color-search");
     const colorName = document.getElementById("color-name");
@@ -169,65 +192,91 @@ export const create3DEnvironment = async (objectType = "cube") => {
         mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
         raycaster.setFromCamera(mouse, camera);
-        const intersects = objectType == "cube" ? raycaster.intersectObjects(mainObject.cubeSides.map(s => s.plane), false) : [];
 
+        let targets = [];
+        switch (objectType) {
+            case "cube":
+                targets = mainObject.cubeSides.map(s => s.plane);
+                break;
+            case "sphere":
+                targets = [mainObject.object];
+                break;
+        }
+        let intersects = raycaster.intersectObjects(targets, false);
         if (intersects.length === 0) {
             infoBox.forEach(box => box.classList.remove("show"));
             if (infoSearch) infoSearch.style.display = "flex";
             if (baseCircle) baseCircle.style.backgroundColor = `hsl(0,0%,0%,0)`;
             if (colorName) colorName.textContent = "";
             resetColors();
+            miniObject.clearHighlight();
             return;
         }
+        function handleClick(intersects, mainObject) {
+            const hit = intersects[0];
+            const uv = hit.uv;
+            if (!uv) return; // safety check
 
-        const hit = intersects[0];
-        const plane = hit.object;
-        const side = mainObject.cubeSides.find(s => s.plane === plane);
-        if (!side) return;
+            // 2️⃣ Get texture and canvas
 
-        const canvas = plane.material.map.image;
-        const context = canvas.getContext('2d', { willReadFrequently: true });
-        const uv = hit.uv;
-        const xPos = Math.floor(uv.x * canvas.width);
-        const yPos = Math.floor((1 - uv.y) * canvas.height);
-
-        const pixel = context.getImageData(xPos, yPos, 1, 1).data;
-        const clickedColor = new THREE.Color(pixel[0] / 255, pixel[1] / 255, pixel[2] / 255);
-
-        colortext.value = "";
-        ghosttext.value = "";
-        dropdown.innerHTML = "";
-
-        infoBox.forEach(box => box.classList.add("show"));
-        if (infoSearch) infoSearch.style.display = "none";
-        baseCircle.style.backgroundColor = `#${clickedColor.getHexString()}`;
-        if (colorName) colorName.textContent = "";
-        setBaseColors(clickedColor);
-
-        const origPixel = context.getImageData(xPos, yPos, 1, 1);
-        let alpha = 1.0;
-        const fadeSpeed = 0.05;
-
-        function animateHighlight() {
-            // Restore original pixel
-            context.putImageData(origPixel, xPos, yPos);
-
-            // Draw fading white highlight
-            context.fillStyle = `rgba(255,255,255,${alpha})`;
-            context.fillRect(xPos, yPos, 1, 1);
-
-            plane.material.map.needsUpdate = true;
-
-            alpha -= fadeSpeed;
-            if (alpha > 0) {
-                requestAnimationFrame(animateHighlight);
-            } else {
-                // Ensure original pixel is restored at the end
-                context.putImageData(origPixel, xPos, yPos);
-                plane.material.map.needsUpdate = true;
+            //For cube, find the corresponding plane, for sphere, use the mesh directly
+            let mesh;
+            switch (mainObject.objectType) {
+                case "cube": {
+                    mesh = mainObject.cubeSides.find(s => s.plane === hit.object)?.plane;
+                    break;
+                }
+                case "sphere": {
+                    mesh = hit.object;
+                    break;
+                }
             }
+            if (!mesh) return; // safety check
+            const texture = mesh.material.uniforms.texB.value;
+            const canvas = texture.userData.canvas;
+            if (!canvas) return; // safety check
+
+            // 3️⃣ Get clicked pixel color
+            function getPixelColor(tex, uv, uvFlip = [0, 0]) {
+                const width = tex.image.width;
+                const height = tex.image.height;
+                const pixelData = tex.image.data;
+                const xPos = Math.floor(uv.x * width);
+                const yPos = Math.floor(uv.y * height);
+                const idx = (yPos * width + xPos) * 4;
+                return new THREE.Color(pixelData[idx] / 255, pixelData[idx + 1] / 255, pixelData[idx + 2] / 255);
+            }
+            const clickedColor = getPixelColor(texture, uv);
+
+
+            // 4️⃣ Update UI
+            colortext.value = "";
+            ghosttext.value = "";
+            dropdown.innerHTML = "";
+
+            infoBox.forEach(box => box.classList.add("show"));
+            if (infoSearch) infoSearch.style.display = "none";
+            baseCircle.style.backgroundColor = `#${clickedColor.getHexString()}`;
+            if (colorName) colorName.textContent = "";
+            setBaseColors(clickedColor);
+
+            // 5️⃣ Animate highlight
+            let highlightDir;
+            switch (colorSpace) {
+                case "RGB":
+                    highlightDir = new THREE.Vector3(clickedColor.r * 2 - 1,
+                        clickedColor.g * 2 - 1, clickedColor.b * 2 - 1).normalize();
+                    break;
+                case "HSL":
+                    const hsl = {};
+                    clickedColor.getHSL(hsl);
+                    const angle = hsl.h * 2 * Math.PI;
+                    highlightDir = new THREE.Vector3(Math.cos(angle) * hsl.s, hsl.l * 2 - 1, Math.sin(angle) * hsl.s).normalize();
+                    break;
+            }
+            miniObject.setHighlight(highlightDir, 1.0);
         }
-        animateHighlight();
+        handleClick(intersects, mainObject);
     });
     // --- Double-click reset with smooth animation ---
     container.addEventListener("dblclick", () => {
@@ -253,8 +302,17 @@ export const create3DEnvironment = async (objectType = "cube") => {
         renderer.render(scene, camera);
 
         // Update mini object(bottom-right)
+        // Update mini object (bottom-right)
         miniObject.updateRotation(mainObject.getRotation());
-        miniObject.renderMiniObject(4, 25, 0, 0);
+
+        const isMoving = mainObject.isUserInteracting || mainObject.autoRotateActive;
+        if (isMoving) {
+            miniObject.activateFade();
+        }
+        miniObject.tickFade();
+
+        // Render last
+        miniObject.renderMiniObject(4, 25);
 
     };
     startRendering();
@@ -264,9 +322,7 @@ export const create3DEnvironment = async (objectType = "cube") => {
         scene,
         camera,
         dispose: () => {
-            renderer.dispose();
-            renderer.domElement.remove();
-            // Dispose materials, geometries, textures if needed
+            // DO NOT dispose renderer or camera (shared)
             scene.traverse((obj) => {
                 if (obj.geometry) obj.geometry.dispose();
                 if (obj.material) {
