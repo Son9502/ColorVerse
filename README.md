@@ -1,76 +1,94 @@
 # ColorVerse
 
-> An interactive 3D color space explorer — visualize RGB and HSL as navigable geometry, not just a flat wheel.
+> A multi-dimensional color space visualizer — explore the color wheel as a 1-D line, a 2-D plane, or a 3-D solid you can rotate and peel apart layer by layer.
 
 ---
 
 ## What Is This?
 
-Most color tools give you a 2D color wheel or a picker. ColorVerse gives you the full color space as a **3D object you can rotate, navigate, and explore**.
+Most color tools flatten color into a 2D wheel or a picker. But color is inherently **multi-dimensional**: RGB has three independent channels, and HSL has hue, saturation, and lightness. ColorVerse lets you view the same color space at different dimensionalities and see how they relate:
 
-Colors aren't points on a circle — they're points in a 3-dimensional space. RGB maps to a cube (red/green/blue axes). HSL maps to a cylinder (hue/angle, saturation/radius, lightness/height). ColorVerse makes that spatial structure tangible and interactive.
+| Dimension | Shapes | What you see |
+|-----------|--------|--------------|
+| **1-D** | Line | A single channel (R, G, B or H, S, L) swept from min to max |
+| **2-D** | Square, Circle | Two channels plotted against each other on selectable X/Y axes |
+| **3-D** | Cube, Sphere | The full color space as a solid object you can rotate, zoom, and step through |
+
+Each view can be rendered in either **RGB** or **HSL**, toggled from the UI.
+
+> **Status:** **v1 is the 3-D mode**, which is fully functional. 1-D and 2-D are planned as future updates; their UI controls and routing are in place but their renderers are not yet implemented. See [Roadmap](#current-status--roadmap) and [MVP.md](MVP.md).
 
 ---
 
-## Core Concept
+## Core Concept (3-D Mode)
 
-The color space is rendered as **128 navigable layers** — cross-sections through the 3D space. At any given layer, you're looking at a 2D slice of color, positioned in 3D. Step through layers with `[` and `]`, rotate the object with the mouse or keyboard, and click any pixel to get its hex value and see its color harmonies.
+The 3-D color solid is built from **128 nested layers** (shells), like the rings of an onion:
 
-**Two color spaces, two shapes:**
+- **Layer 0** is the outer surface, covering the full channel range (0–255).
+- Each layer inward trims one step off both ends of the range: layer *N* covers values *N* … *255 − N*, at a texture resolution of *(256 − 2N)* px.
+- **Layer 127** is the core, a near-neutral gray.
+
+Stepping through layers peels the solid inward or outward. Transitions between layers are smoothly cross-faded on the GPU.
+
+**Two color spaces × two shapes:**
 
 | Shape | RGB | HSL |
 |-------|-----|-----|
-| Cube | Each face maps one channel pair (R×G, R×B, G×B, etc.) | 4 linear faces (hue × lightness) + 2 polar faces |
-| Sphere | Latitude/longitude mapped to RGB channels | Latitude/longitude mapped to HSL cylindrical coords |
+| Cube | Each face plots two channels with the third fixed at that layer's min or max (e.g. front = R×G at B=min) | 4 side faces each span 90° of hue × lightness; top/bottom are polar discs (hue = angle, saturation = radius) |
+| Sphere | Surface direction (x, y, z) maps directly to (R, G, B) | Azimuth → hue, horizontal radius → saturation, height → lightness |
+
+In HSL, saturation also decreases toward the core, so inner layers converge on gray.
 
 ---
 
 ## Features
 
-- **3D Cube & Sphere** — switch between shapes, both support RGB and HSL color spaces
-- **128 Color Layers** — navigate with `[` / `]` or type a layer number directly
-- **Face Rotation** — press `1`–`6` to snap the cube to each face; smooth quaternion interpolation
-- **Color Picking** — click any pixel on the 3D object to select that color
-- **Color Harmonies** — generates complementary, split-complementary, triadic, tetradic, analogous, tints, shades, and tones for any selected color
-- **Color Search** — fuzzy autocomplete search over named CSS/web colors
-- **Mini Viewport** — orientation reference (bottom-right) shows current rotation with labeled axes
-- **Layer Preview** — animated preview of a target layer before committing to it
+- **Dimension selector**: switch between dimensional views (3-D in v1; 1-D/2-D planned)
+- **RGB ↔ HSL toggle**: animated cross-fade between color spaces on the 3-D object
+- **3-D Cube & Sphere**: both shapes support RGB and HSL
+- **128 nested layers**: navigate with `[` / `]` or type a layer number
+- **Layer preview**: typing a layer number shows a translucent, enlarged preview of that layer before you commit with `Enter`
+- **Face snapping**: press `1`–`6` to snap to a face/axis with eased quaternion rotation
+- **Physics-based rotation**: mouse drag and arrow keys with velocity and friction
+- **Color picking**: click any point on the object to read its color via raycasting
+- **Color harmonies**: complementary, split-complementary, triadic, tetradic, double-complementary, analogous, tints, shades, and tones
+- **Color search**: fuzzy autocomplete (Levenshtein distance) over ~4,000 named colors
+- **Mini orientation viewport**: a small axis-gizmo object (bottom-right) that mirrors rotation, highlights the picked color's direction, and fades out when idle
+- **Progressive loading**: textures generate in a Web Worker with a progress bar and ETA
 
 ---
 
 ## Tech Stack
 
-- [Three.js](https://threejs.org/) — 3D rendering
-- Web Workers — async texture generation (offloaded from main thread)
-- WebGL shaders — custom GLSL for layer blending, Blinn-Phong lighting, and highlight effects
-- Vite — build tool and dev server
+- **JavaScript (ES modules)**: no framework
+- **[Three.js](https://threejs.org/)**: 3D rendering (currently loaded as a global from CDN r128 in `main.html`)
+- **WebGL / GLSL**: custom shaders for layer cross-fading, Blinn-Phong lighting, and pick highlights
+- **Web Workers**: off-main-thread pixel generation, with a main-thread fallback
+- **Vite**: dev server and build tool
+- **Python** (`resources/colorTable.py`): one-off scraper used to build `public/named_colors.csv`
 
 ---
 
 ## Architecture Overview
 
 ```
-User Input
-    ↓
-dimension.js / dropdown.js / 3d-mode.js
-    ↓
-MainCube / MainSphere
-    ↓
-TextureCache.getOrCreate(colorSpace, layer)
-    ↓
-WorkerCache → Web Worker: generatePixelLayer()
-    ↓
-Pixel buffer → THREE.DataTexture
-    ↓
-ShaderCache → blended GLSL material (mixFactor uniform)
-    ↓
-WebGLRenderer → canvas
+main.js
+  └─ dimension.js  ──► 1d-mode.js (stub) / 2d-mode.js (stub) / 3d-mode.js
+                                                        │
+                       ┌────────────────────────────────┼─────────────────────┐
+                       ▼                                ▼                     ▼
+                MainCube / MainSphere          PreviewCube / Sphere     MiniCube / Sphere
+                       │                                │
+                       └──────────► TextureCache (THREE.DataTexture, LRU)
+                                         │
+                                    WorkerCache (pixel buffers, LRU)
+                                         │
+                                    worker-texture.js ──► color-utils.js
+                                         │
+                       layerFade shader (mix texA/texB by mixFactor) ──► shared WebGLRenderer
 ```
 
-Textures are generated lazily by a Web Worker and cached in a 3-tier LRU system:
-1. **WorkerCache** — raw pixel buffers per (colorSpace, layer)
-2. **TextureCache** — Three.js `DataTexture` objects, ready for GPU upload
-3. **ShaderCache** — blended shader materials per layer-pair (used for smooth transitions)
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the full breakdown.
 
 ---
 
@@ -81,7 +99,7 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:5173` (or whatever port Vite assigns).
+Then open **`http://localhost:5173/main.html`**. The entry page is `main.html`, not `index.html`, so the root URL won't load the app.
 
 ---
 
@@ -89,41 +107,47 @@ Open `http://localhost:5173` (or whatever port Vite assigns).
 
 ### Done
 - [x] RGB and HSL texture generation for cube and sphere
-- [x] 128-layer navigation with keyboard and input
+- [x] 128-layer navigation with keyboard and text input
+- [x] GPU cross-fade between adjacent layers (`layerFade` shader)
+- [x] Animated RGB ↔ HSL switching
+- [x] Web Worker texture pipeline with extremes-first preloading and neighbor prefetch
+- [x] Two-tier LRU caching (WorkerCache → TextureCache) via per-shape `TextureRegistry`
+- [x] Shared WebGL renderer/camera singleton
+- [x] Base class hierarchy for Main / Mini / Preview objects
 - [x] Color picking via raycasting
 - [x] Color harmony panel (all harmony types)
-- [x] Fuzzy color search with named colors CSV
+- [x] Fuzzy color search over named-colors CSV
 - [x] Mini orientation viewport
-- [x] Layer preview animation
-- [x] LRU caching base class
-- [x] Base class hierarchy for Main / Mini / Preview objects
-- [x] Shared renderer and camera singleton
+- [x] Layer preview
+- [x] 1-D/2-D options marked "Coming soon" (development moved to the `feature/1d-2d` branch)
 
-### In Progress
-- [ ] Worker-based texture pipeline (`WorkerCache.js`) — offloading pixel generation to avoid UI blocking
-- [ ] `TextureRegistry.js` — unified cache registry per object type
-- [ ] `sharedRenderer.js` — decoupling renderer lifecycle from individual objects
-- [ ] `FaderTextures/layerMaterial.js` — shader-based layer blending with `mixFactor` uniform
-- [ ] Smooth color space switching (RGB ↔ HSL animated transition)
+### In Progress (v1)
+- [ ] Event-listener cleanup when switching visualizations
+- [ ] Public deployment
 
-### Planned
-- [ ] 1D mode (linear slices along a single channel axis)
-- [ ] 2D mode (flat square/circle map with selectable axes)
+### Future Updates
+- [ ] 1-D mode: render a single-channel gradient line for the selected axis
+- [ ] 2-D mode: render square/circle planes for the selected X/Y axes
+- [ ] Shared picked color across dimensions
+- [ ] `ShaderCache`: currently instantiated but unused; materials are created directly by Main objects
 - [ ] Export selected color + harmonies
 - [ ] Mobile / touch input support
+- [ ] Move Three.js from CDN global to the npm `three` package
 
 ---
 
-## Controls
+## Controls (3-D Mode)
 
 | Input | Action |
 |-------|--------|
 | Mouse drag | Rotate object |
+| Arrow keys | Rotate object |
 | Scroll wheel | Zoom |
 | `[` / `]` | Previous / next layer |
-| `1`–`6` | Snap cube to face |
-| Arrow keys | Increment layer |
-| Click pixel | Select color |
+| Type a number in **Layer** + `Enter` | Preview, then jump to that layer (`Esc` cancels) |
+| `1`–`6` | Snap to face / axis |
+| Click | Pick color |
+| Double-click | Reset rotation and zoom |
 
 ---
 

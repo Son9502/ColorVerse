@@ -1,8 +1,7 @@
 // ----------------------------------
 // Dimensionial Searcher
 // ----------------------------------
-import { create1DEnvironment } from './1d-mode.js';
-import { create2DEnvironment } from './2d-mode.js';
+// v1 ships 3-D only; 1-D/2-D modes are developed on the feature/1d-2d branch.
 import { create3DEnvironment } from './3d-mode.js';
 
 let currentVisual = null;
@@ -20,26 +19,11 @@ export function setupDimensionDropdown() {
             div.style.display = "none";
         })
         switch (value) {
-            case "1-D": {
-                document.getElementById("info1D").style.display = "block";
-                shapeSelect.disabled = true;
-                await switchVisualization("line");
-                break;
-            }
-            case "2-D": {
-                shapeSelect.disabled = false;
-                document.getElementById("info2D").style.display = "block";
-                populateVisualizationList([ "square", "circle" ]);
-                // default value is a square 
-                shapeSelect.value = "square";
-                await switchVisualization("square");
-                break;
-            }
             case "3-D": {
                 shapeSelect.disabled = false;
                 document.getElementById("info3D").style.display = "block";
                 populateVisualizationList([ "cube", "sphere" ]);
-                // default value is a cube 
+                // default value is a cube
                 shapeSelect.value = "cube";
                 await switchVisualization("cube");
                 break;
@@ -65,13 +49,6 @@ export
         }
     }
     switch (type) {
-        case "line":
-            currentVisual = await create1DEnvironment();
-            break;
-        case "square":
-        case "circle":
-            currentVisual = await create2DEnvironment(type);
-            break;
         case "cube":
         case "sphere":
             currentVisual = await create3DEnvironment(type);
@@ -101,26 +78,11 @@ export async function defaultVisualization(shape) {
     const shapeSelect = document.getElementById("shape-select");
     const dimensionSelect = document.getElementById("dimensions");
     const shapes = {
-        "line": "1-D",
-        "square": "2-D",
-        "circle": "2-D",
         "cube": "3-D",
         "sphere": "3-D",
     }
     dimensionSelect.value = shapes[shape];
     switch (shapes[shape]) {
-        case "1-D": {
-            document.getElementById("info1D").style.display = "block";
-            shapeSelect.disabled = true;
-            break;
-        }
-        case "2-D": {
-            shapeSelect.disabled = false;
-            document.getElementById("info2D").style.display = "block";
-            populateVisualizationList([ "square", "circle" ]);
-            shapeSelect.value = shape;
-            break;
-        }
         case "3-D": {
             shapeSelect.disabled = false;
             document.getElementById("info3D").style.display = "block";
