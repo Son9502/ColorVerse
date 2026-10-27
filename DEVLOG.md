@@ -9,6 +9,31 @@ Each entry is tagged with how it was produced:
 
 ---
 
+## Milestone 7 — v1 Bug Fixes & UI Polish `[ai-assisted]`
+**2026-10-26 → 2026-10-27**
+
+Finished the v1 must-fix bugs and reworked the color selection UI based on hands-on testing. Layout and interaction choices (stacked details card, two-step Enter, double-click swatches, CSS-first color dedupe) were directed by the developer; implementation `[ai-assisted]`.
+
+**Fixed**
+- `MainBase.js`, `3d-mode.js`: listeners registered with an `AbortController` signal and removed on `dispose()`; the render loop is cancelled, so switching cube ↔ sphere no longer stacks listeners or leaves the old scene drawing
+- `dimension.js`: no longer disposes the shared WebGL renderer on switch
+- `dropdown.js`: PageDown referenced an undefined `items` variable; a stale keyboard highlight could index past a shorter result list
+- `3d-mode.js`: picking on the canvas now closes the autocomplete list instead of leaving an empty box
+- `named_colors.csv`: 343 names had multiple hexes (e.g. 8 for "red", the first being `#8B0000`); now one hex per name, 4,012 → 3,217 rows
+
+**Added**
+- `help.js` + `?` button (top-left of canvas): popover listing 3-D controls and panel tools; closes on Esc / outside click; events don't fall through to the canvas
+- `harmony.js`: `selectBaseColor()` shared by search and swatches; double-click a harmony swatch to make it the base color
+- `resources/dedupeColors.py`: one hex per name — CSS named color first, else the source hex closest to the linear-RGB average; called by `colorTable.py` before saving
+
+**Modified**
+- Color details card: always visible under Color Search (greyed out until a pick), stacked vertically (circle → hex → name → RGB → HSL), text sized with `min(vw, vh)` and `em` so it scales with window width and height; the name line collapses when a color has no name
+- `toggle.js`: active color space (RGB/HSL) is bold and listed first in the details card; toggle state applied on load
+- Color Search: stays visible after a pick; selection clears the input and closes the list; Enter is two-step (1st completes to the best match, 2nd selects); ties in ranking go to the shorter name so "r" completes to "red"
+- Harmony swatches: pointer cursor + enlarge on hover once a base color is selected
+
+---
+
 ## Milestone 6 — v1 Scope, Docs & Deployment `[ai-assisted]`
 **2026-10-17 → 2026-10-26**
 

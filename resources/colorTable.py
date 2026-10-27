@@ -187,6 +187,9 @@ for raw_name, hex_list in sorted(color_dic.items()):
             r, g, b = hex_to_rgb(hex)
             rows.append({"name": name, "hex": hex, "r": r, "g": g, "b": b})
 df_colors = pd.DataFrame(rows)
+# One hex per name: CSS value first, else the source hex closest to the average
+from dedupeColors import dedupe
+df_colors = dedupe(df_colors)
 df_colors.to_csv("./public/named_colors.csv", index=False)
 
 
