@@ -8,7 +8,8 @@ export const harmonySets = {
     "analogous": ["analog1", "analog2", "analog3", "analog4"],
     "tints": ["light1", "light2", "light3", "light4", "light5"],
     "shades": ["dark5", "dark4", "dark3", "dark2", "dark1"],
-    "tones": ["tone1", "tone2", "tone3", "tone4", "tone5"]
+    "tones": ["tone1", "tone2", "tone3", "tone4", "tone5"],
+    "saturate": ["sat1", "sat2", "sat3", "sat4", "sat5"]
 };
 
 const hexInfo = document.getElementById("hex");
@@ -84,7 +85,9 @@ export function harmonyDict(baseColor) {
         ],
         "tints": steps.map(v => ({ h: h, s: s, l: clamp(l + (100 - l) * (v / 100), 0, 100) })),
         "shades": steps.map(v => ({ h: h, s: s, l: clamp(l * (1 - v / 100), 0, 100) })),
-        "tones": steps.map(v => ({ h: h, s: clamp(s * (1 - v / 100), 0, 100), l: clamp(l + (50 - l) * (v / 100), 0, 100) }))
+        "tones": steps.map(v => ({ h: h, s: clamp(s * (1 - v / 100), 0, 100), l: clamp(l + (50 - l) * (v / 100), 0, 100) })),
+        // Mirror of tones: the only harmony that raises saturation, so muted colors can reach vivid ones
+        "saturate": steps.map(v => ({ h: h, s: clamp(s + (100 - s) * (v / 100), 0, 100), l: l }))
     };
 }
 export function resetColors() {

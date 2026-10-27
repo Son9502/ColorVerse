@@ -175,7 +175,7 @@ requestAnimationFrame(update)
 
 ## 6. UI Modules
 
-- **`harmony.js`** converts the base color to HSL and generates harmonies by hue rotation (180°, ±150°, ±120°, 90° steps, ±20/40°). Tints, shades, and tones step lightness/saturation in 20% increments.
+- **`harmony.js`** converts the base color to HSL and generates harmonies by hue rotation (180°, ±150°, ±120°, 90° steps, ±20/40°). Tints, shades, tones, and saturate step lightness/saturation in 20% increments. Saturate is the only harmony that raises saturation, so without it a muted color can't reach a vivid one.
 - **`dropdown.js`** loads the CSV and ranks matches with a tiered scoring function (exact → prefix → word-prefix → all tokens → substring → normalized Levenshtein < 0.4). It also shows ghost-text completion and supports keyboard navigation.
 - **`toggle.js`** shows or hides the RGB vs HSL axis options in the 1-D/2-D selectors. `3d-mode.js` listens to the same checkbox to trigger the color-space cross-fade.
 
