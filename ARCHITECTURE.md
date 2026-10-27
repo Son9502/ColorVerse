@@ -7,7 +7,7 @@ This document describes how ColorVerse is structured, how data flows from user i
 ## 1. High-Level Layout
 
 ```
-main.html            UI shell: controls (left), color info + harmonies, canvas (right)
+index.html           UI shell: controls (left), color info + harmonies, canvas (right)
 main.js              Bootstrap: wires toggle, dimension selector, search, harmony rows
 │
 ├── src/                      ── App / UI layer ──
@@ -196,10 +196,8 @@ requestAnimationFrame(update)
 
 | Area | Issue |
 |------|-------|
-| Three.js version | `main.html` loads **r128** from CDN as a global, but the code uses `THREE.SRGBColorSpace` / `outputColorSpace`, which were added in r152. Those assignments are currently no-ops. The npm `three@0.181` dependency is installed but not imported |
-| Shader file case | `layerMaterial.js` fetches `layerfade.vert/.frag`, but the files are named `layerFade.*`. This works on macOS (case-insensitive file system) but will 404 on a Linux host |
+| Three.js version | `index.html` loads **r128** from CDN as a global, but the code uses `THREE.SRGBColorSpace` / `outputColorSpace`, which were added in r152. Those assignments are currently no-ops. The npm `three@0.181` dependency is installed but not imported |
 | Listener leaks | `3d-mode.js` and `MainBase` add `window`/container listeners that `dispose()` never removes, so they pile up each time you switch shapes |
 | Shared renderer disposal | `dimension.js` calls `currentVisual.renderer.dispose()` on switch, but the renderer is a shared singleton that the 3-D environment expects to keep |
 | `ShaderCache` | Instantiated per shape but never read. Main objects build their materials directly |
-| Entry point | No `index.html`, so the app must be opened at `/main.html` |
 | Stubs | `1d-mode.js` and `2d-mode.js` return empty environments |

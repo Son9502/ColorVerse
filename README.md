@@ -61,7 +61,7 @@ In HSL, saturation also decreases toward the core, so inner layers converge on g
 ## Tech Stack
 
 - **JavaScript (ES modules)**: no framework
-- **[Three.js](https://threejs.org/)**: 3D rendering (currently loaded as a global from CDN r128 in `main.html`)
+- **[Three.js](https://threejs.org/)**: 3D rendering (currently loaded as a global from CDN r128 in `index.html`)
 - **WebGL / GLSL**: custom shaders for layer cross-fading, Blinn-Phong lighting, and pick highlights
 - **Web Workers**: off-main-thread pixel generation, with a main-thread fallback
 - **Vite**: dev server and build tool
@@ -99,7 +99,16 @@ npm install
 npm run dev
 ```
 
-Then open **`http://localhost:5173/main.html`**. The entry page is `main.html`, not `index.html`, so the root URL won't load the app.
+Then open **`http://localhost:5173`**.
+
+## Deployment
+
+The site deploys to GitHub Pages at **https://son9502.github.io/ColorVerse/** via [.github/workflows/deploy.yml](.github/workflows/deploy.yml) on every push to `main`. To test the production build locally:
+
+```bash
+npm run build
+npm run preview   # serves dist/ at http://localhost:4173/ColorVerse/
+```
 
 ---
 
@@ -123,7 +132,7 @@ Then open **`http://localhost:5173/main.html`**. The entry page is `main.html`, 
 
 ### In Progress (v1)
 - [ ] Event-listener cleanup when switching visualizations
-- [ ] Public deployment
+- [ ] Public deployment (build + workflow ready; enable Pages and merge to `main`)
 
 ### Future Updates
 - [ ] 1-D mode: render a single-channel gradient line for the selected axis

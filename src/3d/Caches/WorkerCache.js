@@ -8,13 +8,13 @@ import { LRULayerCache } from './LRUCache.js';
  * Options:
  *  - maxEntries: max number of cached textures
  *  - prefetchRange: how many layers before/after current to prefetch
- *  - workerPath: path to worker script
+ *  - useWorker: set false to force main-thread generation
  */
 export class WorkerCache extends LRULayerCache {
-  constructor({ type = "cube", maxEntries = 180, prefetchRange = 2, workerPath = "../Textures/worker-texture.js" } = {}, defaultLayers = [0, 1, 2, 10, 32, 50, 64, 96, 100, 127, 126, 125]) {
+  constructor({ type = "cube", maxEntries = 180, prefetchRange = 2, useWorker = true } = {}, defaultLayers = [0, 1, 2, 10, 32, 50, 64, 96, 100, 127, 126, 125]) {
     super(type, maxEntries, 0, 127);
     this.prefetchRange = Number.isInteger(prefetchRange) && prefetchRange >= 0 ? prefetchRange : 2;
-    this.workerPath = workerPath;
+    this.useWorker = useWorker;
     this.defaultLayers = defaultLayers;
     // Inflight requests: key -> Promise
     this.inflight = new Map();
@@ -27,8 +27,9 @@ export class WorkerCache extends LRULayerCache {
   /** Initialize Worker if possible */
   _initWorker() {
     try {
-      if (window.Worker && window.OffscreenCanvas && this.workerPath) {
-        this.worker = new Worker(new URL(this.workerPath, import.meta.url), { type: "module" });
+      if (window.Worker && window.OffscreenCanvas && this.useWorker) {
+        // Path must be a string literal so Vite can bundle the worker
+        this.worker = new Worker(new URL("../Textures/worker-texture.js", import.meta.url), { type: "module" });
         this.worker.onmessage = (ev) => this._handleWorkerMessage(ev.data);
         this._workerRequests = new Map(); // id -> { resolve, reject }
         this._workerNextId = 1;

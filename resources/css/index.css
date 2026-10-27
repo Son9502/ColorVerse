@@ -201,7 +201,7 @@ Search Box + Autocomplete
 
 #color-text,
 #ghost-text,
-#3dtext,
+#layer-input,
 select {
     width: 100%;
     font-size: clamp(0.8rem, 1.2vw, 1rem);

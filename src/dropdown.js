@@ -4,7 +4,7 @@ import { setBaseColors, resetColors } from "./harmony.js";
 async function loadColorData() {
     let colordata = [];
 
-    const response = await fetch("./public/named_colors.csv");
+    const response = await fetch(`${import.meta.env.BASE_URL}named_colors.csv`);
     const text = await response.text();
 
     // Split the CSV text into lines and skip the header

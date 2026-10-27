@@ -80,7 +80,7 @@ export const create3DEnvironment = async (objectType = "cube") => {
     const toggleColorSpace = document.getElementById("toggle");
     let colorSpace = toggleColorSpace.checked ? "HSL" : "RGB";
 
-    const threeDText = document.getElementById("3dtext");
+    const threeDText = document.getElementById("layer-input");
     const canvasText = document.getElementById("ui-canvas-text");
 
     let currentLayer = 127;
