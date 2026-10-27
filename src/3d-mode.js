@@ -20,8 +20,12 @@ export const create3DEnvironment = async (objectType = "cube") => {
     renderer.toneMapping = THREE.NoToneMapping;
     resizeSharedRenderer(container);
 
+    // Aborting removes every listener registered with { signal } (see dispose)
+    const listeners = new AbortController();
+    const { signal } = listeners;
+
     // --- Responsive Renderer ---
-    window.addEventListener("resize", () => resizeSharedRenderer(container));
+    window.addEventListener("resize", () => resizeSharedRenderer(container), { signal });
 
     const scene = new THREE.Scene();
 
@@ -107,7 +111,7 @@ export const create3DEnvironment = async (objectType = "cube") => {
             }
             await createPreview(layerNum);
         });
-    });
+    }, { signal });
 
     threeDText.addEventListener("keydown", async (event) => {
         if (event.key === "Escape") {
@@ -128,7 +132,7 @@ export const create3DEnvironment = async (objectType = "cube") => {
         mainObject.layerTarget = currentLayer;
         threeDText.value = "";
         canvasText.textContent = `Layer ${currentLayer}`;
-    });
+    }, { signal });
 
     // --- Color Space Toggle ---
     toggleColorSpace.addEventListener("click", async () => {
@@ -143,7 +147,7 @@ export const create3DEnvironment = async (objectType = "cube") => {
         if (previewObject && validLayer(parseInt(threeDText.value))) {
             previewObject.switchColorSpace(colorSpace, 500);
         }
-    });
+    }, { signal });
 
     // --- Keyboard / Mouse / Wheel Controls ---
     const faceMap = mainObject.faceMap;
@@ -165,14 +169,14 @@ export const create3DEnvironment = async (objectType = "cube") => {
                 miniObject.activateFade();
             }
         }
-    });
+    }, { signal });
 
     container.addEventListener("wheel", (event) => {
         event.preventDefault();
         const zoomSpeed = 0.3;
         camera.position.z += (event.deltaY > 0 ? 1 : -1) * zoomSpeed;
         camera.position.z = Math.max(1, Math.min(20, camera.position.z));
-    });
+    }, { signal });
 
     // --- Raycasting for color picker ---
     const raycaster = new THREE.Raycaster();
@@ -277,15 +281,16 @@ export const create3DEnvironment = async (objectType = "cube") => {
             miniObject.setHighlight(highlightDir, 1.0);
         }
         handleClick(intersects, mainObject);
-    });
+    }, { signal });
     // --- Double-click reset with smooth animation ---
     container.addEventListener("dblclick", () => {
         mainObject.resetObject();
         if (previewObject?.object) previewObject.syncRotation();
-    });
+    }, { signal });
 
     // --- Animation Loop ---
     let renderReady = false;
+    let frameId = null;
     const startRendering = () => {
         renderReady = true;
         loader.fadeLoaderShowScene(container);
@@ -293,7 +298,7 @@ export const create3DEnvironment = async (objectType = "cube") => {
         update();
     }
     const update = () => {
-        requestAnimationFrame(update);
+        frameId = requestAnimationFrame(update);
         if (!renderReady) return;
 
         mainObject.update(); // keyboard, mouse, auto-rotation
@@ -323,6 +328,11 @@ export const create3DEnvironment = async (objectType = "cube") => {
         camera,
         dispose: () => {
             // DO NOT dispose renderer or camera (shared)
+            renderReady = false;
+            cancelAnimationFrame(frameId);
+            cancelAnimationFrame(previewRAF);
+            listeners.abort();
+            mainObject.dispose();
             scene.traverse((obj) => {
                 if (obj.geometry) obj.geometry.dispose();
                 if (obj.material) {

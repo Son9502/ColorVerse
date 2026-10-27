@@ -42,12 +42,8 @@ export function setupDimensionDropdown() {
 export
     async function switchVisualization(type) {
     if (currentType == type) return;
-    if (currentVisual) {
-        await currentVisual?.dispose?.();
-        if (currentVisual.renderer) {
-            await currentVisual.renderer.dispose();
-        }
-    }
+    // The renderer is a shared singleton (sharedRenderer.js), so only the environment is disposed
+    await currentVisual?.dispose?.();
     switch (type) {
         case "cube":
         case "sphere":

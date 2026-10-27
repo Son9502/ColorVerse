@@ -71,20 +71,26 @@ export class MainBase {
     // -------- Controls --------
     _initControls() {
         const container = document.getElementById("ui-canvas");
+        // Aborting removes every listener below (see dispose)
+        this._controls = new AbortController();
+        const { signal } = this._controls;
 
         container.addEventListener("mousedown", event => {
             this.isDragging = true;
             this.lastMouseX = event.clientX;
             this.lastMouseY = event.clientY;
-        });
+        }, { signal });
 
-        window.addEventListener("mouseup", () => { this.isDragging = false; });
+        window.addEventListener("mouseup", () => { this.isDragging = false; }, { signal });
 
-        window.addEventListener("mousemove", event => this._onMouseMove(event));
-        window.addEventListener("keydown", event => this._onKeyDown(event));
-        window.addEventListener("keyup", event => this._onKeyUp(event));
+        window.addEventListener("mousemove", event => this._onMouseMove(event), { signal });
+        window.addEventListener("keydown", event => this._onKeyDown(event), { signal });
+        window.addEventListener("keyup", event => this._onKeyUp(event), { signal });
+    }
 
-       
+    dispose() {
+        this._controls?.abort();
+        this.ready = false;
     }
 
     _onKeyDown(event) {

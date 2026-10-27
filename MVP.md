@@ -20,8 +20,8 @@ Someone can open ColorVerse, explore RGB and HSL as an interactive **3-D** color
 
 ### 3. Must-Fix Bugs
 - [x] Shader file name case: shaders are now bundled with `?raw` imports using the correct `layerFade.*` names.
-- [ ] Listener cleanup: `dispose()` should remove the window and container listeners added by `3d-mode.js` and `MainBase`.
-- [ ] Shared renderer: `dimension.js` shouldn't dispose the shared WebGL renderer when switching views.
+- [x] Listener cleanup: `dispose()` should remove the window and container listeners added by `3d-mode.js` and `MainBase`.
+- [x] Shared renderer: `dimension.js` shouldn't dispose the shared WebGL renderer when switching views.
 - [x] Entry point: `main.html` renamed to `index.html`.
 
 ### 4. Deployment
