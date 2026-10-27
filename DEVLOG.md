@@ -9,8 +9,40 @@ Each entry is tagged with how it was produced:
 
 ---
 
+## Milestone 6 — v1 Scope, Docs & Deployment `[ai-assisted]`
+**2026-10-17 → 2026-10-26**
+
+Scoped v1 to the 3-D mode, documented the project, and got the production build deploying to GitHub Pages.
+
+**Added**
+- `MVP.md`: v1 = 3-D mode; 1-D/2-D, shared cross-dimension state, and export moved to future updates
+- `ARCHITECTURE.md`: module map, texture pipeline, rendering, design decisions, known issues
+- `vite.config.js`: `/ColorVerse/` base path for production builds
+- `.github/workflows/deploy.yml`: builds and deploys to https://son9502.github.io/ColorVerse/ on every push to `main`
+- `feature/1d-2d` branch: holds the 1-D/2-D work until after v1
+
+**Modified**
+- `README.md`: reframed as a multi-dimensional color space visualizer; corrected the layer model (nested shells, not slices), controls, status, and run instructions
+- `dimension.js`: removed 1-D/2-D imports and routing; 1-D/2-D dropdown options disabled as "Coming soon"
+- `main.html` → `index.html`: Vite's default entry, so the root URL loads the app
+- `WorkerCache.js`: worker path is now a string literal so Vite bundles the worker
+- `layerMaterial.js`: shaders imported with `?raw` instead of fetched at runtime (also fixes the `layerfade`/`layerFade` case mismatch)
+- `dropdown.js`: CSV fetched from `import.meta.env.BASE_URL`
+- Layer input ID `3dtext` → `layer-input`: an ID starting with a digit is an invalid CSS selector and was dropping the whole shared input style rule
+
+**Removed**
+- `src/1d-mode.js`, `src/2d-mode.js` stubs (preserved on `feature/1d-2d`)
+
+---
+
 ## Milestone 5 — Caching & Rendering Refactor `[ai-assisted]`
 **2026-01-02 → present**
+
+**Housekeeping — 2026-02-24**
+- Added `archive/` folder at project root for reference code that has been superseded but is still useful during active refactoring
+- Moved `src/smart-3d/smartCube.js` → `archive/smartCube.js`: the original monolithic cube implementation (pre-refactor), containing the inline `miniAxisRenderer` class, original layer control, and color picking logic; kept as reference while Milestone 5 is in progress
+- All other files in `src/` are live and reachable from `main.js`
+
 
 Major architectural refactor of the texture pipeline. The goal is to decouple texture generation from the main thread and from individual 3D objects, making the system more robust as new shapes and modes are added.
 
