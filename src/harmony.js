@@ -25,14 +25,15 @@ for (const type in harmonySets) {
 }
 
 // Make `color` the selected base color: details card + harmonies
-export function selectBaseColor(color, name = "") {
+// `source` is passed through to the "basecolorchange" event (sliders ignore their own updates)
+export function selectBaseColor(color, name = "", source = "") {
     const baseCircle = document.getElementById("base-circle");
     const colorName = document.getElementById("color-name");
 
     document.querySelectorAll(".color-info").forEach(box => box.classList.add("show"));
     if (baseCircle) baseCircle.style.backgroundColor = color;
     if (colorName) colorName.textContent = name;
-    setBaseColors(color);
+    setBaseColors(color, source);
 }
 
 // Double-click a harmony swatch to make it the base color
@@ -110,8 +111,9 @@ export function resetColors() {
             }
         });
     }
+    document.dispatchEvent(new CustomEvent("basecolorclear"));
 }
-export function setBaseColors(color) {
+export function setBaseColors(color, source = "") {
     if (!(color instanceof THREE.Color)) {
         color = new THREE.Color(color);
     }
@@ -158,4 +160,6 @@ export function setBaseColors(color) {
             }
         });
     };
+    // Lets other UI (e.g. sliders) follow the selected color
+    document.dispatchEvent(new CustomEvent("basecolorchange", { detail: { color, source } }));
 }

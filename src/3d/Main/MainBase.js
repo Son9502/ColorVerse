@@ -94,6 +94,8 @@ export class MainBase {
     }
 
     _onKeyDown(event) {
+        // Arrow keys belong to the focused control (search box, sliders, selects), not the object
+        if (event.target.closest?.("input, textarea, select")) return;
         const key = this.keyMap[event.key];
         if (key) this.keys[key] = true;
     }

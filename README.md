@@ -129,13 +129,13 @@ npm run preview   # serves dist/ at http://localhost:4173/ColorVerse/
 - [x] Mini orientation viewport
 - [x] Layer preview
 - [x] Public deployment on GitHub Pages
+- [x] HSL / RGB sliders in the color details card (follow the HSL toggle)
 - [x] Saturate harmony row (raises saturation; makes any color reachable from any other)
 - [x] Listener and render-loop cleanup when switching shapes
 - [x] In-app help popover (`?` button) listing controls and tools
 - [x] 1-D/2-D options marked "Coming soon" (development moved to the `feature/1d-2d` branch)
 
 ### In Progress (v1)
-- [ ] HSL / RGB sliders in the color details card
 
 ### Future Updates
 - [ ] Color Golf minigame (v2): reach a target color in the fewest harmony clicks / least time

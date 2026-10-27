@@ -102,6 +102,15 @@
                             <h4 id="rgb">RGB(xxx,xxx,xxx)</h4>
                             <h4 id="hsl">HSL(xxx,xxx,xxx)</h4>
                         </div>
+                        <!-- Sliders follow the HSL toggle (H/S/L or R/G/B); configured by sliders.js -->
+                        <div id="color-sliders">
+                            <label class="slider-row"><span class="slider-name">R</span>
+                                <input type="range" min="0" max="255" value="0" disabled><output>–</output></label>
+                            <label class="slider-row"><span class="slider-name">G</span>
+                                <input type="range" min="0" max="255" value="0" disabled><output>–</output></label>
+                            <label class="slider-row"><span class="slider-name">B</span>
+                                <input type="range" min="0" max="255" value="0" disabled><output>–</output></label>
+                        </div>
                     </div>
                 </div>
 
@@ -432,6 +441,9 @@
                         <dt>Color details</dt>
                         <dd>Hex, RGB, and HSL values of the selected color. The active color space is bold
                             and listed first</dd>
+                        <dt>Sliders</dt>
+                        <dd>Fine-tune the selected color: H/S/L when the HSL toggle is on, R/G/B when it's
+                            off. Each track previews what that slider will do</dd>
                         <dt>Harmonies</dt>
                         <dd>Complementary, triadic, analogous, tints, shades, tones, saturate and more. Double-click a swatch
                             to make it the selected color; click ▾ to collapse a row</dd>

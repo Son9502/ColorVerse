@@ -20,7 +20,7 @@ Someone can open ColorVerse, explore RGB and HSL as an interactive **3-D** color
 
 ### 3. Color Navigation (any color reachable from any other)
 - [x] **Saturate harmony row:** the mirror of Tones; pulls saturation toward 100% in five steps (`s + (100 − s) × 20…100%`). This is the one direction the harmonies were missing; without it, a muted color can't reach a vivid one.
-- [ ] **HSL / RGB sliders** in the color details card for precise adjustment (sliders follow the HSL toggle). Hidden in the future minigame.
+- [x] **HSL / RGB sliders** in the color details card for precise adjustment (sliders follow the HSL toggle). Hidden in the future minigame.
 
 ### 4. Must-Fix Bugs
 - [x] Shader file name case: shaders are now bundled with `?raw` imports using the correct `layerFade.*` names.
