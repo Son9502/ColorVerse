@@ -128,10 +128,11 @@ npm run preview   # serves dist/ at http://localhost:4173/ColorVerse/
 - [x] Fuzzy color search over named-colors CSV
 - [x] Mini orientation viewport
 - [x] Layer preview
+- [x] Listener and render-loop cleanup when switching shapes
+- [x] In-app help popover (`?` button) listing controls and tools
 - [x] 1-D/2-D options marked "Coming soon" (development moved to the `feature/1d-2d` branch)
 
 ### In Progress (v1)
-- [ ] Event-listener cleanup when switching visualizations
 - [ ] Public deployment (build + workflow ready; enable Pages and merge to `main`)
 
 ### Future Updates
@@ -157,6 +158,7 @@ npm run preview   # serves dist/ at http://localhost:4173/ColorVerse/
 | `1`–`6` | Snap to face / axis |
 | Click | Pick color |
 | Double-click | Reset rotation and zoom |
+| `?` button (top-left of canvas) | Show all controls and tools |
 
 ---
 

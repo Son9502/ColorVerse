@@ -19,6 +19,7 @@ main.js              Bootstrap: wires toggle, dimension selector, search, harmon
 │   ├── dropdown.js           Named-color search (fuzzy autocomplete)
 │   ├── harmony.js            Harmony math + swatch rendering
 │   ├── categories.js         Collapsible harmony rows
+│   ├── help.js               ? button popover listing controls and tools
 │   ├── LoaderManager.js      Loading overlay, progress bar, ETA
 │   ├── color-utils.js        Color math: HSL→RGB, gamma, cube/sphere color mapping, mini shaders
 │   └── utils.js              clamp, lerp
@@ -197,7 +198,5 @@ requestAnimationFrame(update)
 | Area | Issue |
 |------|-------|
 | Three.js version | `index.html` loads **r128** from CDN as a global, but the code uses `THREE.SRGBColorSpace` / `outputColorSpace`, which were added in r152. Those assignments are currently no-ops. The npm `three@0.181` dependency is installed but not imported |
-| Listener leaks | `3d-mode.js` and `MainBase` add `window`/container listeners that `dispose()` never removes, so they pile up each time you switch shapes |
-| Shared renderer disposal | `dimension.js` calls `currentVisual.renderer.dispose()` on switch, but the renderer is a shared singleton that the 3-D environment expects to keep |
 | `ShaderCache` | Instantiated per shape but never read. Main objects build their materials directly |
 | Stubs | `1d-mode.js` and `2d-mode.js` return empty environments |

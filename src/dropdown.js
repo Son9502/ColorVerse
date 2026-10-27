@@ -1,4 +1,4 @@
-import { setBaseColors, resetColors } from "./harmony.js";
+import { selectBaseColor, resetColors } from "./harmony.js";
 
 // Load color data from CSV file
 async function loadColorData() {
@@ -110,7 +110,8 @@ function searchColors(query, threshold = 0.4, maxResults = 20, colordata) {
         return { color, score };
     })
         .filter(entry => entry.score !== Infinity)
-        .sort((a, b) => a.score - b.score)
+        // Ties go to the shorter name, so "r" completes to "red" rather than "refreshed redbrown"
+        .sort((a, b) => a.score - b.score || a.color.name.length - b.color.name.length)
         .slice(0, maxResults)
         .map(entry => entry.color);
     // Handle no matches
@@ -136,6 +137,8 @@ function searchColors(query, threshold = 0.4, maxResults = 20, colordata) {
                             <div class="auto-hex">(${hexText})</div>
                             <div class="auto-rgb">${rgbText}</div>`;
         item.classList.add("dropdown-item");
+        item.dataset.name = match.name;
+        item.dataset.hex = match.hex;
         dropdown.appendChild(item);
     });
     dropdown.style.display = "block";
@@ -164,7 +167,6 @@ export async function setupDropdown() {
 
     // Get references to UI elements
     const infoBox = document.querySelectorAll(".color-info");
-    const infoSearch = document.getElementById("color-search");
 
     const colorName = document.getElementById("color-name");
     const baseCircle = document.getElementById("base-circle");
@@ -180,15 +182,30 @@ export async function setupDropdown() {
     // Maximum number of results to show
     const maxResults = 20;
 
+    // Handle keyboard navigation
+    let index = -1;
+
     colorInput.addEventListener("input", (e) => {
         clearTimeout(debounceTimeout);
+        index = -1; // new results, so drop the old keyboard highlight
         debounceTimeout = setTimeout(() => {
             searchColors(e.target.value, threshold, maxResults, colordata);
         }, 150);
     });
 
-    // Handle keyboard navigation
-    let index = -1;
+    // Select a dropdown item, then clear the search and close the dropdown
+    const selectItem = (item) => {
+        const selectedColor = item.querySelector(".swatch").style.backgroundColor;
+        const name = item.querySelector(".auto-name").textContent.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+        selectBaseColor(selectedColor, name);
+
+        clearTimeout(debounceTimeout);
+        colorInput.value = "";
+        ghostInput.value = "";
+        dropdown.innerHTML = "";
+        dropdown.classList.remove("open");
+        index = -1;
+    };
 
     // Event listener for dropdown item clicks
     dropdown.addEventListener("click", (event) => {
@@ -203,15 +220,14 @@ export async function setupDropdown() {
             index = click_index;
             return;
         }
-        const selectedColor = dropitems[click_index].querySelector(".swatch").style.backgroundColor;
-        infoBox.forEach(box => { box.classList.add("show"); });
-        if (infoSearch) infoSearch.style.display = "none";
-        if (baseCircle) baseCircle.style.backgroundColor = `${selectedColor}`;
-        if (colorName) colorName.textContent = dropitems[click_index].querySelector(".auto-name").textContent.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-        setBaseColors(selectedColor);
-
+        selectItem(selectedItem);
     });
     colorInput.addEventListener("keydown", (e) => {
+        // Typed and hit Enter before the debounce fired: search now so Enter uses current results
+        if (e.key === "Enter" && index < 0 && colorInput.value) {
+            clearTimeout(debounceTimeout);
+            searchColors(colorInput.value, threshold, maxResults, colordata);
+        }
         const dropitems = document.querySelectorAll("#autocomplete .dropdown-item");
         if (dropitems.length === 0) return;
 
@@ -224,15 +240,22 @@ export async function setupDropdown() {
             e.preventDefault();
             index = Math.max(index - 1, 0);
         }
-        // Select item with Enter key
-        else if (e.key === "Enter" && index >= 0) {
+        // Enter, two steps: 1st completes the input to the best match, 2nd selects it.
+        // An item already highlighted (arrow keys, or a previous completion) is selected right away.
+        else if (e.key === "Enter") {
             e.preventDefault();
-            const selectedColor = dropitems[index].querySelector(".swatch").style.backgroundColor;
-            infoBox.forEach(box => { box.classList.add("show"); });
-            if (infoSearch) infoSearch.style.display = "none";
-            if (colorName) colorName.textContent = dropitems[index].querySelector(".auto-name").textContent.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-            if (baseCircle) baseCircle.style.backgroundColor = `${selectedColor}`;
-            setBaseColors(selectedColor);
+            if (index >= 0) {
+                selectItem(dropitems[index]);
+                return;
+            }
+            const best = dropitems[0];
+            colorInput.value = colorInput.value.startsWith("#") ? best.dataset.hex : best.dataset.name;
+            searchColors(colorInput.value, threshold, maxResults, colordata);
+            // Highlight the completed match so the next Enter selects it
+            const completed = document.querySelectorAll("#autocomplete .dropdown-item");
+            index = completed.length ? 0 : -1;
+            completed.forEach((item, i) => item.classList.toggle("highlighted", i === index));
+            return;
         }
         // Close dropdown with Escape key
         else if (e.key === "Escape") {
@@ -242,7 +265,7 @@ export async function setupDropdown() {
         // PageUp and PageDown for faster navigation
         else if (e.key === "PageDown") {
             e.preventDefault();
-            index = Math.min(index + 5, items.length - 1);
+            index = Math.min(index + 5, dropitems.length - 1);
         }
         else if (e.key === "PageUp") {
             e.preventDefault();
@@ -272,7 +295,6 @@ export async function setupDropdown() {
     window.addEventListener("keydown", (e) => {
         if (e.key === "Escape") {
             infoBox.forEach(box => { box.classList.remove("show"); });
-            if (infoSearch) infoSearch.style.display = "flex";
             if (baseCircle) baseCircle.style.backgroundColor = `hsl(0,0%,0%,0)`;
             if (colorName) colorName.textContent = "";
             resetColors();

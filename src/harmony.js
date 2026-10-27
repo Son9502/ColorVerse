@@ -23,6 +23,29 @@ for (const type in harmonySets) {
     });
 }
 
+// Make `color` the selected base color: details card + harmonies
+export function selectBaseColor(color, name = "") {
+    const baseCircle = document.getElementById("base-circle");
+    const colorName = document.getElementById("color-name");
+
+    document.querySelectorAll(".color-info").forEach(box => box.classList.add("show"));
+    if (baseCircle) baseCircle.style.backgroundColor = color;
+    if (colorName) colorName.textContent = name;
+    setBaseColors(color);
+}
+
+// Double-click a harmony swatch to make it the base color
+export function setupSwatchSelection() {
+    const container = document.getElementById("ui-container");
+    container?.addEventListener("dblclick", (event) => {
+        const square = event.target.closest(".square");
+        // Swatches are transparent until a base color is picked
+        if (!square || !document.getElementById("base-color")?.classList.contains("show")) return;
+        const color = square.style.backgroundColor;
+        if (color) selectBaseColor(color);
+    });
+}
+
 export function setHue(h, shift) {
     return (h + shift + 360) % 360;
 }

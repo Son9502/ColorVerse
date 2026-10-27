@@ -183,7 +183,6 @@ export const create3DEnvironment = async (objectType = "cube") => {
     const mouse = new THREE.Vector2();
     // UI Elements for color info
     const infoBox = document.querySelectorAll(".color-info");
-    const infoSearch = document.getElementById("color-search");
     const colorName = document.getElementById("color-name");
     const baseCircle = document.getElementById("base-circle");
     const colortext = document.getElementById("color-text");
@@ -209,7 +208,6 @@ export const create3DEnvironment = async (objectType = "cube") => {
         let intersects = raycaster.intersectObjects(targets, false);
         if (intersects.length === 0) {
             infoBox.forEach(box => box.classList.remove("show"));
-            if (infoSearch) infoSearch.style.display = "flex";
             if (baseCircle) baseCircle.style.backgroundColor = `hsl(0,0%,0%,0)`;
             if (colorName) colorName.textContent = "";
             resetColors();
@@ -257,9 +255,9 @@ export const create3DEnvironment = async (objectType = "cube") => {
             colortext.value = "";
             ghosttext.value = "";
             dropdown.innerHTML = "";
+            dropdown.classList.remove("open");
 
             infoBox.forEach(box => box.classList.add("show"));
-            if (infoSearch) infoSearch.style.display = "none";
             baseCircle.style.backgroundColor = `#${clickedColor.getHexString()}`;
             if (colorName) colorName.textContent = "";
             setBaseColors(clickedColor);

@@ -138,46 +138,90 @@ input:checked+.slider:before {
 /* -----------------------------------------------
 Color Info Section
 ----------------------------------------------- */
+/* Always visible under Color Search; greyed out until a color is picked (.show) */
 .color-info {
-    visibility: hidden;
-    opacity: 0;
-    transition: opacity 0.25s ease, visibility 0s linear 0.25s;
-}
-
-.color-info.show {
-    display: flex;
-    visibility: visible;
-    opacity: 1;
+    border-top: 1px solid #d6d6d6;
+    padding-top: clamp(8px, 1vw, 14px);
     transition: opacity 0.25s ease;
 }
 
+.color-info:not(.show) {
+    opacity: 0.45;
+}
+
+.color-info:not(.show) .circle {
+    border-style: dashed;
+    border-color: #9a9a9a;
+}
+
 .circle {
-    width: clamp(80px, 12vw, 200px);
+    width: clamp(64px, min(10vw, 16vh), 160px); 
     aspect-ratio: 1 / 1;
     border-radius: 50%;
     border: 0.4vw solid black;
 }
 
+/* Vertical card: circle → hex → name → RGB → HSL */
 #base-color {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: clamp(10px, 1vw, 20px);
+    text-align: center;
+    gap: clamp(6px, min(1vw, 1.4vh), 14px);
     margin: 10px 0;
 }
 
 #base-info {
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    height: 100%;
-    font-size: clamp(0.7rem, 2vw, 1.2rem);
+    align-items: center;
+    gap: 0.2em;
+    font-size: clamp(0.75rem, min(1.6vw, 2.4vh), 1.25rem);
+}
+
+/* Line sizes are relative to #base-info, so the whole card scales together */
+#hex {
+    font-size: 1.4em;
+    letter-spacing: 0.02em;
 }
 
 #color-name {
-    /*margin-top: clamp(4px, 0.5vw, 8px);
-    font-size: clamp(0.9rem, 1.5vw, 1.3rem);
-    font-weight: 600;*/
+    font-size: 0.95em;
+    font-weight: 500;
     font-style: italic;
+}
+
+/* Canvas/swatch picks have no name; collapse the line so RGB/HSL move up */
+#color-name:empty {
+    display: none;
+}
+
+#rgb,
+#hsl {
+    font-size: 0.9em;
+    font-weight: 400;
+    color: #555;
+    transition: color 0.2s ease;
+}
+
+/* Active color space (set by toggle.js): bold and listed first */
+#base-info:not(.hsl-active) #rgb,
+#base-info.hsl-active #hsl {
+    font-weight: 700;
+    color: #000;
+}
+
+#base-info.hsl-active #hsl {
+    order: 1;
+}
+
+#base-info.hsl-active #rgb {
+    order: 2;
+}
+
+#hex,
+#color-name {
+    order: 0;
 }
 
 /*
@@ -401,6 +445,15 @@ Color Squares
     transform: scale(1.08);
 }
 
+/* Once a base color is picked, swatches can be double-clicked to select them */
+#ui-info:has(#base-color.show) .square {
+    cursor: pointer;
+}
+
+#ui-info:has(#base-color.show) .square:hover {
+    transform: scale(1.15);
+}
+
 .square-wrapper {
     display: flex;
     flex-direction: column;
@@ -457,6 +510,95 @@ UI Canvas: Header Info + Worker Spinner
     z-index: 10;
     position: absolute;
 }
+/* -----------------------------------------------
+Help Button + Popover (top-left of canvas)
+----------------------------------------------- */
+#help {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    z-index: 15;
+}
+
+#help-button {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 2px solid #000;
+    background: #fff;
+    font-family: inherit;
+    font-size: 1.1rem;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    transition: transform 0.15s ease, background 0.15s ease;
+}
+
+#help-button:hover,
+#help-button[aria-expanded="true"] {
+    background: #eaeaea;
+    transform: translateY(-1px);
+}
+
+#help-panel {
+    position: absolute;
+    top: 46px;
+    left: 0;
+    width: min(340px, calc(100vw - 48px));
+    max-height: min(70vh, 560px);
+    overflow-y: auto;
+    padding: 1rem 1.1rem;
+    background: #fff;
+    border: 2px solid #000;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+    font-size: 0.85rem;
+    line-height: 1.4;
+    animation: fadeInUp 0.18s ease;
+}
+
+#help-panel[hidden] {
+    display: none;
+}
+
+#help-panel h2 {
+    font-size: 1rem;
+    margin-bottom: 0.6rem;
+}
+
+#help-panel h3 {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #666;
+    margin: 0.8rem 0 0.4rem;
+}
+
+#help-panel dl {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.35rem 0.8rem;
+}
+
+#help-panel dt {
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+#help-panel kbd {
+    display: inline-block;
+    min-width: 1.4em;
+    padding: 0 0.3em;
+    margin-right: 2px;
+    border: 1px solid #c8c8c8;
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    background: #f6f6f6;
+    font: 600 0.75rem/1.5 "SF Mono", Menlo, Consolas, monospace;
+    text-align: center;
+}
+
 #loader {
     position: absolute;
     inset: 0;

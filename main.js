@@ -2,11 +2,15 @@ import { setupToggle } from './src/toggle.js';
 import { setupDimensionDropdown, defaultVisualization } from './src/dimension.js';
 import { setupDropdown } from './src/dropdown.js';
 import { setupCollapsibleCategories } from './src/categories.js';
+import { setupHelp } from './src/help.js';
+import { setupSwatchSelection } from './src/harmony.js';
 document.addEventListener('DOMContentLoaded', () => {
     setupCollapsibleCategories();
 });
 setupToggle();
 setupDimensionDropdown();
 setupDropdown();
+setupHelp();
+setupSwatchSelection();
 defaultVisualization("sphere");
 // defaultVisualization("cube");
