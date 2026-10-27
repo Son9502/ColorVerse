@@ -2,7 +2,7 @@ import { MiniCube } from './3d/Mini/MiniCube.js';
 import { MiniSphere } from './3d/Mini/MiniSphere.js';
 import { MainCube } from './3d/Main/MainCube.js';
 import { MainSphere } from './3d/Main/MainSphere.js';
-import { setBaseColors, resetColors } from './harmony.js';
+import { setBaseColors, clearBaseColor } from './harmony.js';
 import { LoaderManager } from './LoaderManager.js';
 import { getCaches } from './3d/TextureRegistry.js';
 import { getSharedRenderer, resizeSharedRenderer } from './3d/sharedRenderer.js';
@@ -124,8 +124,11 @@ export const create3DEnvironment = async (objectType = "cube") => {
 
     threeDText.addEventListener("keydown", async (event) => {
         if (event.key === "Escape") {
-            threeDText.value = "";
-            previewObject?.hide();
+            if (threeDText.value) {
+                event.stopPropagation(); // cancel the layer box only, keep the selected color
+                threeDText.value = "";
+                previewObject?.hide();
+            }
             return;
         }
         if (event.key !== "Enter") return;
@@ -216,12 +219,9 @@ export const create3DEnvironment = async (objectType = "cube") => {
                 break;
         }
         let intersects = raycaster.intersectObjects(targets, false);
+        // Clicking empty canvas goes back to Color Search (same as Esc / "← Search")
         if (intersects.length === 0) {
-            infoBox.forEach(box => box.classList.remove("show"));
-            if (baseCircle) baseCircle.style.backgroundColor = `hsl(0,0%,0%,0)`;
-            if (colorName) colorName.textContent = "";
-            resetColors();
-            miniObject.clearHighlight();
+            clearBaseColor();
             return;
         }
         function handleClick(intersects, mainObject) {
@@ -290,6 +290,9 @@ export const create3DEnvironment = async (objectType = "cube") => {
         }
         handleClick(intersects, mainObject);
     }, { signal });
+    // Any clear (Esc, "← Search", empty-canvas click) removes the mini highlight
+    document.addEventListener("basecolorclear", () => miniObject.clearHighlight(), { signal });
+
     // --- Double-click reset with smooth animation ---
     container.addEventListener("dblclick", () => {
         mainObject.resetObject();

@@ -95,6 +95,7 @@
                     </div>
                     <!-- Information about selected color-->
                     <div id="base-color" class="color-info">
+                        <button id="back-to-search" type="button" aria-label="Back to color search">← Search</button>
                         <div id="base-circle" class="circle"></div>
                         <div id="base-info">
                             <h2 id="hex">#xxxxxx</h2>
@@ -420,7 +421,7 @@
                         <dt>Double-click</dt>
                         <dd>Reset rotation and zoom</dd>
                         <dt><kbd>Esc</kbd></dt>
-                        <dd>Clear the selected color</dd>
+                        <dd>Close this panel, cancel the text box you're in, or go back to Color Search</dd>
                     </dl>
 
                     <h3>Panel tools</h3>
@@ -439,8 +440,9 @@
                             <kbd>Enter</kbd> again selects it. Or pick with <kbd>↑</kbd><kbd>↓</kbd> +
                             <kbd>Enter</kbd></dd>
                         <dt>Color details</dt>
-                        <dd>Hex, RGB, and HSL values of the selected color. The active color space is bold
-                            and listed first</dd>
+                        <dd>Replaces Color Search once a color is selected: hex, RGB, and HSL values, with the
+                            active color space bold and listed first. <kbd>← Search</kbd>, <kbd>Esc</kbd>, or
+                            clicking empty canvas goes back</dd>
                         <dt>Sliders</dt>
                         <dd>Fine-tune the selected color: H/S/L when the HSL toggle is on, R/G/B when it's
                             off. Each track previews what that slider will do</dd>

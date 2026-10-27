@@ -23,10 +23,12 @@ export function setupHelp() {
     document.addEventListener("click", (event) => {
         if (!panel.hidden && !help.contains(event.target)) setOpen(false);
     });
+    // Capture phase + stopPropagation: with the panel open, Esc only closes it
     window.addEventListener("keydown", (event) => {
         if (event.key === "Escape" && !panel.hidden) {
+            event.stopPropagation();
             setOpen(false);
             button.focus();
         }
-    });
+    }, { capture: true });
 }

@@ -36,6 +36,17 @@ export function selectBaseColor(color, name = "", source = "") {
     setBaseColors(color, source);
 }
 
+// Clear the selected color; the panel switches back to Color Search (see index.css)
+export function clearBaseColor() {
+    const baseCircle = document.getElementById("base-circle");
+    const colorName = document.getElementById("color-name");
+
+    document.querySelectorAll(".color-info").forEach(box => box.classList.remove("show"));
+    if (baseCircle) baseCircle.style.backgroundColor = "transparent";
+    if (colorName) colorName.textContent = "";
+    resetColors(); // dispatches "basecolorclear"
+}
+
 // Double-click a harmony swatch to make it the base color
 export function setupSwatchSelection() {
     const container = document.getElementById("ui-container");

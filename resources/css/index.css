@@ -138,20 +138,31 @@ input:checked+.slider:before {
 /* -----------------------------------------------
 Color Info Section
 ----------------------------------------------- */
-/* Always visible under Color Search; greyed out until a color is picked (.show) */
-.color-info {
-    border-top: 1px solid #d6d6d6;
-    padding-top: clamp(8px, 1vw, 14px);
-    transition: opacity 0.25s ease;
+/* One panel at a time: Color Search until a color is picked (.show), then the details card.
+   "← Search", Esc, or clicking empty canvas removes .show and brings search back */
+#base-color:not(.show),
+#ui-right:has(#base-color.show) #color-search {
+    display: none;
 }
 
-.color-info:not(.show) {
-    opacity: 0.45;
+#base-color.show {
+    animation: fadeInUp 0.2s ease;
 }
 
-.color-info:not(.show) .circle {
-    border-style: dashed;
-    border-color: #9a9a9a;
+#back-to-search {
+    align-self: flex-start;
+    padding: 0.25em 0.7em;
+    border: 1px solid #000;
+    border-radius: 999px;
+    background: #fff;
+    font-family: inherit;
+    font-size: clamp(0.7rem, min(1.1vw, 1.7vh), 0.9rem);
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+#back-to-search:hover {
+    background: #eaeaea;
 }
 
 .circle {

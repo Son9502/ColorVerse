@@ -52,6 +52,7 @@ In HSL, saturation also decreases toward the core, so inner layers converge on g
 - **Physics-based rotation**: mouse drag and arrow keys with velocity and friction
 - **Color picking**: click any point on the object to read its color via raycasting
 - **Color harmonies**: complementary, split-complementary, triadic, tetradic, double-complementary, analogous, tints, shades, tones, and saturate. Double-click any swatch to make it the selected color
+- **Search / details panel**: shows Color Search until a color is picked, then the color details card; `← Search`, `Esc`, or clicking empty canvas goes back
 - **Color search**: fuzzy autocomplete (Levenshtein distance) over ~4,000 named colors
 - **Mini orientation viewport**: a small axis-gizmo object (bottom-right) that mirrors rotation, highlights the picked color's direction, and fades out when idle
 - **Progressive loading**: textures generate in a Web Worker with a progress bar and ETA
@@ -137,11 +138,13 @@ npm run preview   # serves dist/ at http://localhost:4173/ColorVerse/
 
 ### In Progress (v1)
 
-### Future Updates
-- [ ] Color Golf minigame (v2): reach a target color in the fewest harmony clicks / least time
-- [ ] 1-D mode: render a single-channel gradient line for the selected axis
-- [ ] 2-D mode: render square/circle planes for the selected X/Y axes
-- [ ] Shared picked color across dimensions
+### Roadmap
+See [MVP.md](MVP.md#roadmap-post-v1) for details.
+- [ ] **v1.1:** Color Golf minigame: reach a target color in the fewest harmony clicks / least time
+- [ ] **v2.0:** 1-D mode (single-channel gradient line) and 2-D mode (square/circle planes), with the picked color shared across dimensions
+- [ ] **v2.x / v3:** more shapes (HSL cylinder, HSV cone/bicone) and perceptual color spaces (OKLCH, LAB)
+
+### Unscheduled
 - [ ] `ShaderCache`: currently instantiated but unused; materials are created directly by Main objects
 - [ ] Export selected color + harmonies
 - [ ] Mobile / touch input support
@@ -161,6 +164,7 @@ npm run preview   # serves dist/ at http://localhost:4173/ColorVerse/
 | `1`–`6` | Snap to face / axis |
 | Click | Pick color |
 | Double-click | Reset rotation and zoom |
+| `Esc` | Close the help panel → cancel the text box you're in → back to Color Search (first that applies) |
 | `?` button (top-left of canvas) | Show all controls and tools |
 
 ---

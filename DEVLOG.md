@@ -9,6 +9,28 @@ Each entry is tagged with how it was produced:
 
 ---
 
+## Milestone 8 — Color Navigation & Panel Flow `[ai-assisted]`
+**2026-10-27**
+
+Made any color reachable from any other through the UI, and reworked how Color Search and the details card share the panel. Design decisions (Saturate over a Mute row, slider behavior, one panel at a time, Esc priority, v1.1/v2/v3 roadmap) were directed by the developer after reachability simulations; implementation `[ai-assisted]`.
+
+**Fixed**
+- `3d-mode.js`: switching shapes now keeps the current layer and the toggle's color space (new Main/Mini/Preview objects were always RGB, so the HSL toggle drifted out of sync); zoom resets; the "Layer N" label is set on load
+- `MainBase.js`: arrow keys no longer rotate the object while an input/select has focus
+- Esc in the layer box no longer clears the selected color
+
+**Added**
+- Saturate harmony row: `s + (100 − s) × 20…100%`, the only harmony that raises saturation. Simulation: #9C869A → #FF0000 went from a 34-click rounding-drift path to 2 clicks; a matching Mute row saved 1 click across 13 test pairs, so it was left out
+- `sliders.js`: H/S/L or R/G/B sliders (follow the HSL toggle) with live gradient tracks; synced via `basecolorchange` / `basecolorclear` events from `harmony.js`
+- `harmony.clearBaseColor()` and a `← Search` button in the details card
+
+**Modified**
+- Search and details shown one at a time (CSS `:has()`); `← Search`, Esc, or clicking empty canvas goes back
+- Esc priority: help panel → focused text box → back to search
+- MVP/README roadmap: v1.1 Color Golf, v2.0 1-D/2-D, v2.x/v3 more shapes and color spaces
+
+---
+
 ## Milestone 7 — v1 Bug Fixes & UI Polish `[ai-assisted]`
 **2026-10-26 → 2026-10-27**
 

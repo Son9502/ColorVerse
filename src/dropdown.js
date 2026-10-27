@@ -1,4 +1,4 @@
-import { selectBaseColor, resetColors } from "./harmony.js";
+import { selectBaseColor, clearBaseColor } from "./harmony.js";
 
 // Load color data from CSV file
 async function loadColorData() {
@@ -165,11 +165,6 @@ export async function setupDropdown() {
     const ghostInput = document.getElementById("ghost-text");
     const colorInput = document.getElementById("color-text");
 
-    // Get references to UI elements
-    const infoBox = document.querySelectorAll(".color-info");
-
-    const colorName = document.getElementById("color-name");
-    const baseCircle = document.getElementById("base-circle");
     const dropdown = document.getElementById("autocomplete");
 
 
@@ -223,6 +218,17 @@ export async function setupDropdown() {
         selectItem(selectedItem);
     });
     colorInput.addEventListener("keydown", (e) => {
+        // Esc cancels the search box only (doesn't reach the window-level handler)
+        if (e.key === "Escape") {
+            e.stopPropagation();
+            clearTimeout(debounceTimeout);
+            colorInput.value = "";
+            ghostInput.value = "";
+            dropdown.innerHTML = "";
+            dropdown.classList.remove("open");
+            index = -1;
+            return;
+        }
         // Typed and hit Enter before the debounce fired: search now so Enter uses current results
         if (e.key === "Enter" && index < 0 && colorInput.value) {
             clearTimeout(debounceTimeout);
@@ -257,11 +263,6 @@ export async function setupDropdown() {
             completed.forEach((item, i) => item.classList.toggle("highlighted", i === index));
             return;
         }
-        // Close dropdown with Escape key
-        else if (e.key === "Escape") {
-            const dropdown = document.getElementById("autocomplete");
-            dropdown.style.display = "none";
-        }
         // PageUp and PageDown for faster navigation
         else if (e.key === "PageDown") {
             e.preventDefault();
@@ -291,13 +292,17 @@ export async function setupDropdown() {
             item.classList.toggle("highlighted", i === index);
         });
     });
-    // Escape closes Info
+    // Back to Color Search: "← Search" button, or Esc while the details card is showing
+    const baseColor = document.getElementById("base-color");
+    document.getElementById("back-to-search").addEventListener("click", () => {
+        clearBaseColor();
+        colorInput.focus();
+    });
     window.addEventListener("keydown", (e) => {
-        if (e.key === "Escape") {
-            infoBox.forEach(box => { box.classList.remove("show"); });
-            if (baseCircle) baseCircle.style.backgroundColor = `hsl(0,0%,0%,0)`;
-            if (colorName) colorName.textContent = "";
-            resetColors();
-        }
+        if (e.key !== "Escape" || !baseColor.classList.contains("show")) return;
+        // Focus would be lost when the card hides, so hand it to the search box
+        const focusWasInCard = baseColor.contains(document.activeElement);
+        clearBaseColor();
+        if (focusWasInCard) colorInput.focus();
     });
 }

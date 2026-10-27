@@ -34,33 +34,38 @@ Someone can open ColorVerse, explore RGB and HSL as an interactive **3-D** color
 
 ---
 
-## Future Updates (Post-v1)
+## Roadmap (Post-v1)
 
-### v2: Color Golf (minigame)
+| Version | Scope | Why here |
+|---|---|---|
+| **v1.1** | Color Golf | Builds only on v1 (3-D view, harmonies, the par search); no new renderer |
+| **v2.0** | 1-D and 2-D modes + shared color across dimensions | Delivers the "multi-dimensional" promise; new renderers and shared state |
+| **v2.x / v3** | More shapes and color spaces | v2.x if they reuse the 3-D pipeline; v3 if they need a new color model throughout |
+
+### v1.1: Color Golf (minigame)
 - Reach a target color from a start color in the fewest harmony clicks and/or least time.
 - **Win condition:** within a tolerance (OKLab distance, shown as a match %), not an exact hex.
 - **Par:** shortest click path computed by breadth-first search over harmony moves; only solvable puzzles are offered.
 - **Modes:** clicks vs par, time trial, daily seeded puzzle.
 - **Exact state:** track HSL as exact values instead of re-deriving from rounded RGB each click, so rounding drift near black/white can't create shortcuts that par doesn't account for.
-- Sliders and search are disabled in game mode.
+- **Game mode only:** sliders and search are hidden while a game is in progress (a slider move would solve any puzzle in one step). Both stay in normal exploring.
 
-### 1-D Mode
-- **Line:** a gradient bar for the selected channel, with sliders to hold the other two channels.
-- Works in both RGB and HSL, and clicking picks a color.
+### v2.0: 1-D and 2-D Modes
+Developed on the `feature/1d-2d` branch.
+- **1-D, Line:** a gradient bar for the selected channel, with sliders to hold the other two channels.
+- **2-D, Square:** plot the selected X-axis channel against the Y-axis channel, with a slider to hold the third channel.
+- **2-D, Circle:** hue wheel (angle = hue, radius = saturation), with a slider to hold lightness.
+- Both work in RGB and HSL, and clicking picks a color.
+- **Shared state across dimensions:** a color picked in one dimension stays highlighted when you switch to another.
 
-### 2-D Mode
-- **Square:** plot the selected X-axis channel against the Y-axis channel, with a slider to hold the third channel.
-- **Circle:** hue wheel (angle = hue, radius = saturation), with a slider to hold lightness.
-- Works in both RGB and HSL, and clicking picks a color.
+### v2.x / v3: More Shapes and Color Spaces
+- **v2.x (reuse the 3-D pipeline):** HSL cylinder, HSV cone / bicone.
+- **v3 (new color model):** perceptual spaces such as OKLCH and LAB.
 
-### Shared State Across Dimensions
-- A color picked in one dimension stays highlighted when you switch to another.
-
-### Other
+### Unscheduled
 - Export of the selected color and its harmonies
 - Mobile / touch input
 - `ShaderCache` integration
-- Additional color spaces (LAB, OKLCH)
 - Moving Three.js from the CDN global to the npm package
 
 ---
