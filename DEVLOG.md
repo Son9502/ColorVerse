@@ -9,6 +9,28 @@ Each entry is tagged with how it was produced:
 
 ---
 
+## Milestone 10 — Color Golf: Core Logic `[ai-assisted]`
+**2026-10-27**
+
+The rules, par solver and courses for the v1.1 minigame, with no UI yet. Game design (golf framing, harmonies as clubs, OKLab "looks the same" win, strokes then time, 18-hole courses → daily → practice, 1 undo per 9, perfect vs par so birdies and aces exist, lip-outs to keep aces non-obvious, color-themed courses and hazards) directed by the developer; implementation `[ai-assisted]`.
+
+**Added**
+- `harmonyMath.js`: harmony formulas moved out of `harmony.js` (no DOM), so the solver can use them; `harmony.js` re-exports them
+- `golf/clubs.js`: every move a stroke can make (10 harmony rows + a ±4 putter); state is whole-number HSL, the values the swatches show, so the game and solver always agree
+- `golf/oklab.js`: OKLab distance; in the hole < 0.02, on the green < 0.05
+- `golf/solver.js`: breadth-first search over ≈3.7M HSL states with typed-array tables; depth 7 in ≈1 s, par for a target in ≈10 ms, plus the best path for replays
+- `golf/game.js`: a round — strokes, 1 undo per 9 (not a stroke), pick up at double par, score card with par and perfect, score names, strokes-then-time ranking
+- `resources/generateCourses.mjs` (`npm run courses`): seeded course generator → `golf/courses.json`; each hole has a perfect score below par (par 3 → 2, par 4 → 3, par 5 → 3 or 4, one ace hole per course), every par 3 has a lip-out swatch, and tees/targets stay in the course's hues
+- Courses: Prism Point (full spectrum), Ember Dunes (reds–yellows), Verdant Pines (greens); each par 72, perfect 51
+
+**Verified**
+- A bot playing each hole's perfect path scores under par on every hole of all three courses (15 birdies, 2 eagles, a hole in one); undo, pick-up and scoring rules tested
+
+**Modified**
+- `MVP.md`: full Color Golf spec — v1.1 core game, v1.2 hazards by course, v1.3 daily hole, practice and a Pro (no previews) setting
+
+---
+
 ## Milestone 9 — First Impressions & Rendering Fixes `[ai-assisted]`
 **2026-10-27**
 

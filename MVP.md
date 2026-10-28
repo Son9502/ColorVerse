@@ -67,13 +67,35 @@ Get from a start color (the **tee**) to a target color (the **hole**) in as few 
 **Rules**
 - A stroke is a double-click on a harmony swatch. Clicking the 3-D shape, the sliders and search are all disabled in game mode.
 - **In the hole:** OKLab distance to the target < 0.02 (looks the same side by side). **On the green:** < 0.05, which drives a "how close" meter. Both thresholds tuned by playtesting.
-- **Par:** fewest strokes from tee to hole (including putts), found by a breadth-first search over the clubs in a Web Worker. Holes are generated only when par falls in the course's range (no par-1 holes).
+- **Perfect and par:** *perfect* is the fewest strokes possible (including putts), found by a breadth-first search over the clubs. *Par* sits above it, so beating par is possible:
+
+  | Hole | Perfect | Par | Best possible |
+  |---|---|---|---|
+  | Par 3 | 2 | 3 | Birdie |
+  | Par 4 | 3 | 4 | Birdie |
+  | Par 5 | 3 or 4 | 5 | Eagle or birdie |
+  | Ace hole (one per course) | 1 | 3 | Hole in one |
+
+  The end-of-hole card shows "Perfect: N" next to the score.
+- **Pick up at double par:** a hole ends at double par and that score is recorded.
+- **Lip-outs:** every par 3 has a tee swatch that looks almost like the target but misses the hole (OKLab 0.02–0.05), so a close match is never a sure ace. The ace hole has both an ace swatch and a lip-out.
+- **No checking before you swing:** swatches show their color, but the closeness meter only updates after a stroke.
 - **Undo:** 1 per 9 holes, and it doesn't count as a stroke.
 - **Score:** strokes relative to par (birdie, par, bogey…); total time breaks ties.
 - **Exact state:** track HSL exactly instead of re-deriving it from rounded RGB each stroke, so rounding drift near black/white can't create shortcuts that par doesn't know about.
 
 **Courses**
 - An 18-hole round = front 9 + back 9, with a fixed, seeded set of holes per course so every player gets the same course.
+- Holes are generated ahead of time by `npm run courses` (seeded) into `src/golf/courses.json`.
+- Each course keeps its tees and targets in one part of the color wheel, so its name says how it plays (routes can still pass through other hues):
+
+  | Course | Hues | Release |
+  |---|---|---|
+  | Prism Point | Full spectrum | v1.1 |
+  | Ember Dunes | Reds, oranges, yellows (345°–60°) | v1.1 |
+  | Verdant Pines | Greens (75°–165°) | v1.1 |
+  | Cobalt Bay | Blues and teals | v1.2 |
+  | Royal Indigo | Purples | v1.2 |
 - Score card per hole and per 9; best round saved in the browser.
 
 **Screen**
@@ -87,11 +109,20 @@ Get from a start color (the **tee**) to a target color (the **hole**) in as few 
 - **Sand:** a zone (usually near the hole) where only some clubs work, so getting out costs strokes.
 - Drawn on the map as translucent zones; the par solver treats water as blocked and sand as limited clubs.
 - Every hole must be finishable within par without touching a hazard.
-- Difficulty curve: first course's back 9 adds sand; later courses add water.
+- Hazards by course (the name says what to expect):
+
+  | Course | Hazards |
+  |---|---|
+  | Prism Point | A few bunkers on the back 9 (beginner course) |
+  | Ember Dunes | The sand course: bunkers on most holes, often guarding the hole |
+  | Verdant Pines | Light sand: a "tree-lined" course with few hazards |
+  | Cobalt Bay | Water: lakes in color space to route around |
+  | Royal Indigo | Sand and water: the hardest course |
 
 ### v1.3: Daily Hole and Practice
 - **Daily hole:** one seeded hole per day, the same for everyone; best score and streak saved in the browser.
 - **Practice:** endless random holes filtered by difficulty (par range), with hazards on or off.
+- **Pro setting:** swatches show only the club name (e.g. "Tints 60%"), not the color, so play is on color theory alone.
 
 ### v2.0: 1-D and 2-D Modes
 Developed on the `feature/1d-2d` branch.
