@@ -11,6 +11,7 @@ import { locateColor } from "./map.js";
 const LIFT = 0.02; // markers sit just off the surface
 
 const GOLD = 0xffc83d; // perfect-route replay
+const TRAIL_RADIUS = 0.008; // path thickness
 
 const cssColor = ({ h, s, l }) => `hsl(${h}, ${s}%, ${l}%)`;
 
@@ -125,10 +126,15 @@ export class GolfMapView {
         const stops = colors.map(hsl => lifted(this._locate(hsl)));
         if (holed) stops.push(lifted(this._locate(this._target)));
         if (stops.length < 2) return;
+        // A thin tube rather than a Line: WebGL draws lines 1 px wide whatever linewidth says
         const points = stops.slice(1).flatMap((stop, i) => this._arc(stops[i], stop));
-        this.group.add(new THREE.Line(
-            new THREE.BufferGeometry().setFromPoints(points),
-            new THREE.LineBasicMaterial({ color }),
+        const path = new THREE.CurvePath();
+        points.slice(1).forEach((point, i) => {
+            if (!point.equals(points[i])) path.add(new THREE.LineCurve3(points[i], point));
+        });
+        if (path.curves.length) this.group.add(new THREE.Mesh(
+            new THREE.TubeGeometry(path, points.length * 2, TRAIL_RADIUS, 6, false),
+            new THREE.MeshBasicMaterial({ color }),
         ));
         stops.slice(0, holed ? -2 : -1).forEach(stop => this.group.add(this._dot(stop, color)));
     }
@@ -144,7 +150,7 @@ export class GolfMapView {
     }
 
     _dot(position, color = 0xffffff) {
-        const dot = new THREE.Mesh(new THREE.SphereGeometry(0.012, 12, 12), new THREE.MeshBasicMaterial({ color }));
+        const dot = new THREE.Mesh(new THREE.SphereGeometry(TRAIL_RADIUS * 2, 12, 12), new THREE.MeshBasicMaterial({ color }));
         dot.position.copy(position);
         return dot;
     }

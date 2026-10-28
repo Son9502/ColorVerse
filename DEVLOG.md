@@ -9,6 +9,17 @@ Each entry is tagged with how it was produced:
 
 ---
 
+## Milestone 15 — Thicker Map Paths (v1.1.3) `[ai-assisted]`
+**2026-10-28**
+
+Requested by the developer after seeing the replay.
+
+**Modified**
+- `golf/mapView.js`: map paths (white trail and gold replay) drawn as thin tubes, since WebGL ignores line width and `THREE.Line` is always 1 px; stroke dots scale with them (`TRAIL_RADIUS`)
+- `package.json`: version 1.1.3
+
+---
+
 ## Milestone 14 — Perfect Route Replay (v1.1.2) `[ai-assisted]`
 **2026-10-28**
 
