@@ -51,7 +51,11 @@ Someone can open ColorVerse, explore RGB and HSL as an interactive **3-D** color
 | **v1.1.2** | Perfect route solved in a Web Worker and replayed on the map ✅ | Finishes the v1.1 spec |
 | **v1.1.3** | Thicker map paths ✅ | Readability |
 | **v1.2** | Color Golf hazards (sand, water), wind, Cobalt Bay and Royal Indigo ✅ (v1.2.0) | Adds route choice once the core game is solid |
+| **v1.2.1** | Golf map uses HSL during a game | The RGB sphere doesn't contain the most vivid colors, so markers and hazard footprints can't match there |
 | **v1.3** | Daily hole + practice by difficulty | Reuses the generator and par solver |
+| **v1.4** | Golf variety: peeling that looks like peeling, "sand wedge only" on Expert courses, per-course par layouts | Makes courses and layer changes feel distinct |
+| **v1.5** | Engine cleanup: Three.js r128 → npm package; delete ShaderCache | Ends the r128 API gaps before v2.0's new renderers |
+| **v1.6** | Accounts + score database | Daily streaks and leaderboards are what make accounts worth having |
 | **v2.0** | 1-D and 2-D modes + shared color across dimensions | Delivers the "multi-dimensional" promise; new renderers and shared state |
 | **v2.x / v3** | More shapes and color spaces | v2.x if they reuse the 3-D pipeline; v3 if they need a new color model throughout |
 
@@ -151,6 +155,25 @@ Get from a start color (the **tee**) to a target color (the **hole**) in as few 
 - **Practice:** endless random holes filtered by difficulty (par range), with hazards on or off.
 - **Pro setting:** swatches show only the club name (e.g. "Tints 60%"), not the color, so play is on color theory alone.
 
+### v1.2.1: Golf Map in HSL
+- During a game, the map uses the HSL version of the current shape (the toggle is hidden in game mode). Exploring keeps the user's choice.
+
+### v1.4: Golf Variety
+- **Peeling that looks like peeling:** when the layer changes, the outer shell visibly comes away (briefly shrinking or fading it) instead of only cross-fading colors.
+- **"Sand wedge only" on Expert courses:** in bunkers, only one wedge (e.g. Tones) can be played. Measured: about half a stroke harder per bunker. The generator and solver account for it per course.
+- **Per-course par layouts:** each course gets its own sequence of par 3s, 4s and 5s (e.g. Ember Dunes with more par 5s), so courses feel different beyond their colors.
+
+### v1.5: Engine Cleanup
+- **Three.js:** load the installed npm package (imported as a module) instead of the r128 CDN global. Update APIs that changed since r128 (color management, `outputColorSpace`, geometry helpers) and retest every view, the texture pipeline and Color Golf.
+- **ShaderCache:** delete it. It was meant to cache one blended material per (color space, layer pair, face), but the main objects keep one material per face and swap its textures, which is simpler and cheaper.
+
+### v1.6: Accounts and Score Database
+- **Backend:** a hosted service (Supabase or Firebase, to decide), since GitHub Pages is static.
+- **Sign-in** (email link or Google) with a short privacy note; playing without an account still works, with scores kept in the browser.
+- **Stored:** rounds, personal bests per course, daily-hole results and streaks; leaderboards later.
+- **Cheat-proof scores:** the browser submits its list of strokes and the server replays them with the same rules (the game is deterministic), so a submitted score can't be faked.
+- **Sync:** scores saved locally while signed out are uploaded on sign-in.
+
 ### v2.0: 1-D and 2-D Modes
 Developed on the `feature/1d-2d` branch.
 - **1-D, Line:** a gradient bar for the selected channel, with sliders to hold the other two channels.
@@ -166,8 +189,6 @@ Developed on the `feature/1d-2d` branch.
 ### Unscheduled
 - Export of the selected color and its harmonies
 - Mobile / touch input
-- `ShaderCache` integration
-- Moving Three.js from the CDN global to the npm package
 
 ---
 
