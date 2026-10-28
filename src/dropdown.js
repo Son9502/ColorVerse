@@ -353,6 +353,7 @@ export async function setupDropdown() {
     });
     window.addEventListener("keydown", (e) => {
         if (e.key !== "Escape" || !baseColor.classList.contains("show")) return;
+        if (document.body.classList.contains("golf")) return; // the game owns the base color
         // Focus would be lost when the card hides, so hand it to the search box
         const focusWasInCard = baseColor.contains(document.activeElement);
         clearBaseColor();

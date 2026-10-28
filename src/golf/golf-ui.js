@@ -1,0 +1,331 @@
+import courses from "./courses.json";
+import { GolfRound, scoreName, compareRounds } from "./game.js";
+import { PUTTER, strike } from "./clubs.js";
+import { searchFrom, parFor, pathTo } from "./solver.js";
+import { IN_THE_HOLE } from "./oklab.js";
+import { harmonySets, selectBaseColor, clearBaseColor } from "../harmony.js";
+
+// ----------------------------------
+// Color Golf screen
+// ----------------------------------
+// body.golf hides the explore controls (search, sliders, help) and shows the putter row;
+// 3d-mode.js and dropdown.js skip canvas picking and Esc while it's set.
+
+const BEST_KEY = "colorverse.golf.best";
+
+const ROW_NAMES = {
+    "complementary": "Complementary", "split-complementary": "Split-comp.", "triadic": "Triadic",
+    "tetradic": "Tetradic", "double-complementary": "Double-comp.", "analogous": "Analogous",
+    "tints": "Tints", "shades": "Shades", "tones": "Tones", "saturate": "Saturate", "putter": "Putter",
+};
+// Hue shifts per swatch, matching harmonyMath.js
+const HUE_SHIFTS = {
+    "complementary": [180], "split-complementary": [150, 210], "triadic": [120, -120],
+    "tetradic": [90, 180, 270], "double-complementary": [60, 180, 240], "analogous": [-40, -20, 20, 40],
+};
+
+// "Tints 60%", "Triadic +120°", "Putter Sat +"
+function clubName({ row, index }) {
+    if (row === "putter") return `Putt ${PUTTER[index].label}`;
+    if (HUE_SHIFTS[row]) {
+        const shift = HUE_SHIFTS[row][index];
+        return `${ROW_NAMES[row]} ${shift > 0 ? "+" : "−"}${Math.abs(shift)}°`;
+    }
+    return `${ROW_NAMES[row]} ${(index + 1) * 20}%`;
+}
+
+const css = ({ h, s, l }) => `hsl(${h}, ${s}%, ${l}%)`;
+
+function formatTime(ms) {
+    const total = Math.floor(ms / 1000);
+    return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
+}
+
+const formatToPar = (n) => (n === 0 ? "E" : n > 0 ? `+${n}` : `${n}`);
+
+// Best rounds per course, in this browser only. localStorage can throw: fall back to none
+function loadBest() {
+    try { return JSON.parse(localStorage.getItem(BEST_KEY)) ?? {}; } catch { return {}; }
+}
+function saveBest(courseId, totals) {
+    const best = loadBest();
+    if (best[courseId] && compareRounds(best[courseId], totals) <= 0) return false;
+    best[courseId] = { strokes: totals.strokes, toPar: totals.toPar, time: totals.time };
+    try { localStorage.setItem(BEST_KEY, JSON.stringify(best)); } catch { /* ignore */ }
+    return true;
+}
+
+// Closeness meter wording; only updated after a stroke
+function lieLabel({ distance, holed, onGreen }) {
+    if (holed) return "In the hole!";
+    if (onGreen) return "On the green";
+    if (distance < 0.12) return "Close";
+    if (distance < 0.25) return "Fairway";
+    return "Rough";
+}
+
+export function setupGolf() {
+    const $ = (id) => document.getElementById(id);
+    const panel = $("golf-panel");
+    const setup = $("golf-setup");
+    const hud = $("golf-hud");
+    const roundEnd = $("golf-round-end");
+    const holeEnd = $("golf-hole-end");
+    const undoButton = $("golf-undo");
+    const pathList = $("golf-path");
+
+    let round = null;
+    let timer = null;
+
+    // Every swatch is a club: harmony squares from harmonySets, plus the putter row
+    const clubs = new Map();
+    for (const [row, elements] of Object.entries(harmonySets)) {
+        elements.forEach(({ box }, index) => box && clubs.set(box, { row, index }));
+    }
+    const putterBoxes = PUTTER.map((_, index) => $(`putt${index + 1}`));
+    putterBoxes.forEach((box, index) => clubs.set(box, { row: "putter", index }));
+
+    const show = (section) => {
+        for (const el of [setup, hud, roundEnd]) el.hidden = el !== section;
+    };
+
+    // ---- Enter / leave ----
+    const openSetup = () => {
+        stopTimer();
+        round = null;
+        document.body.classList.add("golf");
+        panel.hidden = false;
+        clearBaseColor();
+        putterBoxes.forEach(box => { box.style.backgroundColor = ""; });
+        renderCourses();
+        show(setup);
+    };
+
+    const exitGolf = () => {
+        stopTimer();
+        round = null;
+        document.body.classList.remove("golf");
+        panel.hidden = true;
+        clearBaseColor();
+    };
+
+    const renderCourses = () => {
+        const best = loadBest();
+        $("golf-courses").replaceChildren(...courses.map(course => {
+            const [from, to] = course.hues;
+            const span = ((to - from + 359) % 360) + 1;
+            const stops = Array.from({ length: 7 }, (_, i) => `hsl(${(from + (span * i) / 6) % 360}, 75%, 50%)`);
+            const par = course.holes.reduce((sum, hole) => sum + hole.par, 0);
+            const record = best[course.id];
+
+            const item = document.createElement("li");
+            item.className = "golf-course";
+            item.innerHTML = `
+                <h3>${course.name}</h3>
+                <div class="golf-hues" style="background: linear-gradient(to right, ${stops.join(", ")})"></div>
+                <span class="golf-best">${course.holes.length} holes · par ${par}${record ? ` · best ${record.strokes} (${formatToPar(record.toPar)}), ${formatTime(record.time)}` : ""}</span>
+                <button class="btn btn-primary" type="button">Play</button>`;
+            item.querySelector("button").addEventListener("click", () => startRound(course));
+            return item;
+        }));
+    };
+
+    // ---- A round ----
+    const startRound = (course) => {
+        round = new GolfRound(course);
+        show(hud);
+        startHole();
+    };
+
+    const startHole = () => {
+        const { hole, holeIndex } = round;
+        $("golf-hole-title").textContent = `Hole ${holeIndex + 1} · Par ${hole.par}`;
+        $("golf-hole-info").textContent = `${round.course.name} · ${round.nine === 0 ? "Front" : "Back"} 9`;
+        $("golf-target").style.backgroundColor = css(hole.target);
+        holeEnd.hidden = true;
+        pathList.replaceChildren();
+        renderPosition(null);
+        startTimer();
+    };
+
+    // Current color, swatches (harmonies + putter), strokes, undo and the meter
+    const renderPosition = (lie) => {
+        const { current } = round;
+        $("golf-you").style.backgroundColor = css(current);
+        selectBaseColor(css(current), "", "golf", current);
+        putterBoxes.forEach((box, index) => {
+            box.style.backgroundColor = css(strike(current, { row: "putter", index }));
+        });
+
+        $("golf-strokes").textContent = round.strokes;
+        const undosLeft = round.undosLeft[round.nine];
+        undoButton.textContent = `Undo (${undosLeft})`;
+        undoButton.disabled = round.holeDone || undosLeft === 0 || round.trail.length === 0;
+        refreshLiveCard();
+
+        const fill = $("golf-meter-fill");
+        const label = $("golf-meter-label");
+        if (!lie) {
+            fill.style.width = "0";
+            label.textContent = "Tee off";
+            return;
+        }
+        // Full bar at the hole's edge, empty at 0.4 (about as far as two colors get)
+        const closeness = Math.max(0, Math.min(1, 1 - (lie.distance - IN_THE_HOLE) / 0.4));
+        fill.style.width = `${(lie.holed ? 1 : closeness) * 100}%`;
+        label.textContent = lieLabel(lie);
+    };
+
+
+    const endHole = () => {
+        stopTimer();
+        refreshLiveCard();
+        const result = round.card[round.holeIndex];
+        $("golf-result").textContent = result.pickedUp ? "Picked up" : scoreName(result.strokes, result.par);
+        $("golf-result-info").textContent =
+            `${result.strokes} strokes · Par ${result.par} · Perfect ${result.perfect} · ${formatTime(result.time)}`;
+        $("golf-next").textContent = round.finished ? "See score card" : "Next hole";
+        $("golf-show-path").disabled = false;
+        $("golf-show-path").hidden = false;
+        holeEnd.hidden = false;
+        $("golf-next").focus();
+    };
+
+    // The solver's best route from the tee (a fraction of a second, so it runs on demand)
+    const showPath = () => {
+        const button = $("golf-show-path");
+        button.disabled = true;
+        button.textContent = "Working…";
+        setTimeout(() => {
+            const { tee, target, perfect } = round.hole;
+            const search = searchFrom(tee, perfect);
+            const best = parFor(search, target);
+            pathList.replaceChildren(...pathTo(search, best.end).map(({ club, hsl }) => {
+                const item = document.createElement("li");
+                item.innerHTML = `<span class="swatch" style="background-color: ${css(hsl)}"></span>${clubName(club)}`;
+                return item;
+            }));
+            button.textContent = "Show perfect route";
+            button.hidden = true; // the route is on screen now
+        }, 30);
+    };
+
+    const endRound = () => {
+        const totals = round.totals();
+        const isBest = saveBest(round.course.id, totals);
+        $("golf-round-title").textContent = `${round.course.name}: ${totals.strokes} (${formatToPar(totals.toPar)})`;
+        $("golf-round-info").textContent =
+            `Par ${totals.par} · Perfect ${totals.perfect} · ${formatTime(totals.time)}${isBest ? " · New best!" : ""}`;
+        renderCard($("golf-card"));
+        clearBaseColor();
+        show(roundEnd);
+    };
+
+    // Score card as two tables so it fits the panel: holes 1–9 + Out, then 10–18 + In + Total.
+    // Unplayed holes show "–"; a hole's perfect score stays hidden until it's played (no spoilers);
+    // the hole in progress is highlighted with its strokes so far.
+    const renderCard = (container) => {
+        const holes = round.course.holes;
+        const sum = (list, key) => list.reduce((total, item) => total + item[key], 0);
+        const total = (label, from, to) => {
+            const played = round.card.slice(from, to);
+            const done = played.length === to - from;
+            return {
+                label,
+                par: sum(holes.slice(from, to), "par"),
+                perfect: done ? sum(played, "perfect") : "–",
+                strokes: played.length ? sum(played, "strokes") : "–",
+                parPlayed: sum(played, "par"),
+            };
+        };
+        const nineTable = (nine) => {
+            const columns = holes.slice(nine * 9, nine * 9 + 9).map((hole, i) => {
+                const index = nine * 9 + i;
+                const played = round.card[index];
+                const current = !played && index === round.holeIndex;
+                return {
+                    label: index + 1, par: hole.par, current,
+                    perfect: played ? played.perfect : "–",
+                    strokes: played ? played.strokes : current ? round.strokes : "–",
+                    parPlayed: played ? hole.par : null,
+                };
+            });
+            columns.push(total(nine === 0 ? "Out" : "In", nine * 9, nine * 9 + 9));
+            if (nine === 1) columns.push(total("Tot", 0, 18));
+
+            const under = (c) => typeof c.strokes === "number" && c.parPlayed !== null && c.strokes < c.parPlayed;
+            const row = (title, cell) => `<tr><th>${title}</th>${columns.map(cell).join("")}</tr>`;
+            return `<table class="golf-card">${
+                row("Hole", c => `<th class="${c.current ? "current" : ""}">${c.label}</th>`) +
+                row("Par", c => `<td>${c.par}</td>`) +
+                row("Perfect", c => `<td>${c.perfect}</td>`) +
+                row("You", c => `<td class="${[c.current && "current", under(c) && "under"].filter(Boolean).join(" ")}">${c.strokes}</td>`)
+            }</table>`;
+        };
+        container.innerHTML = nineTable(0) + nineTable(1);
+    };
+
+    // Live card: shown with the Card button, refreshed after every stroke and hole
+    const liveCard = $("golf-live-card");
+    const refreshLiveCard = () => {
+        if (liveCard.hidden || !round) return;
+        const { holes, toPar } = round.totals();
+        $("golf-live-total").textContent = holes ? `Thru ${holes}: ${formatToPar(toPar)}` : "No holes finished yet";
+        renderCard(liveCard.querySelector(".golf-card-tables"));
+    };
+    $("golf-card-toggle").addEventListener("click", (event) => {
+        liveCard.hidden = !liveCard.hidden;
+        event.currentTarget.setAttribute("aria-expanded", String(!liveCard.hidden));
+        refreshLiveCard();
+    });
+
+    // How to play: either ? button opens it, its Close button hides it
+    document.querySelectorAll(".golf-help-toggle").forEach(button => button.addEventListener("click", () => {
+        $("golf-help").hidden = !$("golf-help").hidden;
+    }));
+
+    // ---- Timer: total round time, ticking during a hole ----
+    const startTimer = () => {
+        stopTimer();
+        const done = round.totals().time;
+        const tick = () => { $("golf-time").textContent = formatTime(done + performance.now() - round.holeStart); };
+        tick();
+        timer = setInterval(tick, 250);
+    };
+    function stopTimer() {
+        clearInterval(timer);
+        timer = null;
+    }
+
+    // ---- Strokes: double-click a swatch ----
+    // Capture phase, so harmony.js's explore-mode double-click never sees it
+    $("ui-container").addEventListener("dblclick", (event) => {
+        if (!document.body.classList.contains("golf")) return;
+        event.stopPropagation();
+        const club = clubs.get(event.target.closest(".square"));
+        if (!round || !club || round.holeDone) return;
+
+        const lie = round.play(club);
+        renderPosition(lie);
+        if (round.holeDone) endHole();
+    }, { capture: true });
+
+    undoButton.addEventListener("click", () => {
+        if (!round?.undo()) return;
+        renderPosition(round.trail.length ? round.lie() : null);
+    });
+
+    $("golf-next").addEventListener("click", () => {
+        if (round.finished) endRound();
+        else if (round.nextHole()) startHole();
+    });
+    $("golf-show-path").addEventListener("click", showPath);
+    $("golf-quit").addEventListener("click", () => {
+        if (confirm("Quit this round? It won't be saved.")) openSetup();
+    });
+
+    $("golf-play").addEventListener("click", openSetup);
+    $("golf-quit-setup").addEventListener("click", exitGolf);
+    $("golf-again").addEventListener("click", openSetup);
+    $("golf-done").addEventListener("click", exitGolf);
+}

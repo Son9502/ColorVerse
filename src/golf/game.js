@@ -1,5 +1,5 @@
-import { strike } from "./clubs.js";
-import { hslDistance, IN_THE_HOLE, ON_THE_GREEN } from "./oklab.js";
+import { strike, PUTTER } from "./clubs.js";
+import { hslDistance, IN_THE_HOLE } from "./oklab.js";
 
 // ----------------------------------
 // Color Golf round: strokes, undo, score card
@@ -17,6 +17,16 @@ export function scoreName(strokes, par) {
     return SCORE_NAMES[diff] ?? (diff > 0 ? `+${diff}` : `${diff}`);
 }
 
+// Fewest putts (0–2) from `hsl` into the hole, or null if it takes more than 2
+export function puttsToHole(hsl, target) {
+    let frontier = [hsl];
+    for (let putts = 0; putts <= 2; putts++) {
+        if (frontier.some(c => hslDistance(c, target) < IN_THE_HOLE)) return putts;
+        frontier = frontier.flatMap(c => PUTTER.map((_, index) => strike(c, { row: "putter", index })));
+    }
+    return null;
+}
+
 export class GolfRound {
     constructor(course, now = () => performance.now()) {
         this.course = course;
@@ -32,10 +42,12 @@ export class GolfRound {
     get finished() { return this.card.length === this.course.holes.length; }
     get holeDone() { return this.card.length > this.holeIndex; }
 
-    // Distance to the target, and whether that's in the hole / on the green
+    // Distance to the target, whether that's in the hole, and whether it's on the green
+    // (on the green = 2 putts or fewer will hole it, as in golf)
     lie(hsl = this.current) {
         const distance = hslDistance(hsl, this.hole.target);
-        return { distance, holed: distance < IN_THE_HOLE, onGreen: distance < ON_THE_GREEN };
+        const holed = distance < IN_THE_HOLE;
+        return { distance, holed, onGreen: holed || puttsToHole(hsl, this.hole.target) !== null };
     }
 
     // One stroke with a club ({ row, index }); returns the new lie

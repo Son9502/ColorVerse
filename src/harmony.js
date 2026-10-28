@@ -27,14 +27,16 @@ for (const type in harmonySets) {
 
 // Make `color` the selected base color: details card + harmonies
 // `source` is passed through to the "basecolorchange" event (sliders ignore their own updates)
-export function selectBaseColor(color, name = "", source = "") {
+// `exactHSL` (whole-number {h, s, l}) skips re-deriving HSL from RGB; Color Golf uses it so the
+// swatches match its strokes exactly
+export function selectBaseColor(color, name = "", source = "", exactHSL = null) {
     const baseCircle = document.getElementById("base-circle");
     const colorName = document.getElementById("color-name");
 
     document.querySelectorAll(".color-info").forEach(box => box.classList.add("show"));
     if (baseCircle) baseCircle.style.backgroundColor = color;
     if (colorName) colorName.textContent = name;
-    setBaseColors(color, source);
+    setBaseColors(color, source, exactHSL);
 }
 
 // Clear the selected color; the panel switches back to Color Search (see index.css)
@@ -82,7 +84,7 @@ export function resetColors() {
     }
     document.dispatchEvent(new CustomEvent("basecolorclear"));
 }
-export function setBaseColors(color, source = "") {
+export function setBaseColors(color, source = "", exactHSL = null) {
     if (!(color instanceof THREE.Color)) {
         color = new THREE.Color(color);
     }
@@ -96,7 +98,7 @@ export function setBaseColors(color, source = "") {
 
     const hsl = {};
     color.getHSL(hsl);
-    const newHSL = {
+    const newHSL = exactHSL ?? {
         h: Math.round(hsl.h * 360),
         s: Math.round(hsl.s * 100),
         l: Math.round(hsl.l * 100)

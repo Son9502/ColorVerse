@@ -14,8 +14,11 @@ import { hslDistance, IN_THE_HOLE, ON_THE_GREEN } from "../src/golf/oklab.js";
 
 // [par, perfect] per hole. Par 3s and 4s are birdie-able; par 5s mix birdie and eagle chances.
 // One ace (perfect 1) per course, on the back nine's second par 3.
-const FRONT = [[4, 3], [4, 3], [3, 2], [5, 4], [4, 3], [4, 3], [3, 2], [4, 3], [5, 3]];
-const BACK = [[4, 3], [5, 3], [3, 2], [4, 3], [4, 3], [5, 4], [3, 1], [4, 3], [4, 3]];
+const FRONT = [[4, 3], [4, 3], [3, 2], [5, 4], [4, 3], [4, 3], [3, 2], [4, 3], [5, 3]]; // 36
+const BACK = [[4, 3], [5, 3], [3, 2], [4, 3], [4, 3], [5, 4], [3, 1], [4, 3], [4, 3]]; // 36
+// Shorter layouts for later courses: fewer par 5s, more par 3s
+const BACK_35 = [[4, 3], [5, 3], [3, 2], [4, 3], [4, 3], [3, 2], [3, 1], [4, 3], [5, 4]]; // 35 → par 71 with FRONT
+const FRONT_35 = [[4, 3], [3, 2], [4, 3], [5, 4], [4, 3], [3, 2], [4, 3], [4, 3], [4, 3]]; // 35 → par 70 with BACK_35
 
 // Each course keeps its tees and targets inside a hue range [from, to) in degrees (wrapping past 360),
 // so the name says how it plays. Routes may still pass through other hues.
@@ -23,6 +26,9 @@ const COURSES = [
     { id: "prism", name: "Prism Point", seed: 1, hues: [0, 360] }, // full spectrum
     { id: "ember", name: "Ember Dunes", seed: 2, hues: [345, 60] }, // reds, oranges, yellows
     { id: "verdant", name: "Verdant Pines", seed: 3, hues: [75, 165] }, // greens
+    // v1.2 (with hazards):
+    // { id: "cobalt", name: "Cobalt Bay", seed: 4, hues: [180, 250], layout: [FRONT, BACK_35] }, // par 71
+    // { id: "indigo", name: "Royal Indigo", seed: 5, hues: [250, 320], layout: [FRONT_35, BACK_35] }, // par 70
 ];
 
 // Small seeded PRNG (mulberry32)
@@ -91,14 +97,14 @@ function makeHole(rand, par, perfect, hues) {
     }
 }
 
-const courses = COURSES.map(({ id, name, seed, hues }) => {
+const courses = COURSES.map(({ id, name, seed, hues, layout = [FRONT, BACK] }) => {
     const rand = rng(seed);
-    const holes = [...FRONT, ...BACK].map(([par, perfect], i) => {
+    const holes = layout.flat().map(([par, perfect], i) => {
         const hole = makeHole(rand, par, perfect, hues);
         console.log(`${name} hole ${i + 1}: par ${par}, perfect ${perfect}`);
         return hole;
     });
-    return { id, name, holes };
+    return { id, name, hues, holes };
 });
 
 const out = new URL("../src/golf/courses.json", import.meta.url);

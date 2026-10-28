@@ -203,6 +203,8 @@ export const create3DEnvironment = async (objectType = "cube") => {
     const dropdown = document.getElementById("autocomplete");
 
     container.addEventListener("click", (event) => {
+        // Color Golf: the shape is a map, not a picker (picking would solve any hole)
+        if (document.body.classList.contains("golf")) return;
         const rect = renderer.domElement.getBoundingClientRect();
         mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
         mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;

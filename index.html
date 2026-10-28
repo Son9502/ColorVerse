@@ -17,6 +17,7 @@
         <div id="ui-info">
             <div id="ui-title">
                 <h1>The ColorVerse</h1>
+                <button id="golf-play" class="btn" type="button">⛳ Color Golf</button>
             </div>
             <div id="ui-combo">
                 <div id="ui-left">
@@ -122,6 +123,97 @@
                     </div>
                 </div>
 
+            </div>
+            <!-- Color Golf: replaces the controls panel during a game (golf/golf-ui.js) -->
+            <div id="golf-panel" hidden>
+                <!-- How to play: opened by either ? button -->
+                <div id="golf-help" hidden>
+                    <div class="golf-heading">
+                        <h3>How to play</h3>
+                        <button class="btn btn-link golf-help-toggle" type="button">Close</button>
+                    </div>
+                    <p>Make <strong>You</strong> match the <strong>Target</strong> in as few strokes as you can.
+                        A stroke is a double-click on any swatch below; each row is a club:</p>
+                    <dl>
+                        <dt>Drivers</dt><dd>Complementary, Triadic, Tetradic, Double-comp.: big jumps around the hue wheel</dd>
+                        <dt>Irons</dt><dd>Split-comp., Analogous: medium hue moves</dd>
+                        <dt>Wedges</dt><dd>Tints, Shades, Tones, Saturate: lighter, darker, grayer or more vivid, 20–100%. Easy to over- or undershoot</dd>
+                        <dt>Putter</dt><dd>Small nudges to finish the hole</dd>
+                    </dl>
+                    <p>The meter updates after each stroke. <strong>On the green</strong> means 2 putts or fewer will hole it.</p>
+                    <p><strong>Par</strong> is a good score; <strong>perfect</strong> (shown after each hole) is the fewest possible.
+                        One under par is a birdie. You get 1 free undo per 9 holes, a hole ends at double par, and time breaks ties.</p>
+                </div>
+
+                <!-- Course picker -->
+                <div id="golf-setup">
+                    <div class="golf-heading">
+                        <h2>Color Golf</h2>
+                        <div class="golf-tools">
+                            <button class="btn golf-help-toggle" type="button" aria-label="How to play">?</button>
+                            <button id="golf-quit-setup" class="btn btn-link" type="button">Back to exploring</button>
+                        </div>
+                    </div>
+                    <p class="golf-intro">Get from the tee color to the target in as few strokes as you can.
+                        Double-click a harmony swatch to play it; the putter row makes small nudges.</p>
+                    <ul id="golf-courses"></ul>
+                </div>
+
+                <!-- In play -->
+                <div id="golf-hud" hidden>
+                    <div class="golf-heading">
+                        <h2 id="golf-hole-title">Hole 1</h2>
+                        <div class="golf-tools">
+                            <button id="golf-card-toggle" class="btn" type="button" aria-expanded="false">Card</button>
+                            <button class="btn golf-help-toggle" type="button" aria-label="How to play">?</button>
+                            <button id="golf-quit" class="btn btn-link" type="button">Quit</button>
+                        </div>
+                    </div>
+                    <p id="golf-hole-info" class="golf-sub"></p>
+                    <div class="golf-swatches">
+                        <figure><div id="golf-you" class="golf-swatch"></div><figcaption>You</figcaption></figure>
+                        <figure><div id="golf-target" class="golf-swatch"></div><figcaption>Target</figcaption></figure>
+                    </div>
+                    <div class="golf-meter" aria-live="polite">
+                        <div class="golf-meter-track"><div id="golf-meter-fill"></div></div>
+                        <span id="golf-meter-label">Tee off</span>
+                    </div>
+                    <div class="golf-stats">
+                        <span>Strokes <strong id="golf-strokes">0</strong></span>
+                        <span>Time <strong id="golf-time">0:00</strong></span>
+                        <button id="golf-undo" class="btn" type="button">Undo (1)</button>
+                    </div>
+
+                    <!-- Live score card (Card button) -->
+                    <div id="golf-live-card" hidden>
+                        <p id="golf-live-total" class="golf-sub"></p>
+                        <div class="golf-card-tables"></div>
+                    </div>
+
+                    <!-- End of hole -->
+                    <div id="golf-hole-end" hidden>
+                        <h3 id="golf-result"></h3>
+                        <p id="golf-result-info" class="golf-sub"></p>
+                        <div class="golf-actions">
+                            <button id="golf-show-path" class="btn" type="button">Show perfect route</button>
+                            <button id="golf-next" class="btn btn-primary" type="button">Next hole</button>
+                        </div>
+                        <ol id="golf-path"></ol>
+                    </div>
+                </div>
+
+                <!-- End of round -->
+                <div id="golf-round-end" hidden>
+                    <div class="golf-heading">
+                        <h2 id="golf-round-title">Round complete</h2>
+                    </div>
+                    <p id="golf-round-info" class="golf-sub"></p>
+                    <div id="golf-card" class="golf-card-tables"></div>
+                    <div class="golf-actions">
+                        <button id="golf-again" class="btn" type="button">Choose a course</button>
+                        <button id="golf-done" class="btn btn-primary" type="button">Back to exploring</button>
+                    </div>
+                </div>
             </div>
             <div id="ui-container">
                 <!-- Each row becomes a “coolors-row” -->
@@ -390,6 +482,42 @@
                             <div class="square-wrapper">
                                 <div id="sat5" class="square"></div>
                                 <p class="square-label">#xxxxxx</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Putter: Color Golf only; small nudges to finish a hole -->
+                <div class="colors-row golf-only">
+                    <div class="row-header">
+                        <h3>Putter</h3>
+                        <button class="row-toggle" aria-expanded="true">▾</button>
+                    </div>
+
+                    <div class="row-body">
+                        <div id="putter" class="swatch-row">
+                            <div class="square-wrapper">
+                                <div id="putt1" class="square"></div>
+                                <p class="square-label">Hue −</p>
+                            </div>
+                            <div class="square-wrapper">
+                                <div id="putt2" class="square"></div>
+                                <p class="square-label">Hue +</p>
+                            </div>
+                            <div class="square-wrapper">
+                                <div id="putt3" class="square"></div>
+                                <p class="square-label">Sat −</p>
+                            </div>
+                            <div class="square-wrapper">
+                                <div id="putt4" class="square"></div>
+                                <p class="square-label">Sat +</p>
+                            </div>
+                            <div class="square-wrapper">
+                                <div id="putt5" class="square"></div>
+                                <p class="square-label">Light −</p>
+                            </div>
+                            <div class="square-wrapper">
+                                <div id="putt6" class="square"></div>
+                                <p class="square-label">Light +</p>
                             </div>
                         </div>
                     </div>

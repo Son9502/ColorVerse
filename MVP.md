@@ -66,7 +66,8 @@ Get from a start color (the **tee**) to a target color (the **hole**) in as few 
 
 **Rules**
 - A stroke is a double-click on a harmony swatch. Clicking the 3-D shape, the sliders and search are all disabled in game mode.
-- **In the hole:** OKLab distance to the target < 0.02 (looks the same side by side). **On the green:** < 0.05, which drives a "how close" meter. Both thresholds tuned by playtesting.
+- **In the hole:** OKLab distance to the target < 0.02 (looks the same side by side).
+- **On the green:** 2 putts or fewer will hole it (checked exactly after each stroke). A plain distance cutoff (< 0.05) left 18% of "green" spots needing 3+ putts, so the green is defined by putts, as in golf. The meter's bar follows distance; its label reads Rough → Fairway → Close → On the green → In the hole.
 - **Perfect and par:** *perfect* is the fewest strokes possible (including putts), found by a breadth-first search over the clubs. *Par* sits above it, so beating par is possible:
 
   | Hole | Perfect | Par | Best possible |
@@ -89,17 +90,20 @@ Get from a start color (the **tee**) to a target color (the **hole**) in as few 
 - Holes are generated ahead of time by `npm run courses` (seeded) into `src/golf/courses.json`.
 - Each course keeps its tees and targets in one part of the color wheel, so its name says how it plays (routes can still pass through other hues):
 
-  | Course | Hues | Release |
-  |---|---|---|
-  | Prism Point | Full spectrum | v1.1 |
-  | Ember Dunes | Reds, oranges, yellows (345°–60°) | v1.1 |
-  | Verdant Pines | Greens (75°–165°) | v1.1 |
-  | Cobalt Bay | Blues and teals | v1.2 |
-  | Royal Indigo | Purples | v1.2 |
+  | Course | Hues | Par | Release |
+  |---|---|---|---|
+  | Prism Point | Full spectrum | 72 | v1.1 |
+  | Ember Dunes | Reds, oranges, yellows (345°–60°) | 72 | v1.1 |
+  | Verdant Pines | Greens (75°–165°) | 72 | v1.1 |
+  | Cobalt Bay | Blues and teals (180°–250°) | 71 | v1.2 |
+  | Royal Indigo | Purples (250°–320°) | 70 | v1.2 |
+- Par 71/70 courses swap par 5s for par 3s (layouts in `generateCourses.mjs`).
 - Score card per hole and per 9; best round saved in the browser.
 
 **Screen**
 - Two large swatches across the top: *You* | *Target*, plus strokes, par, timer, undo left and the closeness meter.
+- **? (How to play):** goal, the four club types, what the meter means, par vs perfect, undo and pick-up.
+- **Card:** live score card (front 9 / back 9, "Thru N: ±X"), with the hole in progress highlighted; a hole's perfect score stays hidden until it's played.
 - The 3-D shape becomes a **map**: a marker for the current color, a flag for the target's area, and a trail line linking each stroke. The view turns and peels to the current color's layer automatically. Clicking it does nothing.
 - End-of-hole card with score and a "Show par path" replay; end-of-round score card.
 - Leaving game mode restores the normal app (sliders, search, canvas picking).

@@ -9,6 +9,27 @@ Each entry is tagged with how it was produced:
 
 ---
 
+## Milestone 11 — Color Golf: Game Screen `[ai-assisted]`
+**2026-10-27 → 2026-10-28**
+
+The playable game, minus the 3-D map. Additions requested by the developer after testing (how-to-play widget, live score card, "on the green" meaning 1–2 putts, par 70/71 courses); implementation `[ai-assisted]`.
+
+**Added**
+- `golf/golf-ui.js`: ⛳ Color Golf button → course picker (hue strip, par, best score) → game screen: *You* | *Target* swatches, closeness meter (updates only after a stroke), strokes, timer, Undo; end-of-hole card (score name, strokes · par · perfect · time, "Show perfect route" with swatches and club names); end-of-round score card with best rounds saved in the browser
+- Putter row (game mode only), swatches previewing each nudge
+- How-to-play (?) panel and a live score card (Card button): front/back 9, "Thru N", hole in progress highlighted, perfect scores hidden until a hole is played
+- `game.js` `puttsToHole()`: "On the green" now means 2 putts or fewer will hole it (a 0.05 distance cutoff left 18% of green spots needing 3+ putts)
+- `generateCourses.mjs`: per-course par layouts (par 71/70 by swapping par 5s for par 3s); Cobalt Bay (71) and Royal Indigo (70) defined for v1.2; course hues included in `courses.json`
+
+**Modified**
+- `harmony.js`: `selectBaseColor`/`setBaseColors` accept exact whole-number HSL, so game swatches match strokes exactly (explore mode unchanged)
+- `3d-mode.js`, `dropdown.js`: canvas picking and Esc-to-clear are off during a game; search, sliders, layer controls and the ? help are hidden
+
+**Verified**
+- Bots double-clicking the solver's routes: hole 1 birdie with the route list; a full round scored 53 (−19) with a bogey recorded correctly; live card mid-round; a lip-out stroke landing "On the green"
+
+---
+
 ## Milestone 10 — Color Golf: Core Logic `[ai-assisted]`
 **2026-10-27**
 

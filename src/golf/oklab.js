@@ -4,7 +4,7 @@
 // Equal distances look roughly equally different anywhere in the space, unlike RGB or HSL.
 
 export const IN_THE_HOLE = 0.02; // looks the same side by side
-export const ON_THE_GREEN = 0.05; // close, but you can tell them apart
+export const ON_THE_GREEN = 0.05; // close, but you can tell them apart (lip-outs; the game's "on the green" is 2 putts or fewer, see game.js)
 
 // CSS hsl() -> sRGB 0–1 (same formula the browser uses for the swatches)
 function hslToSRGB({ h, s, l }) {

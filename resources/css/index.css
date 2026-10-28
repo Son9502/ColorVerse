@@ -573,7 +573,8 @@ Color Categories + Squares
 #shades,
 #tints,
 #tones,
-#saturate {
+#saturate,
+#putter {
     display: flex;
     align-items: center;
     gap: clamp(6px, 1vw, 18px);
@@ -1021,4 +1022,304 @@ Above the loader (9999) so it can show while textures load
 
 #replay-tour:hover {
     background: #eaeaea;
+}
+
+/* -----------------------------------------------
+Color Golf (golf/golf-ui.js): body.golf while a game screen is open
+----------------------------------------------- */
+#ui-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+body.golf #golf-play,
+body.golf #ui-combo,
+body.golf #help {
+    display: none;
+}
+
+.golf-only {
+    display: none;
+}
+
+body.golf .golf-only {
+    display: block; /* same as .colors-row */
+}
+
+/* Swatches are clubs in a game: double-click to play */
+body.golf .square {
+    cursor: pointer;
+}
+
+body.golf .square:hover {
+    transform: scale(1.15);
+}
+
+#golf-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: clamp(12px, 1.4vw, 20px);
+}
+
+#golf-panel[hidden],
+#golf-panel [hidden] {
+    display: none;
+}
+
+#golf-setup,
+#golf-hud,
+#golf-round-end,
+#golf-hole-end {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.golf-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.golf-heading h2 {
+    font-size: 1.3rem;
+}
+
+.golf-heading .btn-link {
+    margin-right: 0;
+}
+
+.golf-intro,
+.golf-sub {
+    font-size: 0.85rem;
+    color: #555;
+    line-height: 1.4;
+}
+
+/* Course picker: one card per course, with a strip of its hues */
+#golf-courses {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.golf-course {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 4px 12px;
+    padding: 10px 12px;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    background: #fff;
+}
+
+.golf-course h3 {
+    font-size: 1rem;
+}
+
+.golf-course .golf-hues {
+    grid-column: 1;
+    height: 8px;
+    border-radius: 4px;
+}
+
+.golf-course .golf-best {
+    grid-column: 1;
+    font-size: 0.75rem;
+    color: #777;
+}
+
+.golf-course .btn {
+    grid-column: 2;
+    grid-row: 1 / span 3;
+}
+
+/* You | Target */
+.golf-swatches {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.golf-swatches figure {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    margin: 0;
+}
+
+.golf-swatch {
+    width: 100%;
+    height: clamp(56px, 11vh, 110px);
+    border: 2px solid #000;
+    border-radius: 10px;
+    transition: background-color 0.25s ease;
+}
+
+.golf-swatches figcaption {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #666;
+}
+
+/* Closeness meter: updates only after a stroke */
+.golf-meter {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.85rem;
+}
+
+.golf-meter-track {
+    flex: 1;
+    height: 10px;
+    border-radius: 5px;
+    background: #e6e6e6;
+    overflow: hidden;
+}
+
+#golf-meter-fill {
+    width: 0;
+    height: 100%;
+    border-radius: 5px;
+    background: #2e9e4f;
+    transition: width 0.3s ease;
+}
+
+#golf-meter-label {
+    min-width: 7em;
+    text-align: right;
+    font-weight: 600;
+}
+
+.golf-stats {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 0.85rem;
+}
+
+.golf-stats .btn {
+    margin-left: auto;
+}
+
+#golf-hole-end {
+    padding: 12px;
+    border: 2px solid #000;
+    border-radius: 10px;
+    background: #fff;
+    animation: fadeInUp 0.25s ease;
+}
+
+#golf-result {
+    font-size: 1.2rem;
+}
+
+.golf-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+/* Perfect route: one swatch + club name per stroke */
+#golf-path {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    list-style: none;
+    font-size: 0.75rem;
+}
+
+#golf-path li {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+#golf-path .swatch {
+    margin-right: 0;
+}
+
+/* Heading buttons: Card, ?, Quit */
+.golf-tools {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.golf-tools .btn {
+    padding: 0.35em 0.8em;
+}
+
+#golf-help {
+    padding: 12px 14px;
+    border: 2px solid #000;
+    border-radius: 10px;
+    background: #fff;
+    font-size: 0.85rem;
+    line-height: 1.45;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    animation: fadeInUp 0.2s ease;
+}
+
+#golf-help dl {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 4px 10px;
+}
+
+#golf-help dt {
+    font-weight: 700;
+}
+
+#golf-live-card {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+/* Score card: front 9 and back 9 stacked */
+.golf-card-tables {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow-x: auto;
+}
+
+.golf-card {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.75rem;
+    text-align: center;
+}
+
+.golf-card th,
+.golf-card td {
+    padding: 3px 4px;
+    border: 1px solid #ddd;
+}
+
+.golf-card th {
+    background: #f2f2f2;
+    font-weight: 600;
+}
+
+.golf-card .current {
+    background: #fff3c4;
+}
+
+.golf-card .under {
+    color: #c0392b;
+    font-weight: 700;
 }
