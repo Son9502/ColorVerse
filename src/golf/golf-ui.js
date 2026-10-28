@@ -39,7 +39,7 @@ function clubName({ row, index }) {
 let solver = null;
 let solverRequest = 0;
 const pendingRoutes = new Map();
-function solveRoute({ tee, target, perfect }) {
+function solveRoute({ tee, target, perfect, hazards = [], wind = null }) {
     if (!solver) {
         solver = new Worker(new URL("./solver-worker.js", import.meta.url), { type: "module" });
         solver.onmessage = ({ data }) => {
@@ -52,7 +52,7 @@ function solveRoute({ tee, target, perfect }) {
     const id = ++solverRequest;
     return new Promise((resolve, reject) => {
         pendingRoutes.set(id, { resolve, reject });
-        solver.postMessage({ id, tee, target, perfect });
+        solver.postMessage({ id, tee, target, perfect, hazards, wind });
     });
 }
 
@@ -68,6 +68,20 @@ function formatTime(ms) {
 
 // Golf-style distance: OKLab distance × 1000 (the hole is 20 yds across; most holes 100–500 yds)
 const yards = (a, b) => Math.round(hslDistance(a, b) * 1000);
+
+// "+6° hue ↻" / "brightening +3%" for a hole's wind (null = calm)
+function windText(wind) {
+    if (!wind) return null;
+    if (wind.hue) return `${wind.hue > 0 ? "+" : "−"}${Math.abs(wind.hue)}° hue ${wind.hue > 0 ? "↻" : "↺"}`;
+    return `${wind.light > 0 ? "brightening +" : "darkening −"}${Math.abs(wind.light)}%`;
+}
+
+// "2 bunkers, 1 lake" (empty for a clear hole)
+function hazardSummary(hazards = []) {
+    const count = (type) => hazards.filter(h => h.type === type).length;
+    const part = (n, one, many) => (n ? `${n} ${n === 1 ? one : many}` : "");
+    return [part(count("sand"), "bunker", "bunkers"), part(count("water"), "lake", "lakes")].filter(Boolean).join(", ");
+}
 
 const formatToPar = (n) => (n === 0 ? "E" : n > 0 ? `+${n}` : `${n}`);
 
@@ -122,6 +136,7 @@ export function setupGolf() {
     // ---- Enter / leave ----
     const openSetup = () => {
         replayToken++;
+        $("golf-wind-badge").hidden = true;
         stopTimer();
         round = null;
         setMapState(null);
@@ -135,6 +150,7 @@ export function setupGolf() {
 
     const exitGolf = () => {
         replayToken++;
+        $("golf-wind-badge").hidden = true;
         stopTimer();
         round = null;
         setMapState(null);
@@ -176,7 +192,14 @@ export function setupGolf() {
         replayToken++;
         const { hole, holeIndex } = round;
         $("golf-hole-title").textContent = `Hole ${holeIndex + 1} · Par ${hole.par}`;
-        $("golf-hole-info").textContent = `${round.course.name} · ${round.nine === 0 ? "Front" : "Back"} 9 · ${yards(hole.tee, hole.target)} yds`;
+        const summary = hazardSummary(hole.hazards);
+        $("golf-hole-info").textContent = `${round.course.name} · ${round.nine === 0 ? "Front" : "Back"} 9 · ${yards(hole.tee, hole.target)} yds${summary ? ` · ${summary}` : ""}`;
+        // Wind: drifts every full shot (the swatches show the calm landing, so aim off)
+        const wind = windText(hole.wind);
+        $("golf-wind").hidden = !wind;
+        $("golf-wind").textContent = wind ? `Wind ${wind} on every full shot (putts aren't affected)` : "";
+        $("golf-wind-badge").hidden = !wind;
+        $("golf-wind-badge").textContent = wind ? `🌬 ${wind}` : "";
         $("golf-target").style.backgroundColor = css(hole.target);
         holeEnd.hidden = true;
         pathList.replaceChildren();
@@ -196,10 +219,14 @@ export function setupGolf() {
         $("golf-strokes").textContent = round.strokes;
         const undosLeft = round.undosLeft[round.nine];
         undoButton.textContent = `Undo (${undosLeft})`;
-        undoButton.disabled = round.holeDone || undosLeft === 0 || round.trail.length === 0;
+        undoButton.disabled = !round.canUndo;
         refreshLiveCard();
-        mapState = { current, target: round.hole.target, trail: [...round.trail], holed: !!lie?.holed };
+        const hazards = round.hole.hazards ?? [];
+        // Landing in a hazard flashes its outline on the map
+        const flash = lie?.landedIn ? { index: hazards.indexOf(lie.landedIn), start: performance.now() } : mapState?.flash;
+        mapState = { current, target: round.hole.target, trail: [...round.trail], holed: !!lie?.holed, hazards, flash };
         setMapState(mapState);
+        renderHazards(lie);
 
         // Yards: last shot's length and what's left to the pin
         const last = round.trail.at(-1);
@@ -220,6 +247,31 @@ export function setupGolf() {
         label.textContent = lieLabel(lie);
     };
 
+
+    // Hazard note ("Water! …" / "In the bunker …"), yardage to each hazard, and in a bunker
+    // grey out every club but the wedges
+    const renderHazards = (lie) => {
+        const hazards = round.hole.hazards ?? [];
+        const note = $("golf-hazard-note");
+        note.hidden = false;
+        if (lie?.landed === "water") note.textContent = "Water! +1 stroke, playing again from your last spot.";
+        else if (round.inSand && !round.holeDone) note.textContent = "In the bunker: wedges only (Tints, Shades, Tones, Saturate).";
+        else note.hidden = true;
+        note.className = lie?.landed === "water" ? "water" : "sand";
+
+        $("golf-hazards").replaceChildren(...hazards.map(hazard => {
+            const item = document.createElement("li");
+            item.className = hazard.type;
+            item.textContent = hazard.type === "water"
+                ? `Water: ${yards(round.current, hazard.center) + hazard.radius} yds to carry`
+                : `Bunker: ${Math.max(0, yards(round.hole.target, hazard.center) - hazard.radius)} yds from the pin`;
+            return item;
+        }));
+
+        for (const [box, club] of clubs) {
+            box.closest(".square-wrapper")?.classList.toggle("golf-blocked", !round.holeDone && !round.canPlay(club));
+        }
+    };
 
     const endHole = () => {
         stopTimer();
@@ -274,6 +326,7 @@ export function setupGolf() {
 
     const endRound = () => {
         replayToken++;
+        $("golf-wind-badge").hidden = true;
         const totals = round.totals();
         const isBest = saveBest(round.course.id, totals);
         $("golf-round-title").textContent = `${round.course.name}: ${totals.strokes} (${formatToPar(totals.toPar)})`;
@@ -307,8 +360,11 @@ export function setupGolf() {
                 const index = nine * 9 + i;
                 const played = round.card[index];
                 const current = !played && index === round.holeIndex;
+                const sand = (hole.hazards ?? []).filter(h => h.type === "sand").length;
+                const water = (hole.hazards ?? []).filter(h => h.type === "water").length;
                 return {
                     label: index + 1, par: hole.par, current,
+                    hazards: `<span class="sand">${"●".repeat(sand)}</span><span class="water">${"●".repeat(water)}</span>`,
                     perfect: played ? played.perfect : "–",
                     strokes: played ? played.strokes : current ? round.strokes : "–",
                     parPlayed: played ? hole.par : null,
@@ -323,6 +379,7 @@ export function setupGolf() {
                 row("Hole", c => `<th class="${c.current ? "current" : ""}">${c.label}</th>`) +
                 row("Par", c => `<td>${c.par}</td>`) +
                 row("Perfect", c => `<td>${c.perfect}</td>`) +
+                row("Hazards", c => `<td class="golf-card-hazards">${c.hazards ?? ""}</td>`) +
                 row("You", c => `<td class="${[c.current && "current", under(c) && "under"].filter(Boolean).join(" ")}">${c.strokes}</td>`)
             }</table>`;
         };
@@ -370,13 +427,14 @@ export function setupGolf() {
         if (!round || !club || round.holeDone) return;
 
         const lie = round.play(club);
+        if (!lie) return; // not playable from here (e.g. a driver in a bunker)
         renderPosition(lie);
         if (round.holeDone) endHole();
     }, { capture: true });
 
     undoButton.addEventListener("click", () => {
         if (!round?.undo()) return;
-        renderPosition(round.trail.length ? round.lie() : null);
+        renderPosition(round.history.length ? round.lie() : null);
     });
 
     $("golf-next").addEventListener("click", () => {

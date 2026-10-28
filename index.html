@@ -170,6 +170,7 @@
                         </div>
                     </div>
                     <p id="golf-hole-info" class="golf-sub"></p>
+                    <p id="golf-wind" hidden></p>
                     <div class="golf-swatches">
                         <figure><div id="golf-you" class="golf-swatch"></div><figcaption>You</figcaption></figure>
                         <figure><div id="golf-target" class="golf-swatch"></div><figcaption>Target</figcaption></figure>
@@ -179,6 +180,9 @@
                         <span id="golf-meter-label">Tee off</span>
                     </div>
                     <p id="golf-yards" class="golf-sub"></p>
+                    <!-- Hazards on this hole: landing note, then yardage to each -->
+                    <p id="golf-hazard-note" hidden></p>
+                    <ul id="golf-hazards"></ul>
                     <div class="golf-stats">
                         <span>Strokes <strong id="golf-strokes">0</strong></span>
                         <span>Time <strong id="golf-time">0:00</strong></span>
@@ -532,6 +536,8 @@
         <!-- Three.js canvas-->
         <div id="ui-canvas">
             <!--Text above the object-->
+            <!-- Color Golf: this hole's wind, over the map -->
+            <div id="golf-wind-badge" hidden></div>
             <h1 id="ui-canvas-text">
                 Layer 127
             </h1>

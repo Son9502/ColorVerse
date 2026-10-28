@@ -38,19 +38,25 @@ export function roundHSL({ h, s, l }) {
     };
 }
 
+// Wind (v1.2): a fixed drift per hole, { hue } in degrees or { light } in percentage points,
+// added to every full shot's landing (any harmony club). Putts are unaffected (greens are sheltered).
+// Drifts are whole numbers, so states stay whole-number HSL and the solver stays exact.
+export const CALM = null;
+const blow = (hsl, wind) => (wind ? { h: hsl.h + (wind.hue ?? 0), s: hsl.s, l: hsl.l + (wind.light ?? 0) } : hsl);
+
 // All results from one position, in CLUBS order
-export function allStrikes(hsl) {
+export function allStrikes(hsl, wind = CALM) {
     const harmonies = harmonyDict(hsl);
     return [
-        ...HARMONY_ROWS.flatMap(row => harmonies[row].map(roundHSL)),
+        ...HARMONY_ROWS.flatMap(row => harmonies[row].map(landing => roundHSL(blow(roundHSL(landing), wind)))),
         ...PUTTER.map(club => roundHSL(club.apply(hsl))),
     ];
 }
 
-// One stroke with a given club
-export function strike(hsl, { row, index }) {
+// One stroke with a given club (the swatch shows the calm landing; wind then drifts it)
+export function strike(hsl, { row, index }, wind = CALM) {
     if (row === "putter") return roundHSL(PUTTER[index].apply(hsl));
-    return roundHSL(harmonyDict(hsl)[row][index]);
+    return roundHSL(blow(roundHSL(harmonyDict(hsl)[row][index]), wind));
 }
 
 // Pack HSL into one integer (and back), for the solver's lookup tables

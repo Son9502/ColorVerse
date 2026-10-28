@@ -49,7 +49,8 @@ Someone can open ColorVerse, explore RGB and HSL as an interactive **3-D** color
 | **v1.1** | Color Golf: clubs, putter, par, 18-hole courses, map view, yards ✅ (v1.1.0) | Builds only on v1 (3-D view, harmonies, the par search); no new renderer |
 | **v1.1.1** | Hole lengths follow par; per-course difficulty (birdie line) ✅ | Golf realism plus a measured difficulty curve |
 | **v1.1.2** | Perfect route solved in a Web Worker and replayed on the map ✅ | Finishes the v1.1 spec |
-| **v1.2** | Color Golf hazards (water, sand) | Adds route choice once the core game is solid |
+| **v1.1.3** | Thicker map paths ✅ | Readability |
+| **v1.2** | Color Golf hazards (sand, water), wind, Cobalt Bay and Royal Indigo ✅ (v1.2.0) | Adds route choice once the core game is solid |
 | **v1.3** | Daily hole + practice by difficulty | Reuses the generator and par solver |
 | **v2.0** | 1-D and 2-D modes + shared color across dimensions | Delivers the "multi-dimensional" promise; new renderers and shared state |
 | **v2.x / v3** | More shapes and color spaces | v2.x if they reuse the 3-D pipeline; v3 if they need a new color model throughout |
@@ -114,13 +115,27 @@ Get from a start color (the **tee**) to a target color (the **hole**) in as few 
 - Leaving game mode restores the normal app (sliders, search, canvas picking).
 
 ### v1.2: Hazards
-- **Water:** a zone of color space; landing in it costs +1 stroke and returns you to the previous color.
-- **Sand:** a zone (usually near the hole) where only some clubs work, so getting out costs strokes.
-- Drawn on the map as translucent zones; the par solver treats water as blocked and sand as limited clubs.
-- Every hole must be finishable within par without touching a hazard.
+- **Shape:** a hazard is a "looks-like" region: a center color and a radius in yards (OKLab distance × 1000, 30–60 yds). A color is inside if its distance to the center is under the radius, measured the same way as yards and the hole.
+- **Water:** landing in it costs +1 penalty stroke and the ball returns to where it was hit from (stroke and distance).
+- **Sand:** landing in it is allowed; the next shot must be a wedge (Tints, Shades, Tones, Saturate). No drivers, irons or putter until the ball is out, as in golf. Measured over all 59 bunkers: any one wedge can escape, but each of the four is the only best recovery on some bunkers (all four: 2.31 strokes to the hole on average; Tones alone 2.83, Saturate alone 3.47). A "sand wedge only" rule is a possible Expert lever.
+- The tee and the hole are never inside a hazard. Undo works as usual (1 per 9).
+- **Solver stays exact:** both rules depend only on the current color, so the search is unchanged in size. Water landings are skipped (always 2 wasted strokes); from sand only the wedges are tried. Perfect is the true minimum with hazards, so a route through a bunker can be the best one.
+- **Placement (generator):** water goes on a landing spot of the hole's hazard-free perfect route, forcing a layup or dogleg; bunkers guard the hole (centers 40–90 yds from the target, often beside the lip-out). Some holes deliberately keep a bunker on the new perfect route as a risk/reward line. Every hole is re-checked: perfect still under par, finishable within par with all hazards treated as blocked, and inside the course's difficulty range.
+- **Map:** each hazard's footprint is traced on the layer being viewed: the layer's colors inside the hazard, as a sand or water patch (with drifting ripples). Since the ball is always on that layer, it's inside a patch exactly when it's in the hazard (checked on 3,403 landings: never drawn inside a hazard it isn't in). If a hazard doesn't reach the layer, a faint outline and its icon show where it is.
+- **No swatch warnings:** swatches don't flag hazard landings; the map shows the hazards, the same way a golfer can see a lake but has to judge the shot. The game panel reports what happened: "In the bunker: wedges only" (other rows grey out) or "Water! +1 stroke, playing again from your last spot".
+- **Map details** (all in v1.2):
+  - **Edge rings:** a crisp outline around each hazard's footprint on the current layer.
+  - **Icons:** a small wave or sand icon at each hazard's center, so hazards on other layers are still visible.
+  - **Yardage to hazards** in the game panel: "Water: 120 yds to carry", "Bunker: 40 yds short of the pin".
+  - **Hole summary:** "2 bunkers, 1 lake" under the hole title and on the score card.
+  - **Faint footprints on nearby layers:** a faint halo traced around each footprint for colors up to 30 yds outside the hazard (they fall inside it a few layers in or out), so you see a hazard coming as you change layers.
+  - **Landing highlight:** landing in a hazard flashes its outline, so it's clear which one caught you.
 - **Wind:** each hole can have a fixed wind, e.g. "Wind 6° ↻" (hue drifts clockwise) or "Wind: brightening +3%". After every full shot, the landing color drifts by that much. Putts are unaffected (greens are sheltered). Shown in the game panel and as an arrow on the map. Players aim upwind: if the target is +40° of hue and the wind adds 6°, two Analogous +20° shots end at +52°.
   - Wind is fixed for the whole hole, so the par solver applies it to every full shot and par/perfect stay exact. No gusts that change shot to shot, since those would make true par impossible to compute.
-  - By course: Prism Point calm; Ember Dunes steady breezes; Verdant Pines light; Cobalt Bay and Royal Indigo the strongest.
+  - Applies to every harmony club (wedges included); the drift happens before the hazard check, so wind can push a shot into water or out of a bunker. Swatches show the calm landing, so players aim off.
+  - Generator: wind is chosen per hole from its own seeded sequence and kept only if the hole passes the same checks with it (perfect unchanged, finishable within par avoiding hazards, birdie line in range); otherwise the hole is calm (usually aces and layups).
+  - By course: Prism Point calm; Verdant Pines light (±2–4° hue, 18 holes); Ember Dunes steady (±4–8° hue or ±2–4% lightness, 15 holes); Cobalt Bay (16 holes) and Royal Indigo (14 holes) strong (±8–12° hue or ±4–6% lightness).
+  - Shown as a line under the hole info and a badge over the map ("🌬 −6° hue ↺").
 - Hazards by course (the name says what to expect):
 
   | Course | Hazards |

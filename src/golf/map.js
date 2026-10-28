@@ -1,4 +1,5 @@
 import { computeCubeColor, computeSphereColor, CUBE_FACE_MAPS } from "../color-utils.js";
+import { srgbToOklab, oklabDistance } from "./oklab.js";
 
 // ----------------------------------
 // Color Golf map: where a color sits on the main shape
@@ -98,6 +99,85 @@ export function locateColor(rgb, shape, colorSpace) {
         }
     }
 
-    const point = shape === "cube" ? cubePoint(best.face, best.u, best.v) : spherePoint(best.u, best.v);
-    return { layer: best.layer, point, error: Math.sqrt(best.error) };
+    const pointAt = (u, v) => (shape === "cube" ? cubePoint(best.face, u, v) : spherePoint(u, v));
+    const point = pointAt(best.u, best.v);
+
+    // Local scale: OKLab distance per unit of surface around the point (on its layer), so a hazard's
+    // radius in yards can be drawn at the right size. Averaged over a small step in u and in v.
+    const lab = (u, v) => { const c = color(best.face, u, v, best.layer); return srgbToOklab([c.r, c.g, c.b]); };
+    const here = lab(best.u, best.v);
+    const step = 0.01;
+    const rates = [[step, 0], [0, step]].map(([du, dv]) => {
+        const u = shape === "sphere" ? (best.u + du) % 1 : Math.min(1, best.u + du);
+        const v = Math.min(1, best.v + dv);
+        const along = point.distanceTo(pointAt(u, v));
+        return along > 1e-6 ? oklabDistance(here, lab(u, v)) / along : null;
+    }).filter(rate => rate !== null && rate > 0);
+    const scale = rates.length ? rates.reduce((a, b) => a + b, 0) / rates.length : null;
+
+    return { layer: best.layer, point, error: Math.sqrt(best.error), scale };
+}
+
+// A hazard's exact footprint on one layer: the hazard is a ball in OKLab (center, radius), and the
+// layer's colors that fall inside it form its footprint there. On each face (the sphere has one),
+// find the face's closest color to the center; if it's inside, walk out in 48 directions until the
+// color leaves each radius (bisecting the edge). A hazard that spills over a cube edge gets a patch
+// on each face it reaches. Returns [{ center, outlines: [[points] per radius] }] in object space,
+// empty if the hazard doesn't reach this layer.
+export function footprintOnLayer(centerRgb, radii, shape, colorSpace, layer) {
+    const goal = srgbToOklab([centerRgb.r, centerRgb.g, centerRgb.b]);
+    const raw = shape === "cube"
+        ? (f, u, v) => cubeColor(f, u, v, layer, colorSpace)
+        : (f, u, v) => sphereColor(u, v, layer, colorSpace);
+    const dist = (f, u, v) => { const c = raw(f, u, v); return oklabDistance(srgbToOklab([c.r, c.g, c.b]), goal); };
+    const pointAt = (f, u, v) => (shape === "cube" ? cubePoint(f, u, v) : spherePoint(u, v));
+    const wrapU = (u) => (shape === "sphere" ? ((u % 1) + 1) % 1 : u);
+    const inside = (u, v) => v >= 0 && v <= 1 && (shape === "sphere" || (u >= 0 && u <= 1));
+    const grid = shape === "cube" ? 10 : 24;
+
+    const patches = [];
+    for (let f = 0; f < (shape === "cube" ? 6 : 1); f++) {
+        // Closest color on this face: grid, then refine
+        let best = { d: Infinity };
+        for (let i = 0; i <= grid; i++) {
+            for (let j = 0; j <= grid; j++) {
+                const d = dist(f, i / grid, j / grid);
+                if (d < best.d) best = { u: i / grid, v: j / grid, d };
+            }
+        }
+        for (let step = 1 / grid; step > 1e-4;) {
+            let improved = false;
+            for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+                const u = shape === "sphere" ? wrapU(best.u + a * step) : clamp01(best.u + a * step);
+                const v = clamp01(best.v + b * step);
+                const d = dist(f, u, v);
+                if (d < best.d) { best = { u, v, d }; improved = true; }
+            }
+            if (!improved) step /= 2;
+        }
+        if (best.d >= radii[0]) continue;
+
+        const outlines = radii.map(radius => Array.from({ length: 48 }, (_, k) => {
+            const angle = (k / 48) * Math.PI * 2;
+            const [cu, cv] = [Math.cos(angle), Math.sin(angle)];
+            const at = (t) => [wrapU(best.u + cu * t), best.v + cv * t];
+            let lo = 0;
+            let hi = null;
+            for (let t = 0.008; t <= 0.6; t += 0.008) {
+                const [u, v] = at(t);
+                if (!inside(u, v) || dist(f, u, v) >= radius) { hi = t; break; }
+                lo = t;
+            }
+            if (hi === null) hi = lo;
+            for (let i = 0; i < 6 && hi > lo; i++) { // bisect the edge
+                const mid = (lo + hi) / 2;
+                const [u, v] = at(mid);
+                if (inside(u, v) && dist(f, u, v) < radius) lo = mid; else hi = mid;
+            }
+            const [u, v] = at(lo);
+            return pointAt(f, clamp01(u), clamp01(v));
+        }));
+        patches.push({ center: pointAt(f, best.u, best.v), outlines });
+    }
+    return patches;
 }

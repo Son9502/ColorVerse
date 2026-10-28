@@ -324,6 +324,7 @@ export const create3DEnvironment = async (objectType = "cube") => {
         if (!renderReady) return;
 
         mainObject.update(); // keyboard, mouse, auto-rotation
+        golfMap.tick(); // hazard ripples and landing flash
         if (previewObject?.object) previewObject.syncRotation();
 
         renderer.render(scene, camera);
