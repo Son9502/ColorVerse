@@ -12,12 +12,11 @@ main.js              Bootstrap: wires toggle, dimension selector, search, harmon
 │
 ├── src/                      ── App / UI layer ──
 │   ├── dimension.js          Dimension + shape selector; owns the active visualization
-│   ├── 1d-mode.js            1-D environment (stub)
-│   ├── 2d-mode.js            2-D environment (stub)
 │   ├── 3d-mode.js            3-D environment: scene, input, picking, render loop
 │   ├── toggle.js             RGB/HSL toggle (shows/hides axis options)
 │   ├── dropdown.js           Named-color search (fuzzy autocomplete)
-│   ├── harmony.js            Harmony math + swatch rendering
+│   ├── harmony.js            Swatch rendering, base-color selection, basecolorchange events
+│   ├── harmonyMath.js        Harmony formulas (no DOM, so the golf solver can use them)
 │   ├── categories.js         Collapsible harmony rows
 │   ├── help.js               ? button popover listing controls and tools
 │   ├── sliders.js            HSL/RGB sliders in the details card; follow the toggle
@@ -25,6 +24,19 @@ main.js              Bootstrap: wires toggle, dimension selector, search, harmon
 │   ├── LoaderManager.js      Loading overlay, progress bar, ETA
 │   ├── color-utils.js        Color math: HSL→RGB, gamma, cube/sphere color mapping, mini shaders
 │   └── utils.js              clamp, lerp
+│
+├── src/golf/                 ── Color Golf (v1.1+) ──
+│   ├── clubs.js              Every move a stroke can make (harmony rows + putter), wind drift, HSL packing
+│   ├── oklab.js              OKLab distance; in the hole / lip-out thresholds
+│   ├── hazards.js            Sand and water regions, cached "which hazard is this color in"
+│   ├── solver.js             Breadth-first par solver over ≈3.7M whole-number HSL states
+│   ├── solver-worker.js      Perfect route for the end-of-hole replay, off the main thread
+│   ├── game.js               A round: strokes, penalties, undo, pick-up, score card
+│   ├── golf-ui.js            Game screen: course picker, panel, cards, replay, wind, hazards
+│   ├── map.js                Where a color sits on the shape; hazard footprints per layer
+│   ├── mapView.js            Ball, flag, trails, hazard patches and icons on the 3-D shape
+│   ├── mapState.js           Shared game → 3-D view state
+│   └── courses.json          Generated courses (npm run courses)
 │
 └── src/3d/                   ── 3-D engine ──
     ├── sharedRenderer.js     Singleton WebGLRenderer + PerspectiveCamera
@@ -44,8 +56,9 @@ main.js              Bootstrap: wires toggle, dimension selector, search, harmon
     ├── Preview/              Translucent "what layer N looks like" object
     └── Mini/                 Bottom-right orientation gizmo
 
-public/named_colors.csv       ~4,000 named colors (name, hex, r, g, b)
+public/named_colors.csv       ~3,200 named colors (name, hex, r, g, b)
 resources/colorTable.py       Scraper that produced the CSV (offline tool)
+resources/generateCourses.mjs Color Golf course generator (seeded; npm run courses)
 archive/smartCube.js          Pre-refactor monolithic cube (reference only, not imported)
 ```
 
@@ -186,7 +199,19 @@ requestAnimationFrame(update)
 
 ---
 
-## 7. Design Decisions
+## 7. Color Golf
+
+Get from a tee color to a target color in as few strokes as possible; the harmony rows are clubs.
+
+- **State is whole-number HSL** (h 0–359, s and l 0–100), the values the swatches show. Every stroke rounds, so the game and the solver can never disagree about where a stroke lands, and the whole state space (≈3.7M) fits in typed arrays.
+- **Solver** (`solver.js`): breadth-first search from the tee over all 41 clubs (10 harmony rows + putter). Perfect = fewest strokes to land within OKLab 0.02 of the target. Hazards and wind keep it exact because they depend only on the current color: water landings are skipped (always 2 wasted strokes), sand allows wedges only, wind is a fixed drift per hole.
+- **Courses** are generated offline (`resources/generateCourses.mjs`, seeded) into `courses.json`: hole length follows par (yards = OKLab distance × 1000), difficulty is the *birdie line* (first shots that keep perfect reachable), and hazards and wind are placed from separate seeded sequences and kept only if every check still passes (perfect unchanged or +1 on a layup hole, finishable within par avoiding hazards, birdie line in range).
+- **Map** (`map.js`, `mapView.js`): markers are placed by searching the same functions that draw the textures, so they match what's drawn. Hazard footprints are traced on the layer being viewed (the layer's colors inside the hazard), so the ball is inside a patch exactly when it's in that hazard.
+- **Game ↔ view**: the game screen never touches Three.js objects; it sets `mapState`, and `3d-mode.js` hands that to `GolfMapView`. A rebuilt or still-loading view reads the current state on creation.
+
+---
+
+## 8. Design Decisions
 
 | Decision | Why |
 |----------|-----|
@@ -195,13 +220,16 @@ requestAnimationFrame(update)
 | Two-tier cache (buffers vs GPU textures) | Buffers are cheap to keep around; GPU textures are more expensive. Separate LRU limits allow tuning each independently |
 | Shared renderer/camera singleton | Avoids creating multiple WebGL contexts when switching shapes (browsers cap the number of contexts) |
 | Base-class families (Main/Preview/Mini) | Adding a new shape means writing geometry plus a couple of hooks, not re-implementing input, physics, and animation |
+| Golf courses generated offline | Generation runs the solver thousands of times (minutes); shipping a seeded JSON makes courses instant and identical for everyone |
+| Golf map markers found by search, not inverse formulas | One search over the texture functions works for every shape and color space, and can't drift from what's drawn |
 
 ---
 
-## 8. Known Issues / Tech Debt
+## 9. Known Issues / Tech Debt
 
 | Area | Issue |
 |------|-------|
 | Three.js version | `index.html` loads **r128** from CDN as a global, but the code uses `THREE.SRGBColorSpace` / `outputColorSpace`, which were added in r152. Those assignments are currently no-ops. The npm `three@0.181` dependency is installed but not imported |
 | `ShaderCache` | Instantiated per shape but never read. Main objects build their materials directly |
-| Stubs | `1d-mode.js` and `2d-mode.js` return empty environments |
+| r128 API gaps | Newer Three.js helpers (`Object3D.removeFromParent`, `BufferGeometry.applyQuaternion`) don't exist in r128 and fail silently until called; golf code uses the r128 equivalents |
+| RGB sphere | It sits inside the RGB cube, so the most vivid colors aren't on any layer; golf markers and hazard footprints for those colors go to the closest color it has |

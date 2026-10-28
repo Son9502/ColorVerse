@@ -9,6 +9,39 @@ Each entry is tagged with how it was produced:
 
 ---
 
+## Milestone 16 — Hazards, Wind & Expert Courses (v1.2.0) `[ai-assisted]`
+**2026-10-28**
+
+Sand, water and wind for Color Golf, and the two Expert courses. Rules and presentation chosen by the developer (OKLab "looks-like" regions, wedges only in sand, water = +1 and back, no swatch warnings, some bunkers on the perfect route, the six map details, footprints always shown on the current layer); placement strategy and checks from measurements; implementation `[ai-assisted]`.
+
+**Added**
+- `golf/hazards.js`: a hazard is a center color + radius in yards; cached per-state lookup; wedge list
+- Rules (`game.js`): water = +1 penalty and the ball returns to where it was hit from; sand = wedges only (no putter, never "on the green"); undo reverses a stroke and its penalty together
+- Solver: water landings skipped (never worth 2 strokes for no progress), wedges only from sand, `avoidHazards` for the safety check, `wind` drift; still an exact search over the same ≈3.7M states
+- Wind (`clubs.js`): a fixed hue (±°) or lightness (±%) drift per hole on every full shot, applied before the hazard check; putts unaffected; swatches show the calm landing
+- Generator: hazards and wind placed from their own seeded sequences (v1.1 holes unchanged), water on birdie-line landing spots, bunkers guarding the hole and on the perfect route where the next shot is a wedge; every placement re-checked (perfect unchanged or +1 on a layup, finishable within par avoiding hazards, birdie line in range); if a placement fails, another hole is tried
+- Courses: Cobalt Bay (Expert, par 71, 30 lakes, layup hole 9) and Royal Indigo (Expert, par 70, 24 bunkers + 34 lakes, layup hole 11); Ember Dunes 25 bunkers, Verdant Pines 6, Prism Point 4 (back 9); wind on 15 / 18 / 16 / 14 holes (Prism Point calm)
+- Map: hazard footprints traced on the layer being viewed (`map.js` `footprintOnLayer`, one patch per cube face it reaches) with sand/water textures, edge rings, a halo for nearby layers, icons at hazard centers, and a flash on the hazard you land in; a faint outline when a hazard doesn't reach the layer
+- Panel: hole summary ("2 bunkers, 1 lake"), wind line and map badge, yardage to each hazard, landing notes, non-wedge swatches greyed out in a bunker, hazard row on the score card
+- `ARCHITECTURE.md`: Color Golf section and module map
+
+**Fixed**
+- The route replay worker ignored hazards and wind (could have replayed a route through a lake); it now gets both
+- A projected hazard patch could cover a ball that wasn't in the hazard (different layers in the same direction); footprints are now traced on the current layer instead
+- `BufferGeometry.applyQuaternion()` is r130+; replaced with `applyMatrix4` (the app uses r128)
+
+**Measured**
+- A single hazard almost never makes a hole longer for a perfect player (0 of 16 lakes, even at 80 yds); it removes good shots (birdie line −20%), which drove the "aim at birdie lines" placement
+- Wedges in sand: each of the four is the only best recovery on some bunkers (all four 2.31 strokes to the hole; Tones alone 2.83, Saturate alone 3.47)
+- Footprints vs rules on 3,403 landings: never drawn inside a hazard the ball isn't in; hazard landings drawn outside their patch: 2/43 (HSL sphere), 4/43 (RGB cube), 2/43 (HSL cube), 21/43 on the RGB sphere (the sphere doesn't contain those vivid colors)
+
+**Verified**
+- All five courses: stored perfect matches the solver with hazards and wind; the game replays the solver's route and holes out in exactly perfect; finishable within par avoiding hazards; tee and hole outside every hazard; length follows par; lip-outs on every par 3
+- Real built app (Chrome DevTools): bunker lockout and driver refusal, water +2 and undo, wind landing exactly 6° off the shown swatch, footprints and halos drawn, no console errors
+- `package.json`: version 1.2.0
+
+---
+
 ## Milestone 15 — Thicker Map Paths (v1.1.3) `[ai-assisted]`
 **2026-10-28**
 
