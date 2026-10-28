@@ -22,13 +22,21 @@ Someone can open ColorVerse, explore RGB and HSL as an interactive **3-D** color
 - [x] **Saturate harmony row:** the mirror of Tones; pulls saturation toward 100% in five steps (`s + (100 − s) × 20…100%`). This is the one direction the harmonies were missing; without it, a muted color can't reach a vivid one.
 - [x] **HSL / RGB sliders** in the color details card for precise adjustment (sliders follow the HSL toggle). Hidden in the future minigame.
 
-### 4. Must-Fix Bugs
+### 4. First Impressions
+- [x] **Welcome + tour:** first-visit welcome modal, then an optional 7-step spotlight tour of the real controls (canvas, layers, color space, shape, picking/search, harmonies, ? button). Shown once per browser; replayable from the ? panel.
+- [x] **Controls layout:** ordered Dimension → Shape → Color space → Layer; consistent padding and field labels; "RGB ◯ HSL" toggle; layer input hint; search hint under Color Search.
+- [x] **Search touches:** clicking the empty box lists the last 10 searches; the autocomplete hint keeps the letters' case as typed; result rows laid out as swatch + name with hex/RGB underneath.
+
+### 5. Must-Fix Bugs
 - [x] Shader file name case: shaders are now bundled with `?raw` imports using the correct `layerFade.*` names.
 - [x] Listener cleanup: `dispose()` should remove the window and container listeners added by `3d-mode.js` and `MainBase`.
 - [x] Shared renderer: `dimension.js` shouldn't dispose the shared WebGL renderer when switching views.
 - [x] Entry point: `main.html` renamed to `index.html`.
+- [x] Mini object no longer turns black after the RGB ↔ HSL toggle.
+- [x] Sphere textures right side up (lightness and G point up, matching the cube and mini object).
+- [x] HSL cube faces meet seamlessly on every layer (top/bottom aligned with the sides; sides no longer narrow inward).
 
-### 5. Deployment
+### 6. Deployment
 - [x] Production build fixed (worker, shaders, CSV path) and GitHub Actions workflow added.
 - [x] Pages enabled and live at https://son9502.github.io/ColorVerse/ (linked from the README).
 
@@ -72,9 +80,9 @@ Developed on the `feature/1d-2d` branch.
 
 ## Definition of Done (v1)
 
-- [ ] Cube and sphere render correctly in both RGB and HSL
-- [ ] Color picking works on both shapes and updates the harmony panel
-- [ ] 1-D/2-D options are marked as coming soon or hidden
-- [ ] A muted color (e.g. #9C869A) can reach vivid red in a few harmony clicks (Saturate row)
+- [x] Cube and sphere render correctly in both RGB and HSL
+- [x] Color picking works on both shapes and updates the harmony panel
+- [x] 1-D/2-D options are marked as coming soon or hidden
+- [x] A muted color (e.g. #9C869A) can reach vivid red in a few harmony clicks (Saturate row)
 - [ ] No console errors after 10 consecutive cube ↔ sphere switches
 - [ ] The deployed URL loads to an interactive state in under 3 s

@@ -9,6 +9,27 @@ Each entry is tagged with how it was produced:
 
 ---
 
+## Milestone 9 — First Impressions & Rendering Fixes `[ai-assisted]`
+**2026-10-27**
+
+Finished the v1 scope: a first-visit welcome and tour, a tidier controls panel, search conveniences, and fixes to how the shapes are colored. Feature choices (welcome then spotlight tour, control order, recent searches, keeping typed case) and the bug reports (mini object going dark, HSL top/bottom placement) came from the developer's testing; implementation `[ai-assisted]`.
+
+**Added**
+- `welcome.js`: first-visit welcome modal and a 7-step spotlight tour of the real controls (←/→, Esc, Skip); shown once per browser (`localStorage`), replayable from the ? panel; keys don't reach the 3-D view while it's open
+- Recent searches: clicking the empty search box lists the last 10 picked colors (`localStorage`, newest first, deduped)
+
+**Fixed**
+- Mini object turned black after the RGB ↔ HSL toggle: the shader normalized a zero highlight vector (NaN), and a pick only set the highlight on the visible material; the shader now guards the zero case and both materials are updated
+- Sphere textures were upside down (black/low-G pole on top, back face in front); the mapping is turned 180° about x so lightness and G point up, matching the cube
+- HSL cube seams: top/bottom used a circular angle and radius that didn't line up with the sides (edges differed by up to 82/255); they now use a square mapping so each edge carries the same hue run and saturation as its side. The sides' per-layer hue narrowing was removed so adjacent sides meet on inner layers. All 12 edges now match within 1/255 on every layer checked
+- Result rows in the autocomplete were unstyled (swatch, name, hex, rgb stacked); now swatch + name with hex/rgb underneath
+
+**Modified**
+- Controls ordered Dimension → Shape → Color space → Layer with field labels and even padding; "RGB ◯ HSL" toggle with the active side bold; hints under the layer box and Color Search; tab title "ColorVerse"
+- Autocomplete hint and Enter/Tab completion keep the case the user typed ("C" → "Ceil")
+
+---
+
 ## Milestone 8 — Color Navigation & Panel Flow `[ai-assisted]`
 **2026-10-27**
 
