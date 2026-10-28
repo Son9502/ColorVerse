@@ -9,6 +9,106 @@ Each entry is tagged with how it was produced:
 
 ---
 
+## Milestone 14 — Perfect Route Replay (v1.1.2) `[ai-assisted]`
+**2026-10-28**
+
+Finished the two remaining v1.1 spec items, scheduled as v1.1.2 by the developer; implementation `[ai-assisted]`.
+
+**Added**
+- `golf/solver-worker.js`: the perfect route is solved in a Web Worker (created on first use; literal path so Vite bundles it). Verified the page stays responsive: a 50 ms timer ticked 23/24 times during the solve
+- Map replay: "Show perfect route" plays a gold ghost ball along the route stroke by stroke (≈1.1 s per stroke), with a gold path beside the player's white one; the view peels and turns to follow it, the club list fills in step by step, and the gold path ends in the pin. Next hole, the score card or leaving the game stops a replay in progress
+- `golf-ui.js` no longer imports the solver on the main thread
+
+**Verified**
+- Real built app driven through Chrome DevTools: picked-up hole → replay of Complementary +180° → Tones 20% → Saturate 40%, layers 70 → 31, no console errors
+- `package.json`: version 1.1.2
+
+---
+
+## Milestone 13 — Course Lengths & Difficulty (v1.1.1) `[ai-assisted]`
+**2026-10-28**
+
+Regenerated the courses so hole length follows par and each course has a measured difficulty. The developer chose to enforce lengths and asked how that changes difficulty; the answer (separate length and difficulty dials) came from measuring the solver's options per hole; implementation `[ai-assisted]`.
+
+**Modified**
+- `generateCourses.mjs`: length rule (par 3 < 250 yds, par 4 250–400, par 5 > 350) and a per-course *birdie line* range (first shots out of 41 that keep the perfect score reachable): Beginner 6+, Standard 3–6, Expert 1–3; first-shot searches built once per tee to keep generation ≈20 s
+- Courses regenerated: Prism Point (Beginner, 5,697 yds, birdie line avg 9.7), Ember Dunes (Standard, 5,620 yds, 3.9), Verdant Pines (Standard, 5,018 yds, 4.4); par 72 / perfect 51 each; fairway (first shots keeping par) 26–33 of 41
+- Course picker shows difficulty and total yards; best scores start fresh (`colorverse.golf.best.v2`) since the holes changed
+- `package.json`: version 1.1.1
+
+**Verified**
+- Round tests on all three courses: perfect play under par on every hole, lip-outs on every par 3, hole 16 the ace
+
+---
+
+## Milestone 12 — Color Golf: 3-D Map & Yards (v1.1.0) `[ai-assisted]`
+**2026-10-28**
+
+The 3-D shape becomes the course map. Requests from the developer's playtesting: white trail, ball disappearing when holed with the path running to the pin, yards per shot and per hole, wind (spec'd for v1.2), and hole lengths that follow par (measured, then scheduled for v1.1.1); implementation `[ai-assisted]`.
+
+**Added**
+- `golf/map.js` `locateColor()`: finds a color's layer and surface point by searching the same functions that draw the textures (coarse grid over all layers, then a local refine; 3–10 ms). Checked by raycasting real geometry and reading what the click-picker sees: within 4/255 on the cube and HSL sphere; the RGB sphere doesn't contain the most vivid colors, so those go to its closest color
+- `golf/mapView.js`: ball (current color), flag (target), white trail along the surface with dots per stroke; holed → ball gone, path runs to the pin. Each stroke peels to the current color's layer and turns it toward the camera
+- `golf/mapState.js`: shared game → 3-D view state, read on creation so a rebuilt or still-loading view catches up
+- `MainBase.rotateToQuaternion()` (face snaps use it too and stop any leftover spin)
+- Yards (OKLab distance × 1000): hole length under the title; last shot and yards to the pin after each stroke
+- `color-utils.js` `CUBE_FACE_MAPS`: cube face layout shared by the texture worker and the map
+
+**Fixed**
+- The map stopped updating after the tee: clearing markers called `Object3D.removeFromParent()`, which is r129+ (the app uses r128); now `parent.remove()`. Found by driving the real built app through Chrome DevTools
+
+**Measured**
+- Hole length vs par: currently uncorrelated (median par 3 256 yds, par 5 195). Enforcing lengths (par 3 < 250, par 4 250–400, par 5 > 350) on Prism Point kept "fairway" (first shots that keep par reachable) at ~30/41 and cut the "birdie line" from 6.2 to 4.9/41, mostly on short par 3s → scheduled for v1.1.1 with per-course difficulty bands
+
+**Modified**
+- `MVP.md`: wind added to v1.2 (fixed per hole, full shots only, solver-exact); v1.1.1 row; README feature list and roadmap
+- `package.json`: version 1.1.0
+
+---
+
+## Milestone 11 — Color Golf: Game Screen `[ai-assisted]`
+**2026-10-27 → 2026-10-28**
+
+The playable game, minus the 3-D map. Additions requested by the developer after testing (how-to-play widget, live score card, "on the green" meaning 1–2 putts, par 70/71 courses); implementation `[ai-assisted]`.
+
+**Added**
+- `golf/golf-ui.js`: ⛳ Color Golf button → course picker (hue strip, par, best score) → game screen: *You* | *Target* swatches, closeness meter (updates only after a stroke), strokes, timer, Undo; end-of-hole card (score name, strokes · par · perfect · time, "Show perfect route" with swatches and club names); end-of-round score card with best rounds saved in the browser
+- Putter row (game mode only), swatches previewing each nudge
+- How-to-play (?) panel and a live score card (Card button): front/back 9, "Thru N", hole in progress highlighted, perfect scores hidden until a hole is played
+- `game.js` `puttsToHole()`: "On the green" now means 2 putts or fewer will hole it (a 0.05 distance cutoff left 18% of green spots needing 3+ putts)
+- `generateCourses.mjs`: per-course par layouts (par 71/70 by swapping par 5s for par 3s); Cobalt Bay (71) and Royal Indigo (70) defined for v1.2; course hues included in `courses.json`
+
+**Modified**
+- `harmony.js`: `selectBaseColor`/`setBaseColors` accept exact whole-number HSL, so game swatches match strokes exactly (explore mode unchanged)
+- `3d-mode.js`, `dropdown.js`: canvas picking and Esc-to-clear are off during a game; search, sliders, layer controls and the ? help are hidden
+
+**Verified**
+- Bots double-clicking the solver's routes: hole 1 birdie with the route list; a full round scored 53 (−19) with a bogey recorded correctly; live card mid-round; a lip-out stroke landing "On the green"
+
+---
+
+## Milestone 10 — Color Golf: Core Logic `[ai-assisted]`
+**2026-10-27**
+
+The rules, par solver and courses for the v1.1 minigame, with no UI yet. Game design (golf framing, harmonies as clubs, OKLab "looks the same" win, strokes then time, 18-hole courses → daily → practice, 1 undo per 9, perfect vs par so birdies and aces exist, lip-outs to keep aces non-obvious, color-themed courses and hazards) directed by the developer; implementation `[ai-assisted]`.
+
+**Added**
+- `harmonyMath.js`: harmony formulas moved out of `harmony.js` (no DOM), so the solver can use them; `harmony.js` re-exports them
+- `golf/clubs.js`: every move a stroke can make (10 harmony rows + a ±4 putter); state is whole-number HSL, the values the swatches show, so the game and solver always agree
+- `golf/oklab.js`: OKLab distance; in the hole < 0.02, on the green < 0.05
+- `golf/solver.js`: breadth-first search over ≈3.7M HSL states with typed-array tables; depth 7 in ≈1 s, par for a target in ≈10 ms, plus the best path for replays
+- `golf/game.js`: a round — strokes, 1 undo per 9 (not a stroke), pick up at double par, score card with par and perfect, score names, strokes-then-time ranking
+- `resources/generateCourses.mjs` (`npm run courses`): seeded course generator → `golf/courses.json`; each hole has a perfect score below par (par 3 → 2, par 4 → 3, par 5 → 3 or 4, one ace hole per course), every par 3 has a lip-out swatch, and tees/targets stay in the course's hues
+- Courses: Prism Point (full spectrum), Ember Dunes (reds–yellows), Verdant Pines (greens); each par 72, perfect 51
+
+**Verified**
+- A bot playing each hole's perfect path scores under par on every hole of all three courses (15 birdies, 2 eagles, a hole in one); undo, pick-up and scoring rules tested
+
+**Modified**
+- `MVP.md`: full Color Golf spec — v1.1 core game, v1.2 hazards by course, v1.3 daily hole, practice and a Pro (no previews) setting
+
+---
+
 ## Milestone 9 — First Impressions & Rendering Fixes `[ai-assisted]`
 **2026-10-27**
 

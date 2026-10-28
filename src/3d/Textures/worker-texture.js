@@ -1,4 +1,4 @@
-import { computeCubeColor, computeSphereColor} from "../../color-utils.js";
+import { computeCubeColor, computeSphereColor, CUBE_FACE_MAPS } from "../../color-utils.js";
 // thread-texture.js
 // import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.166.0/build/three.module.js';
 
@@ -23,32 +23,7 @@ function generateCubeLayer(layer, colorSpace, onProgress) {
 
   const size = 256 - (layer * 2);
   const buffers = [];
-  let faceMap = [];
-
-  switch (colorSpace) {
-    case "RGB": {
-      faceMap = [
-        { x: { channel: "r", flip: false }, y: { channel: "g", flip: true }, fixed: { channel: "b", value: 0 } }, // Front
-        { x: { channel: "b", flip: false }, y: { channel: "g", flip: true }, fixed: { channel: "r", value: 1 } }, // Right
-        { x: { channel: "r", flip: true }, y: { channel: "g", flip: true }, fixed: { channel: "b", value: 1 } }, // Back
-        { x: { channel: "b", flip: true }, y: { channel: "g", flip: true }, fixed: { channel: "r", value: 0 } }, // Left
-        { x: { channel: "r", flip: false }, y: { channel: "b", flip: true }, fixed: { channel: "g", value: 1 } }, // Top
-        { x: { channel: "r", flip: false }, y: { channel: "b", flip: false }, fixed: { channel: "g", value: 0 } }, // Bottom
-      ];
-      break;
-    }
-    case "HSL": {
-      faceMap = [
-        { x_start: 0, y_start: 0, loop: false }, // Front
-        { x_start: 1, y_start: 0, loop: false }, // Right
-        { x_start: 2, y_start: 0, loop: false }, // Back
-        { x_start: 3, y_start: 0, loop: false }, // Left
-        { x_start: 0, y_start: 1, loop: true },  // Top
-        { x_start: 0, y_start: 0, loop: true }   // Bottom
-      ];
-      break;
-    }
-  }
+  const faceMap = CUBE_FACE_MAPS[colorSpace];
   for (const face of faceMap) {
     const buffer = new Uint8ClampedArray(size * size * 4);
 

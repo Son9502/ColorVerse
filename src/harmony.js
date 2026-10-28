@@ -1,4 +1,5 @@
-import { clamp } from "./utils.js";
+import { harmonyDict } from "./harmonyMath.js";
+export { harmonyDict, setHue } from "./harmonyMath.js";
 export const harmonySets = {
     "complementary": ["comp1"],
     "split-complementary": ["split-comp1", "split-comp2"],
@@ -26,14 +27,16 @@ for (const type in harmonySets) {
 
 // Make `color` the selected base color: details card + harmonies
 // `source` is passed through to the "basecolorchange" event (sliders ignore their own updates)
-export function selectBaseColor(color, name = "", source = "") {
+// `exactHSL` (whole-number {h, s, l}) skips re-deriving HSL from RGB; Color Golf uses it so the
+// swatches match its strokes exactly
+export function selectBaseColor(color, name = "", source = "", exactHSL = null) {
     const baseCircle = document.getElementById("base-circle");
     const colorName = document.getElementById("color-name");
 
     document.querySelectorAll(".color-info").forEach(box => box.classList.add("show"));
     if (baseCircle) baseCircle.style.backgroundColor = color;
     if (colorName) colorName.textContent = name;
-    setBaseColors(color, source);
+    setBaseColors(color, source, exactHSL);
 }
 
 // Clear the selected color; the panel switches back to Color Search (see index.css)
@@ -59,49 +62,6 @@ export function setupSwatchSelection() {
     });
 }
 
-export function setHue(h, shift) {
-    return (h + shift + 360) % 360;
-}
-export function harmonyDict(baseColor) {
-    const { h, s, l } = baseColor;
-
-    const steps = [20, 40, 60, 80, 100];
-
-    return {
-        "complementary": [
-            { h: setHue(h, 180), s, l }
-        ],
-        "split-complementary": [
-            { h: setHue(h, 150), s, l },
-            { h: setHue(h, 210), s, l }
-        ],
-        "triadic": [
-            { h: setHue(h, 120), s, l },
-            { h: setHue(h, -120), s, l }
-        ],
-        "tetradic": [
-            { h: setHue(h, 90), s, l },
-            { h: setHue(h, 180), s, l },
-            { h: setHue(h, 270), s, l }
-        ],
-        "double-complementary": [
-            { h: setHue(h, 60), s, l },
-            { h: setHue(h, 180), s, l },
-            { h: setHue(h, 240), s, l }
-        ],
-        "analogous": [
-            { h: setHue(h, -40), s, l },
-            { h: setHue(h, -20), s, l },
-            { h: setHue(h, 20), s, l },
-            { h: setHue(h, 40), s, l }
-        ],
-        "tints": steps.map(v => ({ h: h, s: s, l: clamp(l + (100 - l) * (v / 100), 0, 100) })),
-        "shades": steps.map(v => ({ h: h, s: s, l: clamp(l * (1 - v / 100), 0, 100) })),
-        "tones": steps.map(v => ({ h: h, s: clamp(s * (1 - v / 100), 0, 100), l: clamp(l + (50 - l) * (v / 100), 0, 100) })),
-        // Mirror of tones: the only harmony that raises saturation, so muted colors can reach vivid ones
-        "saturate": steps.map(v => ({ h: h, s: clamp(s + (100 - s) * (v / 100), 0, 100), l: l }))
-    };
-}
 export function resetColors() {
     if (hexInfo) {
         hexInfo.textContent = "#xxxxxx";
@@ -124,7 +84,7 @@ export function resetColors() {
     }
     document.dispatchEvent(new CustomEvent("basecolorclear"));
 }
-export function setBaseColors(color, source = "") {
+export function setBaseColors(color, source = "", exactHSL = null) {
     if (!(color instanceof THREE.Color)) {
         color = new THREE.Color(color);
     }
@@ -138,7 +98,7 @@ export function setBaseColors(color, source = "") {
 
     const hsl = {};
     color.getHSL(hsl);
-    const newHSL = {
+    const newHSL = exactHSL ?? {
         h: Math.round(hsl.h * 360),
         s: Math.round(hsl.s * 100),
         l: Math.round(hsl.l * 100)

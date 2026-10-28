@@ -144,9 +144,15 @@ export class MainBase {
     }
     // -------- Rotation --------
     rotateTo(faceIndex) {
-        if (!this.faceQuaternions[faceIndex] || !this.object) return;
+        if (!this.faceQuaternions[faceIndex]) return;
+        this.rotateToQuaternion(this.faceQuaternions[faceIndex]);
+    }
 
-        this.targetQuat.copy(this.faceQuaternions[faceIndex]);
+    // Ease to any orientation (Color Golf turns the current color toward the camera)
+    rotateToQuaternion(quaternion) {
+        if (!this.object) return;
+        this.velX = this.velY = 0;
+        this.targetQuat.copy(quaternion);
         this.rotateStartQuat.copy(this.object.quaternion);
         this.rotateTime = performance.now();
         this.isAutoRotating = true;

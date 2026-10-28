@@ -6,6 +6,7 @@ import { setupHelp } from './src/help.js';
 import { setupSwatchSelection } from './src/harmony.js';
 import { setupSliders } from './src/sliders.js';
 import { setupWelcome } from './src/welcome.js';
+import { setupGolf } from './src/golf/golf-ui.js';
 document.addEventListener('DOMContentLoaded', () => {
     setupCollapsibleCategories();
 });
@@ -16,5 +17,6 @@ setupHelp();
 setupSwatchSelection();
 setupSliders();
 setupWelcome();
+setupGolf();
 defaultVisualization("sphere");
 // defaultVisualization("cube");

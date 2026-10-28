@@ -45,6 +45,28 @@ export function SRGBtoLinear(s) {
     ? c / 12.92
     : Math.pow((c + 0.055) / 1.055, 2.4);
 }
+// Cube faces in MainCube order (front, right, back, left, top, bottom): which channel runs along
+// each texture axis (RGB), or which hue quarter / cap each face shows (HSL). Shared by the texture
+// worker and Color Golf's map, so both read the same layout.
+export const CUBE_FACE_MAPS = {
+  RGB: [
+    { x: { channel: "r", flip: false }, y: { channel: "g", flip: true }, fixed: { channel: "b", value: 0 } }, // Front
+    { x: { channel: "b", flip: false }, y: { channel: "g", flip: true }, fixed: { channel: "r", value: 1 } }, // Right
+    { x: { channel: "r", flip: true }, y: { channel: "g", flip: true }, fixed: { channel: "b", value: 1 } }, // Back
+    { x: { channel: "b", flip: true }, y: { channel: "g", flip: true }, fixed: { channel: "r", value: 0 } }, // Left
+    { x: { channel: "r", flip: false }, y: { channel: "b", flip: true }, fixed: { channel: "g", value: 1 } }, // Top
+    { x: { channel: "r", flip: false }, y: { channel: "b", flip: false }, fixed: { channel: "g", value: 0 } }, // Bottom
+  ],
+  HSL: [
+    { x_start: 0, y_start: 0, loop: false }, // Front
+    { x_start: 1, y_start: 0, loop: false }, // Right
+    { x_start: 2, y_start: 0, loop: false }, // Back
+    { x_start: 3, y_start: 0, loop: false }, // Left
+    { x_start: 0, y_start: 1, loop: true },  // Top
+    { x_start: 0, y_start: 0, loop: true },  // Bottom
+  ],
+};
+
 // Compute color for given x, y, layer, faceMap, colorSpace, and size
 export function computeCubeColor(x, y, layer, faceMap, colorSpace, size) {
   // Normalize x and y to [0, 1]

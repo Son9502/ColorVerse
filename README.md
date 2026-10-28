@@ -57,6 +57,7 @@ In HSL, saturation also decreases toward the core, so inner layers converge on g
 - **Color search**: fuzzy autocomplete (Levenshtein distance) over ~3,200 named colors; clicking the empty box shows your last 10 searches
 - **Mini orientation viewport**: a small axis-gizmo object (bottom-right) that mirrors rotation, highlights the picked color's direction, and fades out when idle
 - **Progressive loading**: textures generate in a Web Worker with a progress bar and ETA
+- **Color Golf** (v1.1): get from a tee color to a target color in as few strokes as possible. Harmony rows are clubs, a putter row nudges, and par comes from a solver that knows the best route. 3 themed 18-hole courses (Prism Point, Ember Dunes, Verdant Pines), birdies/eagles/an ace per course, yardage (OKLab distance × 1000), a live score card, and the 3-D shape as a map with a ball, flag and trail
 
 ---
 
@@ -142,7 +143,11 @@ npm run preview   # serves dist/ at http://localhost:4173/ColorVerse/
 
 ### Roadmap
 See [MVP.md](MVP.md#roadmap-post-v1) for details.
-- [ ] **v1.1:** Color Golf minigame: reach a target color in the fewest harmony clicks / least time
+- [x] **v1.1:** Color Golf minigame: reach a target color in the fewest strokes; courses, par solver, score card, 3-D map
+- [x] **v1.1.1:** Course lengths that follow par (short par 3s, long par 5s) and per-course difficulty (Beginner / Standard)
+- [x] **v1.1.2:** Perfect route solved in a Web Worker and replayed on the 3-D map by a gold ghost ball
+- [ ] **v1.2:** Color Golf hazards (sand, water) and wind; Cobalt Bay (par 71) and Royal Indigo (par 70)
+- [ ] **v1.3:** Daily hole, practice by difficulty, Pro setting (no swatch previews)
 - [ ] **v2.0:** 1-D mode (single-channel gradient line) and 2-D mode (square/circle planes), with the picked color shared across dimensions
 - [ ] **v2.x / v3:** more shapes (HSL cylinder, HSV cone/bicone) and perceptual color spaces (OKLCH, LAB)
 

@@ -1,13 +1,14 @@
 {
   "name": "rbg-visualizer",
-  "version": "1.0.0",
+  "version": "1.1.2",
   "description": "",
   "main": "index.js",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "courses": "node resources/generateCourses.mjs"
   },
   "keywords": [],
   "author": "",
