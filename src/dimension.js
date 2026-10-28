@@ -21,7 +21,7 @@ export function setupDimensionDropdown() {
         switch (value) {
             case "3-D": {
                 shapeSelect.disabled = false;
-                document.getElementById("info3D").style.display = "block";
+                document.getElementById("info3D").style.display = "flex";
                 populateVisualizationList([ "cube", "sphere" ]);
                 // default value is a cube
                 shapeSelect.value = "cube";
@@ -81,7 +81,7 @@ export async function defaultVisualization(shape) {
     switch (shapes[shape]) {
         case "3-D": {
             shapeSelect.disabled = false;
-            document.getElementById("info3D").style.display = "block";
+            document.getElementById("info3D").style.display = "flex";
             populateVisualizationList([ "cube", "sphere" ]);
             shapeSelect.value = shape;
             break;

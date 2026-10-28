@@ -52,23 +52,53 @@ UI Grid: Title, Description, Controls
 
 #ui-combo {
     display: flex;
-    gap: clamp(12px, 2vw, 32px);
-    /*padding: 1rem;*/
     width: 100%;
 }
 
+/* min-width: 0 lets the columns shrink; overflow is left visible so the
+   autocomplete list isn't clipped */
 #ui-left,
 #ui-right {
     flex: 1;
+    min-width: 0;
     display: flex;
     flex-direction: column;
-    overflow-x: auto;
-    gap: clamp(10px, 1vw, 24px);
+    gap: clamp(10px, 1.6vh, 16px);
+    padding: clamp(12px, 1.4vw, 20px);
 }
 
 #ui-right {
     border-left: #000 0.7vh solid;
-    padding-left: 1rem;
+}
+
+/* Label above control, same spacing everywhere */
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.field-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #666;
+}
+
+/* RGB [toggle] HSL — the active side is bold */
+.space-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.9rem;
+    color: #999;
+}
+
+#hsltoggle:not(:has(#toggle:checked)) .space-rgb,
+#hsltoggle:has(#toggle:checked) .space-hsl {
+    color: #000;
+    font-weight: 700;
 }
 
 #ui-container {
@@ -315,7 +345,8 @@ Search Box + Autocomplete
 
 #color-search {
     position: relative;
-    width: clamp(200px, 70%, 300px);
+    width: 100%;
+    max-width: 320px;
 }
 
 #color-text,
@@ -404,6 +435,49 @@ select {
 .autocomplete-item:hover,
 .autocomplete-item.selected {
     background: #f1f1f1;
+}
+
+/* Result row: swatch | name, with hex and rgb in small grey underneath */
+#autocomplete .dropdown-item {
+    display: grid;
+    grid-template-columns: auto auto 1fr;
+    grid-template-areas:
+        "swatch name name"
+        "swatch hex  rgb";
+    align-items: center;
+    column-gap: 6px;
+    padding: 6px clamp(6px, 1vw, 12px);
+    cursor: pointer;
+    transition: background 0.12s ease;
+}
+
+#autocomplete .dropdown-item .swatch {
+    grid-area: swatch;
+}
+
+#autocomplete .auto-name {
+    grid-area: name;
+    font-size: clamp(0.8rem, 1.1vw, 0.95rem);
+}
+
+#autocomplete .auto-hex,
+#autocomplete .auto-rgb {
+    font-size: 0.72rem;
+    color: #777;
+    white-space: nowrap;
+}
+
+#autocomplete .auto-hex { grid-area: hex; }
+#autocomplete .auto-rgb { grid-area: rgb; }
+
+/* "Recent searches" label above the history list */
+#autocomplete .autocomplete-header {
+    padding: 8px clamp(6px, 1vw, 12px) 4px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #777;
 }
 
 #autocomplete .dropdown-item.highlighted,
@@ -788,4 +862,163 @@ Help Button + Popover (top-left of canvas)
 #ui-canvas canvas {
     opacity: 0;
     transition: opacity 0.25s ease;
+}
+
+/* -----------------------------------------------
+Search hint (shown under Color Search before a pick)
+----------------------------------------------- */
+.search-hint {
+    margin-top: 8px;
+    font-size: 0.8rem;
+    color: #888;
+}
+
+/* -----------------------------------------------
+Welcome Modal + Spotlight Tour (welcome.js)
+Above the loader (9999) so it can show while textures load
+----------------------------------------------- */
+.overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+}
+
+/* ID selectors so this beats #welcome { display: flex } */
+#welcome[hidden],
+#tour[hidden] {
+    display: none;
+}
+
+#welcome {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(4px);
+}
+
+.welcome-card,
+#tour-card {
+    background: #fff;
+    border: 2px solid #000;
+    border-radius: 12px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+    line-height: 1.5;
+}
+
+.welcome-card {
+    width: min(460px, 100%);
+    padding: 1.6rem 1.8rem;
+    animation: fadeInUp 0.25s ease;
+}
+
+.welcome-card h2 {
+    font-size: 1.5rem;
+    margin-bottom: 0.8rem;
+}
+
+.welcome-card p {
+    margin-bottom: 0.7rem;
+    color: #333;
+}
+
+.welcome-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+    margin-top: 1rem;
+}
+
+.btn {
+    padding: 0.5em 1em;
+    border: 1px solid #000;
+    border-radius: 999px;
+    background: #fff;
+    font-family: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.btn:hover:not(:disabled) {
+    background: #eaeaea;
+}
+
+.btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+.btn-primary {
+    background: #000;
+    color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: #333;
+}
+
+.btn-link {
+    border-color: transparent;
+    margin-right: auto;
+    color: #666;
+}
+
+.btn:focus-visible {
+    outline: 2px solid #0099ff;
+    outline-offset: 2px;
+}
+
+/* The giant shadow dims everything outside the spotlight box */
+#tour-spotlight {
+    position: fixed;
+    border-radius: 10px;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6);
+    outline: 2px solid #fff;
+    pointer-events: none;
+    transition: left 0.3s ease, top 0.3s ease, width 0.3s ease, height 0.3s ease;
+}
+
+#tour-card {
+    position: fixed;
+    width: min(320px, calc(100vw - 24px));
+    padding: 1rem 1.2rem;
+    transition: left 0.3s ease, top 0.3s ease;
+}
+
+#tour-step {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #888;
+    margin-bottom: 0.3rem;
+}
+
+#tour-title {
+    font-size: 1.05rem;
+    margin-bottom: 0.4rem;
+}
+
+#tour-text {
+    font-size: 0.9rem;
+    color: #333;
+}
+
+/* "Replay the tour" inside the ? panel */
+#replay-tour {
+    margin-bottom: 0.4rem;
+    padding: 0.3em 0.8em;
+    border: 1px solid #000;
+    border-radius: 999px;
+    background: #fff;
+    font-family: inherit;
+    font-size: 0.78rem;
+    cursor: pointer;
+}
+
+#replay-tour:hover {
+    background: #eaeaea;
 }

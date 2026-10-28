@@ -43,6 +43,7 @@ In HSL, saturation also decreases toward the core, so inner layers converge on g
 
 ## Features
 
+- **Welcome + guided tour**: first-visit welcome and a spotlight tour of the controls, replayable from the `?` panel
 - **Dimension selector**: switch between dimensional views (3-D in v1; 1-D/2-D planned)
 - **RGB ↔ HSL toggle**: animated cross-fade between color spaces on the 3-D object
 - **3-D Cube & Sphere**: both shapes support RGB and HSL
@@ -53,7 +54,7 @@ In HSL, saturation also decreases toward the core, so inner layers converge on g
 - **Color picking**: click any point on the object to read its color via raycasting
 - **Color harmonies**: complementary, split-complementary, triadic, tetradic, double-complementary, analogous, tints, shades, tones, and saturate. Double-click any swatch to make it the selected color
 - **Search / details panel**: shows Color Search until a color is picked, then the color details card; `← Search`, `Esc`, or clicking empty canvas goes back
-- **Color search**: fuzzy autocomplete (Levenshtein distance) over ~4,000 named colors
+- **Color search**: fuzzy autocomplete (Levenshtein distance) over ~3,200 named colors; clicking the empty box shows your last 10 searches
 - **Mini orientation viewport**: a small axis-gizmo object (bottom-right) that mirrors rotation, highlights the picked color's direction, and fades out when idle
 - **Progressive loading**: textures generate in a Web Worker with a progress bar and ETA
 
@@ -130,6 +131,7 @@ npm run preview   # serves dist/ at http://localhost:4173/ColorVerse/
 - [x] Mini orientation viewport
 - [x] Layer preview
 - [x] Public deployment on GitHub Pages
+- [x] First-visit welcome + spotlight tour; tidied controls layout
 - [x] HSL / RGB sliders in the color details card (follow the HSL toggle)
 - [x] Saturate harmony row (raises saturation; makes any color reachable from any other)
 - [x] Listener and render-loop cleanup when switching shapes
