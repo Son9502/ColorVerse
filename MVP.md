@@ -46,17 +46,52 @@ Someone can open ColorVerse, explore RGB and HSL as an interactive **3-D** color
 
 | Version | Scope | Why here |
 |---|---|---|
-| **v1.1** | Color Golf | Builds only on v1 (3-D view, harmonies, the par search); no new renderer |
+| **v1.1** | Color Golf: clubs, putter, par, 18-hole courses, map view | Builds only on v1 (3-D view, harmonies, the par search); no new renderer |
+| **v1.2** | Color Golf hazards (water, sand) | Adds route choice once the core game is solid |
+| **v1.3** | Daily hole + practice by difficulty | Reuses the generator and par solver |
 | **v2.0** | 1-D and 2-D modes + shared color across dimensions | Delivers the "multi-dimensional" promise; new renderers and shared state |
 | **v2.x / v3** | More shapes and color spaces | v2.x if they reuse the 3-D pipeline; v3 if they need a new color model throughout |
 
 ### v1.1: Color Golf (minigame)
-- Reach a target color from a start color in the fewest harmony clicks and/or least time.
-- **Win condition:** within a tolerance (OKLab distance, shown as a match %), not an exact hex.
-- **Par:** shortest click path computed by breadth-first search over harmony moves; only solvable puzzles are offered.
-- **Modes:** clicks vs par, time trial, daily seeded puzzle.
-- **Exact state:** track HSL as exact values instead of re-deriving from rounded RGB each click, so rounding drift near black/white can't create shortcuts that par doesn't account for.
-- **Game mode only:** sliders and search are hidden while a game is in progress (a slider move would solve any puzzle in one step). Both stay in normal exploring.
+Get from a start color (the **tee**) to a target color (the **hole**) in as few harmony moves (**strokes**) as possible. Developed on the `feature/color-golf` branch.
+
+**Clubs (the harmony rows)**
+
+| Club | Rows | Shot |
+|---|---|---|
+| Driver | Complementary, Triadic, Tetradic | Big fixed hue jumps |
+| Irons | Split-Complementary, Analogous | Medium hue moves |
+| Wedges | Tints, Shades, Tones, Saturate | Lightness/saturation moves in 5 strengths (20–100%); over- and undershooting is part of the skill |
+| Putter (game mode only) | New row | Small nudges of hue, saturation or lightness (±3–5%), so a near miss can be finished |
+
+**Rules**
+- A stroke is a double-click on a harmony swatch. Clicking the 3-D shape, the sliders and search are all disabled in game mode.
+- **In the hole:** OKLab distance to the target < 0.02 (looks the same side by side). **On the green:** < 0.05, which drives a "how close" meter. Both thresholds tuned by playtesting.
+- **Par:** fewest strokes from tee to hole (including putts), found by a breadth-first search over the clubs in a Web Worker. Holes are generated only when par falls in the course's range (no par-1 holes).
+- **Undo:** 1 per 9 holes, and it doesn't count as a stroke.
+- **Score:** strokes relative to par (birdie, par, bogey…); total time breaks ties.
+- **Exact state:** track HSL exactly instead of re-deriving it from rounded RGB each stroke, so rounding drift near black/white can't create shortcuts that par doesn't know about.
+
+**Courses**
+- An 18-hole round = front 9 + back 9, with a fixed, seeded set of holes per course so every player gets the same course.
+- Score card per hole and per 9; best round saved in the browser.
+
+**Screen**
+- Two large swatches across the top: *You* | *Target*, plus strokes, par, timer, undo left and the closeness meter.
+- The 3-D shape becomes a **map**: a marker for the current color, a flag for the target's area, and a trail line linking each stroke. The view turns and peels to the current color's layer automatically. Clicking it does nothing.
+- End-of-hole card with score and a "Show par path" replay; end-of-round score card.
+- Leaving game mode restores the normal app (sliders, search, canvas picking).
+
+### v1.2: Hazards
+- **Water:** a zone of color space; landing in it costs +1 stroke and returns you to the previous color.
+- **Sand:** a zone (usually near the hole) where only some clubs work, so getting out costs strokes.
+- Drawn on the map as translucent zones; the par solver treats water as blocked and sand as limited clubs.
+- Every hole must be finishable within par without touching a hazard.
+- Difficulty curve: first course's back 9 adds sand; later courses add water.
+
+### v1.3: Daily Hole and Practice
+- **Daily hole:** one seeded hole per day, the same for everyone; best score and streak saved in the browser.
+- **Practice:** endless random holes filtered by difficulty (par range), with hazards on or off.
 
 ### v2.0: 1-D and 2-D Modes
 Developed on the `feature/1d-2d` branch.
