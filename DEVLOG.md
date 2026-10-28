@@ -9,6 +9,31 @@ Each entry is tagged with how it was produced:
 
 ---
 
+## Milestone 12 — Color Golf: 3-D Map & Yards (v1.1.0) `[ai-assisted]`
+**2026-10-28**
+
+The 3-D shape becomes the course map. Requests from the developer's playtesting: white trail, ball disappearing when holed with the path running to the pin, yards per shot and per hole, wind (spec'd for v1.2), and hole lengths that follow par (measured, then scheduled for v1.1.1); implementation `[ai-assisted]`.
+
+**Added**
+- `golf/map.js` `locateColor()`: finds a color's layer and surface point by searching the same functions that draw the textures (coarse grid over all layers, then a local refine; 3–10 ms). Checked by raycasting real geometry and reading what the click-picker sees: within 4/255 on the cube and HSL sphere; the RGB sphere doesn't contain the most vivid colors, so those go to its closest color
+- `golf/mapView.js`: ball (current color), flag (target), white trail along the surface with dots per stroke; holed → ball gone, path runs to the pin. Each stroke peels to the current color's layer and turns it toward the camera
+- `golf/mapState.js`: shared game → 3-D view state, read on creation so a rebuilt or still-loading view catches up
+- `MainBase.rotateToQuaternion()` (face snaps use it too and stop any leftover spin)
+- Yards (OKLab distance × 1000): hole length under the title; last shot and yards to the pin after each stroke
+- `color-utils.js` `CUBE_FACE_MAPS`: cube face layout shared by the texture worker and the map
+
+**Fixed**
+- The map stopped updating after the tee: clearing markers called `Object3D.removeFromParent()`, which is r129+ (the app uses r128); now `parent.remove()`. Found by driving the real built app through Chrome DevTools
+
+**Measured**
+- Hole length vs par: currently uncorrelated (median par 3 256 yds, par 5 195). Enforcing lengths (par 3 < 250, par 4 250–400, par 5 > 350) on Prism Point kept "fairway" (first shots that keep par reachable) at ~30/41 and cut the "birdie line" from 6.2 to 4.9/41, mostly on short par 3s → scheduled for v1.1.1 with per-course difficulty bands
+
+**Modified**
+- `MVP.md`: wind added to v1.2 (fixed per hole, full shots only, solver-exact); v1.1.1 row; README feature list and roadmap
+- `package.json`: version 1.1.0
+
+---
+
 ## Milestone 11 — Color Golf: Game Screen `[ai-assisted]`
 **2026-10-27 → 2026-10-28**
 

@@ -2,8 +2,9 @@ import courses from "./courses.json";
 import { GolfRound, scoreName, compareRounds } from "./game.js";
 import { PUTTER, strike } from "./clubs.js";
 import { searchFrom, parFor, pathTo } from "./solver.js";
-import { IN_THE_HOLE } from "./oklab.js";
+import { IN_THE_HOLE, hslDistance } from "./oklab.js";
 import { harmonySets, selectBaseColor, clearBaseColor } from "../harmony.js";
+import { setMapState } from "./mapState.js";
 
 // ----------------------------------
 // Color Golf screen
@@ -40,6 +41,9 @@ function formatTime(ms) {
     const total = Math.floor(ms / 1000);
     return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
 }
+
+// Golf-style distance: OKLab distance × 1000 (the hole is 20 yds across; most holes 100–500 yds)
+const yards = (a, b) => Math.round(hslDistance(a, b) * 1000);
 
 const formatToPar = (n) => (n === 0 ? "E" : n > 0 ? `+${n}` : `${n}`);
 
@@ -93,6 +97,7 @@ export function setupGolf() {
     const openSetup = () => {
         stopTimer();
         round = null;
+        setMapState(null);
         document.body.classList.add("golf");
         panel.hidden = false;
         clearBaseColor();
@@ -104,6 +109,7 @@ export function setupGolf() {
     const exitGolf = () => {
         stopTimer();
         round = null;
+        setMapState(null);
         document.body.classList.remove("golf");
         panel.hidden = true;
         clearBaseColor();
@@ -140,7 +146,7 @@ export function setupGolf() {
     const startHole = () => {
         const { hole, holeIndex } = round;
         $("golf-hole-title").textContent = `Hole ${holeIndex + 1} · Par ${hole.par}`;
-        $("golf-hole-info").textContent = `${round.course.name} · ${round.nine === 0 ? "Front" : "Back"} 9`;
+        $("golf-hole-info").textContent = `${round.course.name} · ${round.nine === 0 ? "Front" : "Back"} 9 · ${yards(hole.tee, hole.target)} yds`;
         $("golf-target").style.backgroundColor = css(hole.target);
         holeEnd.hidden = true;
         pathList.replaceChildren();
@@ -162,6 +168,13 @@ export function setupGolf() {
         undoButton.textContent = `Undo (${undosLeft})`;
         undoButton.disabled = round.holeDone || undosLeft === 0 || round.trail.length === 0;
         refreshLiveCard();
+        setMapState({ current, target: round.hole.target, trail: round.trail, holed: !!lie?.holed });
+
+        // Yards: last shot's length and what's left to the pin
+        const last = round.trail.at(-1);
+        $("golf-yards").textContent = last
+            ? `Last shot ${yards(last, current)} yds · ${lie?.holed ? "in the hole" : `${yards(current, round.hole.target)} yds to the pin`}`
+            : `${yards(current, round.hole.target)} yds to the pin`;
 
         const fill = $("golf-meter-fill");
         const label = $("golf-meter-label");
@@ -218,6 +231,7 @@ export function setupGolf() {
             `Par ${totals.par} · Perfect ${totals.perfect} · ${formatTime(totals.time)}${isBest ? " · New best!" : ""}`;
         renderCard($("golf-card"));
         clearBaseColor();
+        setMapState(null);
         show(roundEnd);
     };
 

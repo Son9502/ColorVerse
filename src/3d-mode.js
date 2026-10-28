@@ -6,6 +6,8 @@ import { setBaseColors, clearBaseColor } from './harmony.js';
 import { LoaderManager } from './LoaderManager.js';
 import { getCaches } from './3d/TextureRegistry.js';
 import { getSharedRenderer, resizeSharedRenderer } from './3d/sharedRenderer.js';
+import { GolfMapView } from './golf/mapView.js';
+import { getMapState } from './golf/mapState.js';
 
 // Layer carried over when switching shapes (saved on dispose)
 let lastLayer = 127;
@@ -295,6 +297,13 @@ export const create3DEnvironment = async (objectType = "cube") => {
     // Any clear (Esc, "← Search", empty-canvas click) removes the mini highlight
     document.addEventListener("basecolorclear", () => miniObject.clearHighlight(), { signal });
 
+    // --- Color Golf map: ball, pin and trail on the shape (null state clears them) ---
+    const golfMap = new GolfMapView(mainObject, objectType, () => colorSpace, (layer) => {
+        canvasText.textContent = `Layer ${layer}`;
+    });
+    document.addEventListener("golfmapchange", (event) => golfMap.update(event.detail), { signal });
+    golfMap.update(getMapState()); // a game may already be on (shape rebuilt or still loading)
+
     // --- Double-click reset with smooth animation ---
     container.addEventListener("dblclick", () => {
         mainObject.resetObject();
@@ -342,6 +351,7 @@ export const create3DEnvironment = async (objectType = "cube") => {
         dispose: () => {
             // DO NOT dispose renderer or camera (shared)
             lastLayer = mainObject.layerTarget;
+            golfMap.clear();
             renderReady = false;
             cancelAnimationFrame(frameId);
             cancelAnimationFrame(previewRAF);

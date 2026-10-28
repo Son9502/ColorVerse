@@ -46,7 +46,8 @@ Someone can open ColorVerse, explore RGB and HSL as an interactive **3-D** color
 
 | Version | Scope | Why here |
 |---|---|---|
-| **v1.1** | Color Golf: clubs, putter, par, 18-hole courses, map view | Builds only on v1 (3-D view, harmonies, the par search); no new renderer |
+| **v1.1** | Color Golf: clubs, putter, par, 18-hole courses, map view, yards ✅ (v1.1.0) | Builds only on v1 (3-D view, harmonies, the par search); no new renderer |
+| **v1.1.1** | Hole lengths follow par; per-course difficulty (birdie line) | Golf realism plus a measured difficulty curve |
 | **v1.2** | Color Golf hazards (water, sand) | Adds route choice once the core game is solid |
 | **v1.3** | Daily hole + practice by difficulty | Reuses the generator and par solver |
 | **v2.0** | 1-D and 2-D modes + shared color across dimensions | Delivers the "multi-dimensional" promise; new renderers and shared state |
@@ -104,8 +105,9 @@ Get from a start color (the **tee**) to a target color (the **hole**) in as few 
 - Two large swatches across the top: *You* | *Target*, plus strokes, par, timer, undo left and the closeness meter.
 - **? (How to play):** goal, the four club types, what the meter means, par vs perfect, undo and pick-up.
 - **Card:** live score card (front 9 / back 9, "Thru N: ±X"), with the hole in progress highlighted; a hole's perfect score stays hidden until it's played.
-- The 3-D shape becomes a **map**: a marker for the current color, a flag for the target's area, and a trail line linking each stroke. The view turns and peels to the current color's layer automatically. Clicking it does nothing.
-- End-of-hole card with score and a "Show par path" replay; end-of-round score card.
+- The 3-D shape becomes a **map**: a ball for the current color, a flag at the target's spot, and a trail along the surface linking each stroke. The view peels to the current color's layer and turns that spot toward the camera after every stroke. Clicking it does nothing. Spots are found by searching the same functions that draw the textures (`golf/map.js`), so markers always match what's drawn; very vivid colors that the RGB sphere doesn't contain go to its closest color.
+- End-of-hole card with score and "Show perfect route" (the solver's route as swatches + club names); end-of-round score card.
+- **Yards:** OKLab distance × 1000. Hole length under the title; after each stroke, the last shot's length and the yards left to the pin.
 - Leaving game mode restores the normal app (sliders, search, canvas picking).
 
 ### v1.2: Hazards
@@ -113,6 +115,9 @@ Get from a start color (the **tee**) to a target color (the **hole**) in as few 
 - **Sand:** a zone (usually near the hole) where only some clubs work, so getting out costs strokes.
 - Drawn on the map as translucent zones; the par solver treats water as blocked and sand as limited clubs.
 - Every hole must be finishable within par without touching a hazard.
+- **Wind:** each hole can have a fixed wind, e.g. "Wind 6° ↻" (hue drifts clockwise) or "Wind: brightening +3%". After every full shot, the landing color drifts by that much. Putts are unaffected (greens are sheltered). Shown in the game panel and as an arrow on the map. Players aim upwind: if the target is +40° of hue and the wind adds 6°, two Analogous +20° shots end at +52°.
+  - Wind is fixed for the whole hole, so the par solver applies it to every full shot and par/perfect stay exact. No gusts that change shot to shot, since those would make true par impossible to compute.
+  - By course: Prism Point calm; Ember Dunes steady breezes; Verdant Pines light; Cobalt Bay and Royal Indigo the strongest.
 - Hazards by course (the name says what to expect):
 
   | Course | Hazards |
