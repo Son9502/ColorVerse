@@ -134,6 +134,13 @@ export class MiniBase {
             }
         });
     }
+    // Both color space materials, not just the one on the mesh, so toggling keeps the same highlight state
+    _eachHighlightUniforms(fn) {
+        Object.values(this.materials).forEach(mat => {
+            const u = mat.uniforms;
+            if (u?.uHighlightDir && u.uHighlightStrength) fn(u);
+        });
+    }
     setHighlight(direction, strength = 1.0) {
         if (!direction) return;
         this.clearHighlight();
@@ -141,11 +148,9 @@ export class MiniBase {
         const dir = direction.clone().normalize();
         this.highlighted = {dir, strength};
 
-        this.root.traverse(obj => {
-            const u = obj.material?.uniforms;
-            if (!u) return;
-            if (u.uHighlightDir) u.uHighlightDir.value = dir;
-            if (u.uHighlightStrength) u.uHighlightStrength.value = strength;
+        this._eachHighlightUniforms(u => {
+            u.uHighlightDir.value = dir;
+            u.uHighlightStrength.value = strength;
         });
 
         this.activateFade();
@@ -153,24 +158,14 @@ export class MiniBase {
 
     clearHighlight() {
         this.highlighted = null;
-        this.root.traverse(obj => {
-            const u = obj.material?.uniforms;
-            if (u?.uHighlightStrength) {
-                u.uHighlightStrength.value = 0.0;
-            }
-        });
+        this._eachHighlightUniforms(u => { u.uHighlightStrength.value = 0.0; });
     }
 
     _tickHighlight() {
         if (!this.highlighted) return;
 
         this.highlighted.strength *= 0.85;
-        this.root.traverse(obj => {
-            const u = obj.material?.uniforms;
-            if (u?.uHighlightStrength) {
-                u.uHighlightStrength.value = this.highlighted.strength;
-            }
-        });
+        this._eachHighlightUniforms(u => { u.uHighlightStrength.value = this.highlighted.strength; });
 
         if (this.highlighted.strength < 0.01) {
             this.clearHighlight();

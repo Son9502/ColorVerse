@@ -20,6 +20,8 @@ main.js              Bootstrap: wires toggle, dimension selector, search, harmon
 │   ├── harmony.js            Harmony math + swatch rendering
 │   ├── categories.js         Collapsible harmony rows
 │   ├── help.js               ? button popover listing controls and tools
+│   ├── sliders.js            HSL/RGB sliders in the details card; follow the toggle
+│   ├── welcome.js            First-visit welcome modal + spotlight tour (localStorage flag)
 │   ├── LoaderManager.js      Loading overlay, progress bar, ETA
 │   ├── color-utils.js        Color math: HSL→RGB, gamma, cube/sphere color mapping, mini shaders
 │   └── utils.js              clamp, lerp
@@ -175,8 +177,11 @@ requestAnimationFrame(update)
 
 ## 6. UI Modules
 
-- **`harmony.js`** converts the base color to HSL and generates harmonies by hue rotation (180°, ±150°, ±120°, 90° steps, ±20/40°). Tints, shades, and tones step lightness/saturation in 20% increments.
+- **`harmony.js`** converts the base color to HSL and generates harmonies by hue rotation (180°, ±150°, ±120°, 90° steps, ±20/40°). Tints, shades, tones, and saturate step lightness/saturation in 20% increments. Saturate is the only harmony that raises saturation, so without it a muted color can't reach a vivid one.
 - **`dropdown.js`** loads the CSV and ranks matches with a tiered scoring function (exact → prefix → word-prefix → all tokens → substring → normalized Levenshtein < 0.4). It also shows ghost-text completion and supports keyboard navigation.
+- **Search / details panel:** one at a time, driven by CSS: `#base-color.show` hides `#color-search` via `:has()`. `harmony.clearBaseColor()` is the single "go back" path used by the `← Search` button, `Esc`, and clicks on empty canvas. Esc has a priority order: the help panel (capture-phase listener) → the focused text box (stops propagation) → back to search.
+- **`welcome.js`** shows the welcome once per browser (`localStorage` key `colorverse.welcomed`, wrapped in try/catch so blocked storage just means it shows again). The tour positions a spotlight box over each target's bounding rect (a huge `box-shadow` dims everything else) and places the card beside it. A capture-phase keydown listener keeps keys from reaching the 3-D shortcuts while the welcome or tour is open.
+- **`sliders.js`** listens for the `basecolorchange` / `basecolorclear` events that `harmony.js` dispatches, so it stays in sync with canvas picks, search, and swatches without importing them. Updates it makes itself are tagged `source: "slider"` and don't overwrite its values, so hue doesn't snap to 0 when saturation hits 0.
 - **`toggle.js`** shows or hides the RGB vs HSL axis options in the 1-D/2-D selectors. `3d-mode.js` listens to the same checkbox to trigger the color-space cross-fade.
 
 ---

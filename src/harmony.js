@@ -8,7 +8,8 @@ export const harmonySets = {
     "analogous": ["analog1", "analog2", "analog3", "analog4"],
     "tints": ["light1", "light2", "light3", "light4", "light5"],
     "shades": ["dark5", "dark4", "dark3", "dark2", "dark1"],
-    "tones": ["tone1", "tone2", "tone3", "tone4", "tone5"]
+    "tones": ["tone1", "tone2", "tone3", "tone4", "tone5"],
+    "saturate": ["sat1", "sat2", "sat3", "sat4", "sat5"]
 };
 
 const hexInfo = document.getElementById("hex");
@@ -24,14 +25,26 @@ for (const type in harmonySets) {
 }
 
 // Make `color` the selected base color: details card + harmonies
-export function selectBaseColor(color, name = "") {
+// `source` is passed through to the "basecolorchange" event (sliders ignore their own updates)
+export function selectBaseColor(color, name = "", source = "") {
     const baseCircle = document.getElementById("base-circle");
     const colorName = document.getElementById("color-name");
 
     document.querySelectorAll(".color-info").forEach(box => box.classList.add("show"));
     if (baseCircle) baseCircle.style.backgroundColor = color;
     if (colorName) colorName.textContent = name;
-    setBaseColors(color);
+    setBaseColors(color, source);
+}
+
+// Clear the selected color; the panel switches back to Color Search (see index.css)
+export function clearBaseColor() {
+    const baseCircle = document.getElementById("base-circle");
+    const colorName = document.getElementById("color-name");
+
+    document.querySelectorAll(".color-info").forEach(box => box.classList.remove("show"));
+    if (baseCircle) baseCircle.style.backgroundColor = "transparent";
+    if (colorName) colorName.textContent = "";
+    resetColors(); // dispatches "basecolorclear"
 }
 
 // Double-click a harmony swatch to make it the base color
@@ -84,7 +97,9 @@ export function harmonyDict(baseColor) {
         ],
         "tints": steps.map(v => ({ h: h, s: s, l: clamp(l + (100 - l) * (v / 100), 0, 100) })),
         "shades": steps.map(v => ({ h: h, s: s, l: clamp(l * (1 - v / 100), 0, 100) })),
-        "tones": steps.map(v => ({ h: h, s: clamp(s * (1 - v / 100), 0, 100), l: clamp(l + (50 - l) * (v / 100), 0, 100) }))
+        "tones": steps.map(v => ({ h: h, s: clamp(s * (1 - v / 100), 0, 100), l: clamp(l + (50 - l) * (v / 100), 0, 100) })),
+        // Mirror of tones: the only harmony that raises saturation, so muted colors can reach vivid ones
+        "saturate": steps.map(v => ({ h: h, s: clamp(s + (100 - s) * (v / 100), 0, 100), l: l }))
     };
 }
 export function resetColors() {
@@ -107,8 +122,9 @@ export function resetColors() {
             }
         });
     }
+    document.dispatchEvent(new CustomEvent("basecolorclear"));
 }
-export function setBaseColors(color) {
+export function setBaseColors(color, source = "") {
     if (!(color instanceof THREE.Color)) {
         color = new THREE.Color(color);
     }
@@ -155,4 +171,6 @@ export function setBaseColors(color) {
             }
         });
     };
+    // Lets other UI (e.g. sliders) follow the selected color
+    document.dispatchEvent(new CustomEvent("basecolorchange", { detail: { color, source } }));
 }

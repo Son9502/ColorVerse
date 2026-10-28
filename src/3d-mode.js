@@ -2,10 +2,13 @@ import { MiniCube } from './3d/Mini/MiniCube.js';
 import { MiniSphere } from './3d/Mini/MiniSphere.js';
 import { MainCube } from './3d/Main/MainCube.js';
 import { MainSphere } from './3d/Main/MainSphere.js';
-import { setBaseColors, resetColors } from './harmony.js';
+import { setBaseColors, clearBaseColor } from './harmony.js';
 import { LoaderManager } from './LoaderManager.js';
 import { getCaches } from './3d/TextureRegistry.js';
 import { getSharedRenderer, resizeSharedRenderer } from './3d/sharedRenderer.js';
+
+// Layer carried over when switching shapes (saved on dispose)
+let lastLayer = 127;
 
 export const create3DEnvironment = async (objectType = "cube") => {
     // --- Loading Elements ---
@@ -19,6 +22,14 @@ export const create3DEnvironment = async (objectType = "cube") => {
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.NoToneMapping;
     resizeSharedRenderer(container);
+    // Each shape starts at the default zoom (the camera is shared between shapes)
+    camera.position.set(0, 0, 3);
+
+    // Start in the toggle's color space and the previous shape's layer
+    const toggleColorSpace = document.getElementById("toggle");
+    let colorSpace = toggleColorSpace.checked ? "HSL" : "RGB";
+    const startLayer = lastLayer;
+    const objectOptions = { colorSpace, startLayer };
 
     // Aborting removes every listener registered with { signal } (see dispose)
     const listeners = new AbortController();
@@ -46,17 +57,17 @@ export const create3DEnvironment = async (objectType = "cube") => {
             loader.setMessage("Creating Cube...");
             mainObject = new MainCube(scene, caches[0], camera, (loaded, total) => {
                 loader.handleProgress(loaded, total);
-            });
+            }, objectOptions);
             loader.setMessage("Setting up MiniObject for Cube...");
-            miniObject = new MiniCube(renderer);
+            miniObject = new MiniCube(renderer, colorSpace);
             break;
         case "sphere":
             loader.setMessage("Creating Sphere...");
             mainObject = new MainSphere(scene, caches[0], camera, (loaded, total) => {
                 loader.handleProgress(loaded, total);
-            });
+            }, objectOptions);
             loader.setMessage("Setting up MiniObject for Sphere...");
-            miniObject = new MiniSphere(renderer);
+            miniObject = new MiniSphere(renderer, colorSpace);
             break;
         default:
             throw new Error(`Unknown objectType: ${objectType}`);
@@ -68,12 +79,12 @@ export const create3DEnvironment = async (objectType = "cube") => {
         switch (objectType) {
             case "cube": {
                 const { PreviewCube } = await import('./3d/Preview/PreviewCube.js');
-                previewObject = new PreviewCube(caches[0]);
+                previewObject = new PreviewCube(caches[0], undefined, undefined, undefined, colorSpace);
                 break;
             }
             case "sphere": {
                 const { PreviewSphere } = await import('./3d/Preview/PreviewSphere.js');
-                previewObject = new PreviewSphere(caches[0]);
+                previewObject = new PreviewSphere(caches[0], undefined, undefined, undefined, colorSpace);
                 break;
             }
         }
@@ -81,14 +92,12 @@ export const create3DEnvironment = async (objectType = "cube") => {
     previewObject.setupControls(mainObject);
 
     // --- UI Elements ---
-    const toggleColorSpace = document.getElementById("toggle");
-    let colorSpace = toggleColorSpace.checked ? "HSL" : "RGB";
-
     const threeDText = document.getElementById("layer-input");
     const canvasText = document.getElementById("ui-canvas-text");
 
-    let currentLayer = 127;
+    let currentLayer = startLayer;
     threeDText.value = "";
+    canvasText.textContent = `Layer ${currentLayer}`;
 
     // --- Layer Input Logic ---
     const validLayer = (input) => Number.isInteger(input) && input >= 0 && input <= 127;
@@ -115,8 +124,11 @@ export const create3DEnvironment = async (objectType = "cube") => {
 
     threeDText.addEventListener("keydown", async (event) => {
         if (event.key === "Escape") {
-            threeDText.value = "";
-            previewObject?.hide();
+            if (threeDText.value) {
+                event.stopPropagation(); // cancel the layer box only, keep the selected color
+                threeDText.value = "";
+                previewObject?.hide();
+            }
             return;
         }
         if (event.key !== "Enter") return;
@@ -136,7 +148,8 @@ export const create3DEnvironment = async (objectType = "cube") => {
 
     // --- Color Space Toggle ---
     toggleColorSpace.addEventListener("click", async () => {
-        colorSpace = colorSpace === "RGB" ? "HSL" : "RGB";
+        // Read the checkbox rather than flipping, so the object can't drift out of sync with it
+        colorSpace = toggleColorSpace.checked ? "HSL" : "RGB";
         await mainObject.switchColorSpace(colorSpace, 500);
 
         // Update preview object if active
@@ -206,12 +219,9 @@ export const create3DEnvironment = async (objectType = "cube") => {
                 break;
         }
         let intersects = raycaster.intersectObjects(targets, false);
+        // Clicking empty canvas goes back to Color Search (same as Esc / "← Search")
         if (intersects.length === 0) {
-            infoBox.forEach(box => box.classList.remove("show"));
-            if (baseCircle) baseCircle.style.backgroundColor = `hsl(0,0%,0%,0)`;
-            if (colorName) colorName.textContent = "";
-            resetColors();
-            miniObject.clearHighlight();
+            clearBaseColor();
             return;
         }
         function handleClick(intersects, mainObject) {
@@ -280,6 +290,9 @@ export const create3DEnvironment = async (objectType = "cube") => {
         }
         handleClick(intersects, mainObject);
     }, { signal });
+    // Any clear (Esc, "← Search", empty-canvas click) removes the mini highlight
+    document.addEventListener("basecolorclear", () => miniObject.clearHighlight(), { signal });
+
     // --- Double-click reset with smooth animation ---
     container.addEventListener("dblclick", () => {
         mainObject.resetObject();
@@ -326,6 +339,7 @@ export const create3DEnvironment = async (objectType = "cube") => {
         camera,
         dispose: () => {
             // DO NOT dispose renderer or camera (shared)
+            lastLayer = mainObject.layerTarget;
             renderReady = false;
             cancelAnimationFrame(frameId);
             cancelAnimationFrame(previewRAF);

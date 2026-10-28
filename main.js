@@ -4,6 +4,8 @@ import { setupDropdown } from './src/dropdown.js';
 import { setupCollapsibleCategories } from './src/categories.js';
 import { setupHelp } from './src/help.js';
 import { setupSwatchSelection } from './src/harmony.js';
+import { setupSliders } from './src/sliders.js';
+import { setupWelcome } from './src/welcome.js';
 document.addEventListener('DOMContentLoaded', () => {
     setupCollapsibleCategories();
 });
@@ -12,5 +14,7 @@ setupDimensionDropdown();
 setupDropdown();
 setupHelp();
 setupSwatchSelection();
+setupSliders();
+setupWelcome();
 defaultVisualization("sphere");
 // defaultVisualization("cube");

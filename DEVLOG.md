@@ -9,6 +9,49 @@ Each entry is tagged with how it was produced:
 
 ---
 
+## Milestone 9 — First Impressions & Rendering Fixes `[ai-assisted]`
+**2026-10-27**
+
+Finished the v1 scope: a first-visit welcome and tour, a tidier controls panel, search conveniences, and fixes to how the shapes are colored. Feature choices (welcome then spotlight tour, control order, recent searches, keeping typed case) and the bug reports (mini object going dark, HSL top/bottom placement) came from the developer's testing; implementation `[ai-assisted]`.
+
+**Added**
+- `welcome.js`: first-visit welcome modal and a 7-step spotlight tour of the real controls (←/→, Esc, Skip); shown once per browser (`localStorage`), replayable from the ? panel; keys don't reach the 3-D view while it's open
+- Recent searches: clicking the empty search box lists the last 10 picked colors (`localStorage`, newest first, deduped)
+
+**Fixed**
+- Mini object turned black after the RGB ↔ HSL toggle: the shader normalized a zero highlight vector (NaN), and a pick only set the highlight on the visible material; the shader now guards the zero case and both materials are updated
+- Sphere textures were upside down (black/low-G pole on top, back face in front); the mapping is turned 180° about x so lightness and G point up, matching the cube
+- HSL cube seams: top/bottom used a circular angle and radius that didn't line up with the sides (edges differed by up to 82/255); they now use a square mapping so each edge carries the same hue run and saturation as its side. The sides' per-layer hue narrowing was removed so adjacent sides meet on inner layers. All 12 edges now match within 1/255 on every layer checked
+- Result rows in the autocomplete were unstyled (swatch, name, hex, rgb stacked); now swatch + name with hex/rgb underneath
+
+**Modified**
+- Controls ordered Dimension → Shape → Color space → Layer with field labels and even padding; "RGB ◯ HSL" toggle with the active side bold; hints under the layer box and Color Search; tab title "ColorVerse"
+- Autocomplete hint and Enter/Tab completion keep the case the user typed ("C" → "Ceil")
+
+---
+
+## Milestone 8 — Color Navigation & Panel Flow `[ai-assisted]`
+**2026-10-27**
+
+Made any color reachable from any other through the UI, and reworked how Color Search and the details card share the panel. Design decisions (Saturate over a Mute row, slider behavior, one panel at a time, Esc priority, v1.1/v2/v3 roadmap) were directed by the developer after reachability simulations; implementation `[ai-assisted]`.
+
+**Fixed**
+- `3d-mode.js`: switching shapes now keeps the current layer and the toggle's color space (new Main/Mini/Preview objects were always RGB, so the HSL toggle drifted out of sync); zoom resets; the "Layer N" label is set on load
+- `MainBase.js`: arrow keys no longer rotate the object while an input/select has focus
+- Esc in the layer box no longer clears the selected color
+
+**Added**
+- Saturate harmony row: `s + (100 − s) × 20…100%`, the only harmony that raises saturation. Simulation: #9C869A → #FF0000 went from a 34-click rounding-drift path to 2 clicks; a matching Mute row saved 1 click across 13 test pairs, so it was left out
+- `sliders.js`: H/S/L or R/G/B sliders (follow the HSL toggle) with live gradient tracks; synced via `basecolorchange` / `basecolorclear` events from `harmony.js`
+- `harmony.clearBaseColor()` and a `← Search` button in the details card
+
+**Modified**
+- Search and details shown one at a time (CSS `:has()`); `← Search`, Esc, or clicking empty canvas goes back
+- Esc priority: help panel → focused text box → back to search
+- MVP/README roadmap: v1.1 Color Golf, v2.0 1-D/2-D, v2.x/v3 more shapes and color spaces
+
+---
+
 ## Milestone 7 — v1 Bug Fixes & UI Polish `[ai-assisted]`
 **2026-10-26 → 2026-10-27**
 

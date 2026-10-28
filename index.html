@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Chromatic</title>
+    <title>ColorVerse</title>
     <link rel="stylesheet" href="resources/css/index.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" defer></script>
     <script type="module" src="./main.js" defer></script>
@@ -20,29 +20,35 @@
             </div>
             <div id="ui-combo">
                 <div id="ui-left">
-                    <div id="hsltoggle">
-                        <p>HSL:</p>
-                        <label class="switch">
-                            <input type="checkbox" id="toggle">
-                            <span class="slider"></span>
-                        </label>
+                    <!-- Order follows dependencies: dimension → shape → color space → layer -->
+                    <div class="field">
+                        <label for="dimensions" class="field-label">Dimension</label>
+                        <select name="dimensions" id="dimensions">
+                            <option value="1-D" disabled>1-D (coming soon)</option>
+                            <option value="2-D" disabled>2-D (coming soon)</option>
+                            <option value="3-D">3-D</option>
+                        </select>
                     </div>
 
-                    <div id="shape-toggle">
-                        <p>Shape:</p>
+                    <div id="shape-toggle" class="field">
+                        <label for="shape-select" class="field-label">Shape</label>
                         <select id="shape-select"></select>
                     </div>
 
-                    <label for="dimensions">Dimension of Colorspace:</label>
-                    <select name="dimensions" id="dimensions">
-                        <option> Object Dimension </option>
-                        <option value="1-D" disabled>1-D (Coming soon)</option>
-                        <option value="2-D" disabled>2-D (Coming soon)</option>
-                        <option value="3-D">3-D</option>
-                    </select>
+                    <div id="hsltoggle" class="field">
+                        <span class="field-label">Color space</span>
+                        <div class="space-toggle">
+                            <span class="space-rgb">RGB</span>
+                            <label class="switch">
+                                <input type="checkbox" id="toggle" aria-label="Use HSL color space">
+                                <span class="slider"></span>
+                            </label>
+                            <span class="space-hsl">HSL</span>
+                        </div>
+                    </div>
                     <!-- One-Dimension Content-->
-                    <div id="info1D" class="dimension-info">
-                        <label for="1-D-Axis"> Adjustments: </label>
+                    <div id="info1D" class="dimension-info field">
+                        <label for="Axis" class="field-label">Axis</label>
                         <select name="1-D-Axis" id="Axis">
                             <option disabled selected value="">Select axis...</option>
                             <option value="1D-Red" class="RGB">Red</option>
@@ -54,8 +60,8 @@
                         </select>
                     </div>
                     <!-- Two-Dimension Content-->
-                    <div id="info2D" class="dimension-info">
-                        <label for="X-Axis">X-Axis:</label>
+                    <div id="info2D" class="dimension-info field">
+                        <label for="X-Axis" class="field-label">X axis</label>
                         <select name="X-Axis" id="X-Axis">
                             <option disabled selected value="">Select X axis...</option>
                             <option value="X-Red" class="RGB">Red</option>
@@ -65,7 +71,7 @@
                             <option value="X-Saturation" class="HSL hidden">Saturation</option>
                             <option value="X-Lightness" class="HSL hidden">Lightness</option>
                         </select>
-                        <label for="Y-Axis">Y-Axis:</label>
+                        <label for="Y-Axis" class="field-label">Y axis</label>
                         <select name="Y-Axis" id="Y-Axis">
                             <option disabled selected value="">Select Y axis...</option>
                             <option value="Y-Red" class="RGB">Red</option>
@@ -77,14 +83,14 @@
                         </select>
                     </div>
                     <!-- Three-Dimension Content-->
-                    <div id="info3D" class="dimension-info">
-                        <label for="layer-input">Layer:</label>
-                        <input type="text" id="layer-input">
+                    <div id="info3D" class="dimension-info field">
+                        <label for="layer-input" class="field-label">Layer</label>
+                        <input type="text" id="layer-input" inputmode="numeric" placeholder="0–127, Enter to jump">
                     </div>
                 </div>
                 <div id="ui-right">
                     <div id="color-search">
-                        <label for="color-text">Color Search:</label>
+                        <label for="color-text" class="field-label">Color search</label>
                         <div class="auto-container">
                             <div class="autocomplete-wrap">
                                 <input type="text" id="color-text" placeholder="Search colors...">
@@ -92,15 +98,26 @@
                                 <div id="autocomplete"></div>
                             </div>
                         </div>
+                        <p class="search-hint">…or click anywhere on the shape to pick a color.</p>
                     </div>
                     <!-- Information about selected color-->
                     <div id="base-color" class="color-info">
+                        <button id="back-to-search" type="button" aria-label="Back to color search">← Search</button>
                         <div id="base-circle" class="circle"></div>
                         <div id="base-info">
                             <h2 id="hex">#xxxxxx</h2>
                             <h3 id="color-name">Color Name</h3>
                             <h4 id="rgb">RGB(xxx,xxx,xxx)</h4>
                             <h4 id="hsl">HSL(xxx,xxx,xxx)</h4>
+                        </div>
+                        <!-- Sliders follow the HSL toggle (H/S/L or R/G/B); configured by sliders.js -->
+                        <div id="color-sliders">
+                            <label class="slider-row"><span class="slider-name">R</span>
+                                <input type="range" min="0" max="255" value="0" disabled><output>–</output></label>
+                            <label class="slider-row"><span class="slider-name">G</span>
+                                <input type="range" min="0" max="255" value="0" disabled><output>–</output></label>
+                            <label class="slider-row"><span class="slider-name">B</span>
+                                <input type="range" min="0" max="255" value="0" disabled><output>–</output></label>
                         </div>
                     </div>
                 </div>
@@ -345,6 +362,39 @@
                     </div>
                 </div>
 
+                <!-- Saturate (mirror of Tones: pushes saturation toward 100%) -->
+                <div class="colors-row">
+                    <div class="row-header">
+                        <h3>Saturate</h3>
+                        <button class="row-toggle" aria-expanded="true">▾</button>
+                    </div>
+
+                    <div class="row-body">
+                        <div id="saturate" class="swatch-row">
+                            <div class="square-wrapper">
+                                <div id="sat1" class="square"></div>
+                                <p class="square-label">#xxxxxx</p>
+                            </div>
+                            <div class="square-wrapper">
+                                <div id="sat2" class="square"></div>
+                                <p class="square-label">#xxxxxx</p>
+                            </div>
+                            <div class="square-wrapper">
+                                <div id="sat3" class="square"></div>
+                                <p class="square-label">#xxxxxx</p>
+                            </div>
+                            <div class="square-wrapper">
+                                <div id="sat4" class="square"></div>
+                                <p class="square-label">#xxxxxx</p>
+                            </div>
+                            <div class="square-wrapper">
+                                <div id="sat5" class="square"></div>
+                                <p class="square-label">#xxxxxx</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
 
 
@@ -362,6 +412,7 @@
                     aria-expanded="false" aria-controls="help-panel">?</button>
                 <div id="help-panel" role="dialog" aria-labelledby="help-title" hidden>
                     <h2 id="help-title">How to use ColorVerse</h2>
+                    <button id="replay-tour" type="button">Replay the tour</button>
 
                     <h3>3-D controls</h3>
                     <dl>
@@ -378,7 +429,7 @@
                         <dt>Double-click</dt>
                         <dd>Reset rotation and zoom</dd>
                         <dt><kbd>Esc</kbd></dt>
-                        <dd>Clear the selected color</dd>
+                        <dd>Close this panel, cancel the text box you're in, or go back to Color Search</dd>
                     </dl>
 
                     <h3>Panel tools</h3>
@@ -393,14 +444,18 @@
                         <dd>Type 0–127 to preview a layer, <kbd>Enter</kbd> to jump there. Layer 0 is the outer
                             surface, 127 is the gray core</dd>
                         <dt>Color Search</dt>
-                        <dd>Find any of ~4,000 named colors. <kbd>Enter</kbd> completes the best match,
+                        <dd>Find any of ~3,200 named colors. <kbd>Enter</kbd> completes the best match,
                             <kbd>Enter</kbd> again selects it. Or pick with <kbd>↑</kbd><kbd>↓</kbd> +
-                            <kbd>Enter</kbd></dd>
+                            <kbd>Enter</kbd>. Click the empty box to see your last 10 searches</dd>
                         <dt>Color details</dt>
-                        <dd>Hex, RGB, and HSL values of the selected color. The active color space is bold
-                            and listed first</dd>
+                        <dd>Replaces Color Search once a color is selected: hex, RGB, and HSL values, with the
+                            active color space bold and listed first. <kbd>← Search</kbd>, <kbd>Esc</kbd>, or
+                            clicking empty canvas goes back</dd>
+                        <dt>Sliders</dt>
+                        <dd>Fine-tune the selected color: H/S/L when the HSL toggle is on, R/G/B when it's
+                            off. Each track previews what that slider will do</dd>
                         <dt>Harmonies</dt>
-                        <dd>Complementary, triadic, analogous, tints, shades and more. Double-click a swatch
+                        <dd>Complementary, triadic, analogous, tints, shades, tones, saturate and more. Double-click a swatch
                             to make it the selected color; click ▾ to collapse a row</dd>
                         <dt>Mini shape</dt>
                         <dd>Bottom-right; shows the current orientation and where the picked color sits</dd>
@@ -419,6 +474,35 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+    <!-- First-visit welcome (welcome.js) -->
+    <div id="welcome" class="overlay" hidden>
+        <div class="welcome-card" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
+            <h2 id="welcome-title">Welcome to ColorVerse</h2>
+            <p>Most color pickers flatten color into a wheel. But color has <strong>three dimensions</strong>:
+                RGB is a cube, and HSL is a cylinder.</p>
+            <p>ColorVerse lets you rotate those spaces, peel them apart layer by layer, and pick any color to
+                explore its harmonies.</p>
+            <div class="welcome-actions">
+                <button id="welcome-skip" type="button" class="btn">Explore on my own</button>
+                <button id="welcome-tour" type="button" class="btn btn-primary">Take the tour</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Spotlight tour (welcome.js): the spotlight box dims everything outside the current target -->
+    <div id="tour" class="overlay" hidden>
+        <div id="tour-spotlight"></div>
+        <div id="tour-card" role="dialog" aria-modal="true" aria-labelledby="tour-title" aria-describedby="tour-text">
+            <p id="tour-step"></p>
+            <h3 id="tour-title"></h3>
+            <p id="tour-text"></p>
+            <div class="welcome-actions">
+                <button id="tour-skip" type="button" class="btn btn-link">Skip</button>
+                <button id="tour-back" type="button" class="btn">Back</button>
+                <button id="tour-next" type="button" class="btn btn-primary">Next</button>
             </div>
         </div>
     </div>

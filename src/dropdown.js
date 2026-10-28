@@ -1,4 +1,4 @@
-import { selectBaseColor, resetColors } from "./harmony.js";
+import { selectBaseColor, clearBaseColor } from "./harmony.js";
 
 // Load color data from CSV file
 async function loadColorData() {
@@ -86,6 +86,58 @@ function highlightMatch(text, query) {
     return `${beforeMatch}<strong>${match}</strong>${afterMatch}`;
 }
 
+// One dropdown row: swatch, name, hex, rgb
+function createItem(color, nameText = color.name, hexText = color.hex) {
+    const item = document.createElement("div");
+    // Swatch to show color
+    const swatch = '<div class="swatch" style="background-color: ' + color.hex + ';"></div>';
+    const rgbText = `rgb(${color.r}, ${color.g}, ${color.b})`;
+
+    item.innerHTML = `${swatch}
+                        <div class="auto-name">${nameText}</div>
+                        <div class="auto-hex">(${hexText})</div>
+                        <div class="auto-rgb">${rgbText}</div>`;
+    item.classList.add("dropdown-item");
+    item.dataset.name = color.name;
+    item.dataset.hex = color.hex;
+    return item;
+}
+
+// Recent searches: the last 10 picked colors (names), newest first.
+// localStorage can throw (private mode, blocked storage): fall back to no history
+const RECENT_KEY = "colorverse.recentSearches";
+const MAX_RECENT = 10;
+function loadRecent() {
+    try { return JSON.parse(localStorage.getItem(RECENT_KEY)) ?? []; } catch { return []; }
+}
+function saveRecent(name) {
+    const recent = [name, ...loadRecent().filter(n => n !== name)].slice(0, MAX_RECENT);
+    try { localStorage.setItem(RECENT_KEY, JSON.stringify(recent)); } catch { /* ignore */ }
+}
+
+// Show recent searches under an empty search box (closes the list if there are none)
+function showRecent(colordata) {
+    const dropdown = document.getElementById("autocomplete");
+    document.getElementById("ghost-text").value = "";
+    dropdown.innerHTML = "";
+
+    const recent = loadRecent()
+        .map(name => colordata.find(color => color.name === name))
+        .filter(Boolean);
+    if (recent.length === 0) {
+        dropdown.classList.remove("open");
+        return;
+    }
+    dropdown.insertAdjacentHTML("beforeend", '<div class="autocomplete-header">Recent searches</div>');
+    recent.forEach(color => dropdown.appendChild(createItem(color)));
+    dropdown.classList.add("open");
+}
+
+// Finish what the user typed with the rest of a match, keeping their casing ("C" + "eil", not "ceil")
+function completeTyped(typed, full) {
+    return full.toLowerCase().startsWith(typed.toLowerCase()) ? typed + full.slice(typed.length) : full;
+}
+
 // This function performs the search and updates the dropdown
 function searchColors(query, threshold = 0.4, maxResults = 20, colordata) {
     const dropdown = document.getElementById("autocomplete");
@@ -101,7 +153,8 @@ function searchColors(query, threshold = 0.4, maxResults = 20, colordata) {
     dropdown.classList.add("open");
     // Determine if the query is a hex code or a name
     const key = (query[0] === "#") ? "hex" : "name";
-    query = (key === "hex") ? query.toUpperCase() : query.toLowerCase();
+    const typed = query; // as typed, for the ghost text
+    query =(key === "hex") ? query.toUpperCase() : query.toLowerCase();
 
     // Get matches (exact, partial, and fuzzy) 
     const matches = colordata.map(color => {
@@ -122,24 +175,10 @@ function searchColors(query, threshold = 0.4, maxResults = 20, colordata) {
     }
     // Create dropdown items
     matches.forEach(match => {
-        const item = document.createElement("div");
-        // Swatch to show color
-        const swatch = '<div class="swatch" style="background-color: ' + match.hex + ';"></div>';
-
         // Create highlighted text for name or hex
         const nameText = (key === "name") ? highlightMatch(match.name, query) : match.name;
         const hexText = (key === "hex") ? highlightMatch(match.hex, query) : match.hex;
-
-        const rgbText = `rgb(${match.r}, ${match.g}, ${match.b})`;
-
-        item.innerHTML = `${swatch}
-                            <div class="auto-name">${nameText}</div>
-                            <div class="auto-hex">(${hexText})</div>
-                            <div class="auto-rgb">${rgbText}</div>`;
-        item.classList.add("dropdown-item");
-        item.dataset.name = match.name;
-        item.dataset.hex = match.hex;
-        dropdown.appendChild(item);
+        dropdown.appendChild(createItem(match, nameText, hexText));
     });
     dropdown.style.display = "block";
 
@@ -147,7 +186,7 @@ function searchColors(query, threshold = 0.4, maxResults = 20, colordata) {
     if (matches.length > 0) {
         let bestMatch = matches[0][key] ?? "";
         if (bestMatch.startsWith(query)) {
-            ghostInput.value = query + bestMatch.slice(query.length);
+            ghostInput.value = completeTyped(typed, bestMatch);
         } else {
             ghostInput.value = "";
         }
@@ -165,11 +204,6 @@ export async function setupDropdown() {
     const ghostInput = document.getElementById("ghost-text");
     const colorInput = document.getElementById("color-text");
 
-    // Get references to UI elements
-    const infoBox = document.querySelectorAll(".color-info");
-
-    const colorName = document.getElementById("color-name");
-    const baseCircle = document.getElementById("base-circle");
     const dropdown = document.getElementById("autocomplete");
 
 
@@ -189,8 +223,21 @@ export async function setupDropdown() {
         clearTimeout(debounceTimeout);
         index = -1; // new results, so drop the old keyboard highlight
         debounceTimeout = setTimeout(() => {
-            searchColors(e.target.value, threshold, maxResults, colordata);
+            if (e.target.value) searchColors(e.target.value, threshold, maxResults, colordata);
+            else showRecent(colordata); // cleared the box: back to recent searches
         }, 150);
+    });
+
+    // Clicking into an empty search box shows recent searches
+    colorInput.addEventListener("focus", () => {
+        if (!colorInput.value) {
+            index = -1;
+            showRecent(colordata);
+        }
+    });
+    // Close the list when clicking anywhere outside the search
+    document.addEventListener("mousedown", (e) => {
+        if (!e.target.closest("#color-search")) dropdown.classList.remove("open");
     });
 
     // Select a dropdown item, then clear the search and close the dropdown
@@ -198,6 +245,7 @@ export async function setupDropdown() {
         const selectedColor = item.querySelector(".swatch").style.backgroundColor;
         const name = item.querySelector(".auto-name").textContent.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
         selectBaseColor(selectedColor, name);
+        saveRecent(item.dataset.name);
 
         clearTimeout(debounceTimeout);
         colorInput.value = "";
@@ -223,6 +271,17 @@ export async function setupDropdown() {
         selectItem(selectedItem);
     });
     colorInput.addEventListener("keydown", (e) => {
+        // Esc cancels the search box only (doesn't reach the window-level handler)
+        if (e.key === "Escape") {
+            e.stopPropagation();
+            clearTimeout(debounceTimeout);
+            colorInput.value = "";
+            ghostInput.value = "";
+            dropdown.innerHTML = "";
+            dropdown.classList.remove("open");
+            index = -1;
+            return;
+        }
         // Typed and hit Enter before the debounce fired: search now so Enter uses current results
         if (e.key === "Enter" && index < 0 && colorInput.value) {
             clearTimeout(debounceTimeout);
@@ -249,18 +308,13 @@ export async function setupDropdown() {
                 return;
             }
             const best = dropitems[0];
-            colorInput.value = colorInput.value.startsWith("#") ? best.dataset.hex : best.dataset.name;
+            colorInput.value = completeTyped(colorInput.value, colorInput.value.startsWith("#") ? best.dataset.hex : best.dataset.name);
             searchColors(colorInput.value, threshold, maxResults, colordata);
             // Highlight the completed match so the next Enter selects it
             const completed = document.querySelectorAll("#autocomplete .dropdown-item");
             index = completed.length ? 0 : -1;
             completed.forEach((item, i) => item.classList.toggle("highlighted", i === index));
             return;
-        }
-        // Close dropdown with Escape key
-        else if (e.key === "Escape") {
-            const dropdown = document.getElementById("autocomplete");
-            dropdown.style.display = "none";
         }
         // PageUp and PageDown for faster navigation
         else if (e.key === "PageDown") {
@@ -291,13 +345,17 @@ export async function setupDropdown() {
             item.classList.toggle("highlighted", i === index);
         });
     });
-    // Escape closes Info
+    // Back to Color Search: "← Search" button, or Esc while the details card is showing
+    const baseColor = document.getElementById("base-color");
+    document.getElementById("back-to-search").addEventListener("click", () => {
+        clearBaseColor();
+        colorInput.focus();
+    });
     window.addEventListener("keydown", (e) => {
-        if (e.key === "Escape") {
-            infoBox.forEach(box => { box.classList.remove("show"); });
-            if (baseCircle) baseCircle.style.backgroundColor = `hsl(0,0%,0%,0)`;
-            if (colorName) colorName.textContent = "";
-            resetColors();
-        }
+        if (e.key !== "Escape" || !baseColor.classList.contains("show")) return;
+        // Focus would be lost when the card hides, so hand it to the search box
+        const focusWasInCard = baseColor.contains(document.activeElement);
+        clearBaseColor();
+        if (focusWasInCard) colorInput.focus();
     });
 }

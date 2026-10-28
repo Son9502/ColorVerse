@@ -68,11 +68,8 @@ export function computeCubeColor(x, y, layer, faceMap, colorSpace, size) {
     let h, s, l;
     // Non-looping faces (Front, Right, Back, Left)
     if (!faceMap.loop) {
-      // Hue (shrink with layer)
-      const shrink = t * 45;
-      const h_min = faceMap.x_start * 90 + shrink;
-      const h_max = (faceMap.x_start + 1) * 90 - shrink;
-      h = lerp(h_min, h_max, u);
+      // Hue: each side covers a full 90°, so neighbouring sides meet at every layer
+      h = lerp(faceMap.x_start * 90, (faceMap.x_start + 1) * 90, u);
 
       // Saturation (decreases with layer)
       s = 1 - t;
@@ -82,18 +79,25 @@ export function computeCubeColor(x, y, layer, faceMap, colorSpace, size) {
     }
     // Looping faces (Top, Bottom)
     else {
-      // Convert (u,v) to polar coordinates
-      const cx = u - 0.5;
-      const cy = v - 0.5;
+      // Center the face; the bottom is mirrored and turned 180° so its edges line up with the sides
+      let cx = u - 0.5;
+      let cy = v - 0.5;
+      if (faceMap.y_start === 0) cx = -cx;
 
-      // Angle to Hue
-      let angle = Math.atan2(cy, cx);
-      if (angle < 0) angle += 2 * Math.PI;
-      h = angle * (180 / Math.PI);
+      // Square "radius" (0 at the center, 0.5 on every edge) and position around the square (0–4),
+      // so each edge carries the same linear 90° hue run and saturation as the side it touches
+      const radius = Math.max(Math.abs(cx), Math.abs(cy));
+      const r = radius || 1;
+      let around;
+      if (-cy >= Math.abs(cx)) around = (cx / r + 1) / 2;
+      else if (cx >= Math.abs(cy)) around = 1 + (cy / r + 1) / 2;
+      else if (cy >= Math.abs(cx)) around = 2 + (1 - cx / r) / 2;
+      else around = 3 + (1 - cy / r) / 2;
+      if (faceMap.y_start === 0) around += 2;
+      h = (around % 4) * 90;
 
-      // Radius to Saturation
-      const radius = Math.sqrt(cx * cx + cy * cy);
-      s = clamp(radius * (1 - t), 0, 1);
+      // Saturation: 0 at the center, the sides' saturation at the edges
+      s = clamp(radius * 2 * (1 - t), 0, 1);
 
       // Lightness
       l = faceMap.y_start === 0 ? mini : maxi;
@@ -111,10 +115,12 @@ export function computeSphereColor(x, y, layer, colorSpace, size) {
   const phi = 2 * Math.PI * u;             // longitude
   const theta = Math.acos(1 - 2 * v);       // latitude, prevents pole collapse
 
-  // Convert spherical to Cartesian coordinates
+  // Convert spherical to Cartesian coordinates.
+  // Texture row 0 lands at the bottom of the sphere (DataTexture, flipY = false), so y and z are negated
+  // (a 180° turn about x) to put G / lightness up and match the cube and mini object
   const nx = Math.sin(theta) * Math.cos(phi);
-  const ny = Math.cos(theta);
-  const nz = Math.sin(theta) * Math.sin(phi);
+  const ny = -Math.cos(theta);
+  const nz = -Math.sin(theta) * Math.sin(phi);
 
   // Define layer bounds for color mapping
   const mini = layer / 255;
@@ -201,7 +207,9 @@ export function makeRGBMat({ shininess = 30, specular = 0.5, snapStrength = 0.6 
 
         // Directional highlight
         vec3 dir = normalize(vPos);
-        float alignment = dot(dir, normalize(uHighlightDir));
+        // No highlight yet: uHighlightDir is (0,0,0), and normalize() of it is NaN (renders black)
+        float hlLen = length(uHighlightDir);
+        float alignment = hlLen > 0.0 ? dot(dir, uHighlightDir / hlLen) : -1.0;
 
         // Soft cone highlight
         float highlight = exp(-uHighlightSharpness * (1.0 - alignment));
@@ -311,7 +319,9 @@ export function makeHSLMat({ shininess = 30, specular = 0.5, snapStrength = 0.6 
 
         // Directional highlight
         vec3 dir = normalize(vPos);
-        float alignment = dot(dir, normalize(uHighlightDir));
+        // No highlight yet: uHighlightDir is (0,0,0), and normalize() of it is NaN (renders black)
+        float hlLen = length(uHighlightDir);
+        float alignment = hlLen > 0.0 ? dot(dir, uHighlightDir / hlLen) : -1.0;
 
         // Soft cone highlight
         float highlight = exp(-uHighlightSharpness * (1.0 - alignment));
