@@ -12,7 +12,7 @@ import { setMapState } from "./mapState.js";
 // body.golf hides the explore controls (search, sliders, help) and shows the putter row;
 // 3d-mode.js and dropdown.js skip canvas picking and Esc while it's set.
 
-const BEST_KEY = "colorverse.golf.best";
+const BEST_KEY = "colorverse.golf.best.v2"; // v2: courses regenerated in v1.1.1, so older bests no longer apply
 
 const ROW_NAMES = {
     "complementary": "Complementary", "split-complementary": "Split-comp.", "triadic": "Triadic",
@@ -122,6 +122,7 @@ export function setupGolf() {
             const span = ((to - from + 359) % 360) + 1;
             const stops = Array.from({ length: 7 }, (_, i) => `hsl(${(from + (span * i) / 6) % 360}, 75%, 50%)`);
             const par = course.holes.reduce((sum, hole) => sum + hole.par, 0);
+            const length = course.holes.reduce((sum, hole) => sum + yards(hole.tee, hole.target), 0);
             const record = best[course.id];
 
             const item = document.createElement("li");
@@ -129,7 +130,7 @@ export function setupGolf() {
             item.innerHTML = `
                 <h3>${course.name}</h3>
                 <div class="golf-hues" style="background: linear-gradient(to right, ${stops.join(", ")})"></div>
-                <span class="golf-best">${course.holes.length} holes · par ${par}${record ? ` · best ${record.strokes} (${formatToPar(record.toPar)}), ${formatTime(record.time)}` : ""}</span>
+                <span class="golf-best">${course.difficulty} · ${course.holes.length} holes · par ${par} · ${length.toLocaleString()} yds${record ? ` · best ${record.strokes} (${formatToPar(record.toPar)}), ${formatTime(record.time)}` : ""}</span>
                 <button class="btn btn-primary" type="button">Play</button>`;
             item.querySelector("button").addEventListener("click", () => startRound(course));
             return item;

@@ -47,7 +47,7 @@ Someone can open ColorVerse, explore RGB and HSL as an interactive **3-D** color
 | Version | Scope | Why here |
 |---|---|---|
 | **v1.1** | Color Golf: clubs, putter, par, 18-hole courses, map view, yards ✅ (v1.1.0) | Builds only on v1 (3-D view, harmonies, the par search); no new renderer |
-| **v1.1.1** | Hole lengths follow par; per-course difficulty (birdie line) | Golf realism plus a measured difficulty curve |
+| **v1.1.1** | Hole lengths follow par; per-course difficulty (birdie line) ✅ | Golf realism plus a measured difficulty curve |
 | **v1.2** | Color Golf hazards (water, sand) | Adds route choice once the core game is solid |
 | **v1.3** | Daily hole + practice by difficulty | Reuses the generator and par solver |
 | **v2.0** | 1-D and 2-D modes + shared color across dimensions | Delivers the "multi-dimensional" promise; new renderers and shared state |
@@ -89,6 +89,8 @@ Get from a start color (the **tee**) to a target color (the **hole**) in as few 
 **Courses**
 - An 18-hole round = front 9 + back 9, with a fixed, seeded set of holes per course so every player gets the same course.
 - Holes are generated ahead of time by `npm run courses` (seeded) into `src/golf/courses.json`.
+- **Length follows par** (v1.1.1): par 3 under 250 yds, par 4 250–400, par 5 over 350.
+- **Difficulty** (v1.1.1) is the *birdie line*: how many of the 41 first shots keep the perfect score reachable. Each course accepts holes only in its range: Beginner 6+, Standard 3–6, Expert 1–3 (ace holes excepted). Measured averages: Prism Point (Beginner) 9.7, Ember Dunes 3.9, Verdant Pines 4.4. Making par stays comfortable on all (26–33 of 41 first shots keep par).
 - Each course keeps its tees and targets in one part of the color wheel, so its name says how it plays (routes can still pass through other hues):
 
   | Course | Hues | Par | Release |

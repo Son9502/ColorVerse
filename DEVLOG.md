@@ -9,6 +9,22 @@ Each entry is tagged with how it was produced:
 
 ---
 
+## Milestone 13 — Course Lengths & Difficulty (v1.1.1) `[ai-assisted]`
+**2026-10-28**
+
+Regenerated the courses so hole length follows par and each course has a measured difficulty. The developer chose to enforce lengths and asked how that changes difficulty; the answer (separate length and difficulty dials) came from measuring the solver's options per hole; implementation `[ai-assisted]`.
+
+**Modified**
+- `generateCourses.mjs`: length rule (par 3 < 250 yds, par 4 250–400, par 5 > 350) and a per-course *birdie line* range (first shots out of 41 that keep the perfect score reachable): Beginner 6+, Standard 3–6, Expert 1–3; first-shot searches built once per tee to keep generation ≈20 s
+- Courses regenerated: Prism Point (Beginner, 5,697 yds, birdie line avg 9.7), Ember Dunes (Standard, 5,620 yds, 3.9), Verdant Pines (Standard, 5,018 yds, 4.4); par 72 / perfect 51 each; fairway (first shots keeping par) 26–33 of 41
+- Course picker shows difficulty and total yards; best scores start fresh (`colorverse.golf.best.v2`) since the holes changed
+- `package.json`: version 1.1.1
+
+**Verified**
+- Round tests on all three courses: perfect play under par on every hole, lip-outs on every par 3, hole 16 the ace
+
+---
+
 ## Milestone 12 — Color Golf: 3-D Map & Yards (v1.1.0) `[ai-assisted]`
 **2026-10-28**
 

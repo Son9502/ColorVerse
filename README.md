@@ -144,7 +144,7 @@ npm run preview   # serves dist/ at http://localhost:4173/ColorVerse/
 ### Roadmap
 See [MVP.md](MVP.md#roadmap-post-v1) for details.
 - [x] **v1.1:** Color Golf minigame: reach a target color in the fewest strokes; courses, par solver, score card, 3-D map
-- [ ] **v1.1.1:** Course lengths that follow par (short par 3s, long par 5s) and per-course difficulty
+- [x] **v1.1.1:** Course lengths that follow par (short par 3s, long par 5s) and per-course difficulty (Beginner / Standard)
 - [ ] **v1.2:** Color Golf hazards (sand, water) and wind; Cobalt Bay (par 71) and Royal Indigo (par 70)
 - [ ] **v1.3:** Daily hole, practice by difficulty, Pro setting (no swatch previews)
 - [ ] **v2.0:** 1-D mode (single-channel gradient line) and 2-D mode (square/circle planes), with the picked color shared across dimensions
