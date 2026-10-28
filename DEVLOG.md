@@ -9,6 +9,22 @@ Each entry is tagged with how it was produced:
 
 ---
 
+## Milestone 14 — Perfect Route Replay (v1.1.2) `[ai-assisted]`
+**2026-10-28**
+
+Finished the two remaining v1.1 spec items, scheduled as v1.1.2 by the developer; implementation `[ai-assisted]`.
+
+**Added**
+- `golf/solver-worker.js`: the perfect route is solved in a Web Worker (created on first use; literal path so Vite bundles it). Verified the page stays responsive: a 50 ms timer ticked 23/24 times during the solve
+- Map replay: "Show perfect route" plays a gold ghost ball along the route stroke by stroke (≈1.1 s per stroke), with a gold path beside the player's white one; the view peels and turns to follow it, the club list fills in step by step, and the gold path ends in the pin. Next hole, the score card or leaving the game stops a replay in progress
+- `golf-ui.js` no longer imports the solver on the main thread
+
+**Verified**
+- Real built app driven through Chrome DevTools: picked-up hole → replay of Complementary +180° → Tones 20% → Saturate 40%, layers 70 → 31, no console errors
+- `package.json`: version 1.1.2
+
+---
+
 ## Milestone 13 — Course Lengths & Difficulty (v1.1.1) `[ai-assisted]`
 **2026-10-28**
 

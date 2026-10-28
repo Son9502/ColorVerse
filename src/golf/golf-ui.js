@@ -1,7 +1,6 @@
 import courses from "./courses.json";
 import { GolfRound, scoreName, compareRounds } from "./game.js";
 import { PUTTER, strike } from "./clubs.js";
-import { searchFrom, parFor, pathTo } from "./solver.js";
 import { IN_THE_HOLE, hslDistance } from "./oklab.js";
 import { harmonySets, selectBaseColor, clearBaseColor } from "../harmony.js";
 import { setMapState } from "./mapState.js";
@@ -34,6 +33,31 @@ function clubName({ row, index }) {
     }
     return `${ROW_NAMES[row]} ${(index + 1) * 20}%`;
 }
+
+// The perfect route comes from a worker (the search can take most of a second).
+// Created on first use; the worker path must stay a literal so Vite bundles it.
+let solver = null;
+let solverRequest = 0;
+const pendingRoutes = new Map();
+function solveRoute({ tee, target, perfect }) {
+    if (!solver) {
+        solver = new Worker(new URL("./solver-worker.js", import.meta.url), { type: "module" });
+        solver.onmessage = ({ data }) => {
+            const pending = pendingRoutes.get(data.id);
+            pendingRoutes.delete(data.id);
+            if (data.error) pending?.reject(new Error(data.error));
+            else pending?.resolve(data.route);
+        };
+    }
+    const id = ++solverRequest;
+    return new Promise((resolve, reject) => {
+        pendingRoutes.set(id, { resolve, reject });
+        solver.postMessage({ id, tee, target, perfect });
+    });
+}
+
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+const REPLAY_STEP_MS = 1100;
 
 const css = ({ h, s, l }) => `hsl(${h}, ${s}%, ${l}%)`;
 
@@ -80,6 +104,8 @@ export function setupGolf() {
 
     let round = null;
     let timer = null;
+    let mapState = null; // last state sent to the map; the replay draws on top of it
+    let replayToken = 0; // bumped to stop a replay in progress
 
     // Every swatch is a club: harmony squares from harmonySets, plus the putter row
     const clubs = new Map();
@@ -95,6 +121,7 @@ export function setupGolf() {
 
     // ---- Enter / leave ----
     const openSetup = () => {
+        replayToken++;
         stopTimer();
         round = null;
         setMapState(null);
@@ -107,6 +134,7 @@ export function setupGolf() {
     };
 
     const exitGolf = () => {
+        replayToken++;
         stopTimer();
         round = null;
         setMapState(null);
@@ -145,6 +173,7 @@ export function setupGolf() {
     };
 
     const startHole = () => {
+        replayToken++;
         const { hole, holeIndex } = round;
         $("golf-hole-title").textContent = `Hole ${holeIndex + 1} · Par ${hole.par}`;
         $("golf-hole-info").textContent = `${round.course.name} · ${round.nine === 0 ? "Front" : "Back"} 9 · ${yards(hole.tee, hole.target)} yds`;
@@ -169,7 +198,8 @@ export function setupGolf() {
         undoButton.textContent = `Undo (${undosLeft})`;
         undoButton.disabled = round.holeDone || undosLeft === 0 || round.trail.length === 0;
         refreshLiveCard();
-        setMapState({ current, target: round.hole.target, trail: round.trail, holed: !!lie?.holed });
+        mapState = { current, target: round.hole.target, trail: [...round.trail], holed: !!lie?.holed };
+        setMapState(mapState);
 
         // Yards: last shot's length and what's left to the pin
         const last = round.trail.at(-1);
@@ -205,26 +235,45 @@ export function setupGolf() {
         $("golf-next").focus();
     };
 
-    // The solver's best route from the tee (a fraction of a second, so it runs on demand)
-    const showPath = () => {
+    // The solver's perfect route: a gold ghost ball replays it on the map, stroke by stroke,
+    // while the list below fills in. Next hole (or leaving) stops the replay.
+    const showPath = async () => {
         const button = $("golf-show-path");
         button.disabled = true;
         button.textContent = "Working…";
-        setTimeout(() => {
-            const { tee, target, perfect } = round.hole;
-            const search = searchFrom(tee, perfect);
-            const best = parFor(search, target);
-            pathList.replaceChildren(...pathTo(search, best.end).map(({ club, hsl }) => {
-                const item = document.createElement("li");
-                item.innerHTML = `<span class="swatch" style="background-color: ${css(hsl)}"></span>${clubName(club)}`;
-                return item;
-            }));
-            button.textContent = "Show perfect route";
-            button.hidden = true; // the route is on screen now
-        }, 30);
+        const token = ++replayToken;
+        const hole = round.hole;
+
+        let route;
+        try {
+            route = await solveRoute(hole);
+        } catch {
+            button.textContent = "Route unavailable";
+            return;
+        }
+        if (token !== replayToken) return;
+        button.hidden = true;
+        button.textContent = "Show perfect route";
+
+        pathList.replaceChildren();
+        const stops = [hole.tee];
+        for (let i = 0; i <= route.length; i++) {
+            const done = i === route.length;
+            setMapState({ ...mapState, replay: [...stops], replayHoled: done });
+            if (done) break;
+            await sleep(i === 0 ? 400 : REPLAY_STEP_MS);
+            if (token !== replayToken) return;
+
+            const { club, hsl } = route[i];
+            stops.push(hsl);
+            const item = document.createElement("li");
+            item.innerHTML = `<span class="swatch" style="background-color: ${css(hsl)}"></span>${clubName(club)}`;
+            pathList.append(item);
+        }
     };
 
     const endRound = () => {
+        replayToken++;
         const totals = round.totals();
         const isBest = saveBest(round.course.id, totals);
         $("golf-round-title").textContent = `${round.course.name}: ${totals.strokes} (${formatToPar(totals.toPar)})`;

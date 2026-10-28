@@ -10,10 +10,12 @@ import { locateColor } from "./map.js";
 
 const LIFT = 0.02; // markers sit just off the surface
 
+const GOLD = 0xffc83d; // perfect-route replay
+
 const cssColor = ({ h, s, l }) => `hsl(${h}, ${s}%, ${l}%)`;
 
 // "You": a ball in the current color with a white rim and dark outline
-function drawBall(hsl) {
+function drawBall(hsl, rim = "#fff") {
     const canvas = document.createElement("canvas");
     canvas.width = canvas.height = 64;
     const ctx = canvas.getContext("2d");
@@ -22,7 +24,7 @@ function drawBall(hsl) {
     ctx.fillStyle = cssColor(hsl);
     ctx.fill();
     ctx.lineWidth = 7;
-    ctx.strokeStyle = "#fff";
+    ctx.strokeStyle = rim;
     ctx.stroke();
     ctx.beginPath();
     ctx.arc(32, 32, 30, 0, Math.PI * 2);
@@ -86,6 +88,7 @@ export class GolfMapView {
     update(state) {
         this.clear();
         if (!state || !this.main.object) return;
+        this._target = state.target;
 
         const current = this._locate(state.current);
         const target = this._locate(state.target);
@@ -93,28 +96,41 @@ export class GolfMapView {
 
         this.group = new THREE.Group();
 
-        // Trail: tee → each stroke → current position (→ the pin once holed), bent along the surface
-        const stops = [...state.trail, state.current].map(hsl => lifted(this._locate(hsl)));
-        if (state.holed) stops.push(lifted(target));
-        if (stops.length > 1) {
-            const points = stops.slice(1).flatMap((stop, i) => this._arc(stops[i], stop));
-            this.group.add(new THREE.Line(
-                new THREE.BufferGeometry().setFromPoints(points),
-                new THREE.LineBasicMaterial({ color: 0xffffff }),
-            ));
-            // Small dots where earlier strokes landed
-            stops.slice(0, state.holed ? -2 : -1).forEach(stop => this.group.add(this._dot(stop)));
-        }
+        // Player's trail (white): tee → each stroke → current position (→ the pin once holed)
+        this._trail([...state.trail, state.current], state.holed, 0xffffff);
+        // Perfect-route replay (gold): tee → each stroke so far (→ the pin when it finishes)
+        const replay = state.replay ?? [];
+        if (replay.length) this._trail(replay, state.replayHoled, GOLD);
 
         // Holed: the ball has dropped, so only the path and the pin remain
         if (!state.holed) this.group.add(this._sprite(drawBall(state.current), lifted(current), 0.12, [0.5, 0.5]));
+        const ghost = replay.at(-1);
+        if (ghost && !state.replayHoled) {
+            this.group.add(this._sprite(drawBall(ghost, "#ffc83d"), lifted(this._locate(ghost)), 0.12, [0.5, 0.5]));
+        }
         this.group.add(this._sprite(drawFlag(state.target), lifted(target), 0.22, [0.12, 0.02]));
         this.main.object.add(this.group);
 
-        // Peel to the current color's layer and turn it to face the camera
-        this.main.layerTarget = current.layer;
-        this.onLayer?.(current.layer);
-        this.main.rotateToQuaternion(new THREE.Quaternion().setFromUnitVectors(current.normal, new THREE.Vector3(0, 0, 1)));
+        // Follow the ghost ball during a replay, otherwise the player's ball:
+        // peel to its layer and turn it to face the camera
+        const focus = ghost ? this._locate(state.replayHoled ? state.target : ghost) : current;
+        this.main.layerTarget = focus.layer;
+        this.onLayer?.(focus.layer);
+        this.main.rotateToQuaternion(new THREE.Quaternion().setFromUnitVectors(focus.normal, new THREE.Vector3(0, 0, 1)));
+    }
+
+    // A path along the surface through `colors` (→ the pin if holed), with dots where strokes landed
+    _trail(colors, holed, color) {
+        const lifted = (spot) => spot.point.clone().addScaledVector(spot.normal, LIFT);
+        const stops = colors.map(hsl => lifted(this._locate(hsl)));
+        if (holed) stops.push(lifted(this._locate(this._target)));
+        if (stops.length < 2) return;
+        const points = stops.slice(1).flatMap((stop, i) => this._arc(stops[i], stop));
+        this.group.add(new THREE.Line(
+            new THREE.BufferGeometry().setFromPoints(points),
+            new THREE.LineBasicMaterial({ color }),
+        ));
+        stops.slice(0, holed ? -2 : -1).forEach(stop => this.group.add(this._dot(stop, color)));
     }
 
     // Points from a to b that stay on the (lifted) surface instead of cutting through the shape
@@ -127,8 +143,8 @@ export class GolfMapView {
         });
     }
 
-    _dot(position) {
-        const dot = new THREE.Mesh(new THREE.SphereGeometry(0.012, 12, 12), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+    _dot(position, color = 0xffffff) {
+        const dot = new THREE.Mesh(new THREE.SphereGeometry(0.012, 12, 12), new THREE.MeshBasicMaterial({ color }));
         dot.position.copy(position);
         return dot;
     }

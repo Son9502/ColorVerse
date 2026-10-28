@@ -48,6 +48,7 @@ Someone can open ColorVerse, explore RGB and HSL as an interactive **3-D** color
 |---|---|---|
 | **v1.1** | Color Golf: clubs, putter, par, 18-hole courses, map view, yards ✅ (v1.1.0) | Builds only on v1 (3-D view, harmonies, the par search); no new renderer |
 | **v1.1.1** | Hole lengths follow par; per-course difficulty (birdie line) ✅ | Golf realism plus a measured difficulty curve |
+| **v1.1.2** | Perfect route solved in a Web Worker and replayed on the map ✅ | Finishes the v1.1 spec |
 | **v1.2** | Color Golf hazards (water, sand) | Adds route choice once the core game is solid |
 | **v1.3** | Daily hole + practice by difficulty | Reuses the generator and par solver |
 | **v2.0** | 1-D and 2-D modes + shared color across dimensions | Delivers the "multi-dimensional" promise; new renderers and shared state |
@@ -108,7 +109,7 @@ Get from a start color (the **tee**) to a target color (the **hole**) in as few 
 - **? (How to play):** goal, the four club types, what the meter means, par vs perfect, undo and pick-up.
 - **Card:** live score card (front 9 / back 9, "Thru N: ±X"), with the hole in progress highlighted; a hole's perfect score stays hidden until it's played.
 - The 3-D shape becomes a **map**: a ball for the current color, a flag at the target's spot, and a trail along the surface linking each stroke. The view peels to the current color's layer and turns that spot toward the camera after every stroke. Clicking it does nothing. Spots are found by searching the same functions that draw the textures (`golf/map.js`), so markers always match what's drawn; very vivid colors that the RGB sphere doesn't contain go to its closest color.
-- End-of-hole card with score and "Show perfect route" (the solver's route as swatches + club names); end-of-round score card.
+- End-of-hole card with score and "Show perfect route": the solver (in a Web Worker) finds the route, then a gold ghost ball replays it on the map stroke by stroke while the list of clubs fills in; end-of-round score card.
 - **Yards:** OKLab distance × 1000. Hole length under the title; after each stroke, the last shot's length and the yards left to the pin.
 - Leaving game mode restores the normal app (sliders, search, canvas picking).
 
