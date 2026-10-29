@@ -9,13 +9,16 @@ import { isWedge } from "./hazards.js";
 //
 // Hazards (a hazardMap from hazards.js) keep the search exact, because both rules depend only on
 // the current color: a water landing is never worth it (+1 penalty, back where you were), so those
-// strokes are skipped; from sand only wedges are tried. `avoidHazards` treats sand as blocked too,
+// strokes are skipped; from sand only wedges are tried (only the named one in an Expert bunker). `avoidHazards` treats sand as blocked too,
 // for the "finishable within par without touching a hazard" check. `wind` drifts every full shot
 // (see clubs.js); it's fixed per hole, so the search stays exact.
 
 const UNSEEN = 255;
 
 const WEDGE_CLUB = CLUBS.map(isWedge);
+const CLUB_ROW = CLUBS.map(club => club.row);
+// Whether club `i` can be played from a state whose sand rule is `wedge` (null: any wedge)
+const sandAllows = (i, wedge) => (wedge ? CLUB_ROW[i] === wedge : WEDGE_CLUB[i]);
 
 // Strokes from `tee` to every state reachable within `maxDepth`, plus how each was first reached
 export function searchFrom(tee, maxDepth = 7, hazards = null, { avoidHazards = false, wind = null } = {}) {
@@ -34,8 +37,9 @@ export function searchFrom(tee, maxDepth = 7, hazards = null, { avoidHazards = f
         for (const code of frontier) {
             const from = decode(code);
             const inSand = blocked && hazards.at(from, code) === "sand";
+            const wedge = inSand ? hazards.wedgeAt(from, code) : null;
             allStrikes(from, wind).forEach((hsl, clubIndex) => {
-                if (inSand && !WEDGE_CLUB[clubIndex]) return;
+                if (inSand && !sandAllows(clubIndex, wedge)) return;
                 const to = encode(hsl);
                 if (dist[to] !== UNSEEN) return;
                 if (blocked) {
@@ -97,9 +101,10 @@ export function reachesWithin(from, target, maxDepth, hazards = null, { avoidHaz
             for (const code of frontier) {
                 const here = decode(code);
                 const inSand = blocked && hazards.at(here, code) === "sand";
+                const wedge = inSand ? hazards.wedgeAt(here, code) : null;
                 const landings = allStrikes(here, wind);
                 for (let clubIndex = 0; clubIndex < landings.length; clubIndex++) {
-                    if (inSand && !WEDGE_CLUB[clubIndex]) continue;
+                    if (inSand && !sandAllows(clubIndex, wedge)) continue;
                     const hsl = landings[clubIndex];
                     const to = encode(hsl);
                     if (seen[to]) continue;

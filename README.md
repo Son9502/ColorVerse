@@ -150,7 +150,7 @@ See [MVP.md](MVP.md#roadmap-post-v1) for details.
 - [x] **v1.2:** Color Golf hazards (sand, water) and wind; Cobalt Bay (par 71) and Royal Indigo (par 70)
 - [x] **v1.2.1:** Golf map uses HSL during a game
 - [x] **v1.3:** Daily hole, practice by difficulty, Pro setting (no swatch previews)
-- [ ] **v1.4:** Golf variety: layer peeling animation, "sand wedge only" on Expert courses, per-course par layouts
+- [x] **v1.4:** Golf variety: layer peeling animation, "sand wedge only" on Expert courses, per-course par layouts
 - [ ] **v1.5:** Engine cleanup: Three.js r128 → npm package; remove the unused `ShaderCache`
 - [ ] **v1.6:** Accounts + score database: cloud bests, daily streaks, leaderboards, server-checked scores
 - [ ] **v2.0:** 1-D mode (single-channel gradient line) and 2-D mode (square/circle planes), with the picked color shared across dimensions

@@ -33,13 +33,17 @@ const BACK = [[4, 3], [5, 3], [3, 2], [4, 3], [4, 3], [5, 4], [3, 1], [4, 3], [4
 // Shorter layouts for later courses: fewer par 5s, more par 3s
 const BACK_35 = [[4, 3], [5, 3], [3, 2], [4, 3], [4, 3], [3, 2], [3, 1], [4, 3], [5, 4]]; // 35 → par 71 with FRONT
 const FRONT_35 = [[4, 3], [3, 2], [4, 3], [5, 4], [4, 3], [3, 2], [4, 3], [4, 3], [4, 3]]; // 35 → par 70 with BACK_35
+// Themed layouts (v1.4): Ember Dunes is long (5 par 5s, par 73), Verdant Pines is tight (5 par 3s, par 70)
+const EMBER_FRONT = [[4, 3], [5, 4], [3, 2], [4, 3], [5, 3], [4, 3], [3, 2], [4, 3], [5, 4]]; // 37
+const VERDANT_BACK = [[4, 3], [3, 2], [4, 3], [4, 3], [3, 1], [4, 3], [5, 3], [3, 2], [5, 4]]; // 35 → par 70 with FRONT_35
 
 // Each course keeps its tees and targets inside a hue range [from, to) in degrees (wrapping past 360),
 // so the name says how it plays. Routes may still pass through other hues.
 // `hazards(i, par, perfect)` says what hole i gets: { water, greenside, route } counts (or null for none).
 // `layup` is a par 5 / perfect 3 hole whose birdie lines are all covered by water (perfect becomes 4).
 // Expert courses (v1.3) use Expert par: perfect = par on par 3s and 4s, 4 on par 5s (the ace and
-// the layup keep their own). `rev` counts regenerations, so bests from older holes aren't shown.
+// the layup keep their own), and their bunkers each name the one wedge allowed out of them (v1.4).
+// `rev` counts regenerations, so bests from older holes aren't shown.
 const COURSES = [
     {
         id: "prism", name: "Prism Point", seed: 1, hues: [0, 360], difficulty: "Beginner", // full spectrum
@@ -47,12 +51,12 @@ const COURSES = [
         wind: null, // calm
     },
     {
-        id: "ember", name: "Ember Dunes", seed: 2, hues: [345, 60], difficulty: "Standard", // reds, oranges, yellows
+        id: "ember", name: "Ember Dunes", seed: 2, rev: 2, hues: [345, 60], difficulty: "Standard", layout: [EMBER_FRONT, BACK], // par 73, reds, oranges, yellows
         hazards: (i, par, perfect) => (perfect === 1 ? null : { greenside: par === 5 ? 2 : 1, route: i % 3 === 0 ? 1 : 0 }), // the sand course
         wind: { hue: [4, 8], light: [2, 4] }, // steady breezes
     },
     {
-        id: "verdant", name: "Verdant Pines", seed: 3, hues: [75, 165], difficulty: "Standard", // greens
+        id: "verdant", name: "Verdant Pines", seed: 3, rev: 2, hues: [75, 165], difficulty: "Standard", layout: [FRONT_35, VERDANT_BACK], // par 70, greens
         hazards: (i, par, perfect) => (perfect > 1 && i % 3 === 1 ? { greenside: 1 } : null), // light sand
         wind: { hue: [2, 4] }, // light
     },
@@ -62,7 +66,7 @@ const COURSES = [
         wind: { hue: [8, 12], light: [4, 6] }, // strong
     },
     {
-        id: "indigo", name: "Royal Indigo", seed: 5, rev: 2, hues: [250, 320], difficulty: "Expert", layout: [FRONT_35, BACK_35], layup: 10, // par 70, purples
+        id: "indigo", name: "Royal Indigo", seed: 5, rev: 3, hues: [250, 320], difficulty: "Expert", layout: [FRONT_35, BACK_35], layup: 10, // par 70, purples
         hazards: (i, par, perfect) => (perfect === 1 ? null : { water: "band", greenside: 1, route: i % 2 }),
         wind: { hue: [8, 12], light: [4, 6] }, // strong
     },

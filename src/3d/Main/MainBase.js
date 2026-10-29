@@ -1,3 +1,5 @@
+import { createLayerFadeMaterial } from "../FaderTextures/layerMaterial.js";
+
 export class MainBase {
     constructor(scene, cache, camera, onProgress, {
         size = 1,
@@ -142,6 +144,70 @@ export class MainBase {
         await this.updateLayer(layerA + t);
 
     }
+    // -------- Peeling (v1.4) --------
+    // Jump straight to a layer with a peel (Color Golf strokes, a typed layer number). Going deeper,
+    // a copy of the current shell lifts off (grows and fades) while the surface underneath is already
+    // the new layer; coming back out, a copy showing the new layer settles down onto the surface.
+    // One-step changes (scroll, ] and [) keep the smooth cross-fade through layerTarget instead.
+    async peelTo(layer, duration = 650) {
+        const from = Math.round(this.layerFloat);
+        if (!this.object || !this._shellParts || layer === from) {
+            this.layerTarget = layer;
+            return;
+        }
+        this._peel?.finish(); // a new jump ends the one in progress
+        const token = (this._peelToken = (this._peelToken ?? 0) + 1);
+        const deeper = layer > from;
+        const shellLayer = deeper ? from : layer;
+        const [shellEntry] = await Promise.all([
+            this.textureCache.getOrCreate(this.colorSpace, shellLayer, this.onProgress),
+            this.textureCache.getOrCreate(this.colorSpace, layer, this.onProgress), // ready before the swap
+        ]);
+        if (token !== this._peelToken || !this.object) return; // superseded while loading
+
+        const shell = new THREE.Group();
+        shell.add(...this._shellParts(shellEntry.textures[this.colorSpace]));
+        this.object.add(shell);
+        const settle = async () => {
+            this.layerFloat = this.layerTarget = layer;
+            this._lastT = 0;
+            await this.updateLayer(layer);
+        };
+        if (deeper) await settle(); // the new layer is underneath as the old shell lifts off
+
+        const LIFT = 0.22;
+        const start = performance.now();
+        let done = false;
+        const finish = () => {
+            if (done) return;
+            done = true;
+            shell.parent?.remove(shell);
+            shell.traverse(part => part.material?.dispose()); // geometry is shared with the object
+            if (!deeper) settle();
+            if (this._peel?.finish === finish) this._peel = null;
+        };
+        this._peel = { finish };
+        const step = () => {
+            if (done) return;
+            const t = Math.min(1, (performance.now() - start) / duration);
+            const eased = 1 - Math.pow(1 - t, 3);
+            const out = deeper ? eased : 1 - eased; // how far the shell is lifted off
+            shell.scale.setScalar(1 + LIFT * out);
+            shell.traverse(part => { if (part.material) part.material.uniforms.uOpacity.value = 1 - out; });
+            if (t < 1) requestAnimationFrame(step);
+            else finish();
+        };
+        step();
+    }
+
+    // A see-through copy of the surface's parts showing `textures`, for a peel (subclasses build the parts)
+    _shellMaterial(texture) {
+        const material = createLayerFadeMaterial(texture, texture, 0, 0.999);
+        material.depthWrite = false;
+        material.side = THREE.DoubleSide;
+        return material;
+    }
+
     // -------- Rotation --------
     rotateTo(faceIndex) {
         if (!this.faceQuaternions[faceIndex]) return;

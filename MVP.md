@@ -106,8 +106,8 @@ Club types (v1.3) are ranked by average shot length over tee-like colors, and sh
   | Course | Hues | Par | Release |
   |---|---|---|---|
   | Prism Point | Full spectrum | 72 | v1.1 |
-  | Ember Dunes | Reds, oranges, yellows (345°–60°) | 72 | v1.1 |
-  | Verdant Pines | Greens (75°–165°) | 72 | v1.1 |
+  | Ember Dunes | Reds, oranges, yellows (345°–60°) | 73 (v1.4) | v1.1 |
+  | Verdant Pines | Greens (75°–165°) | 70 (v1.4) | v1.1 |
   | Cobalt Bay | Blues and teals (180°–250°) | 71 | v1.2 |
   | Royal Indigo | Purples (250°–320°) | 70 | v1.2 |
 - Par 71/70 courses swap par 5s for par 3s (layouts in `generateCourses.mjs`).
@@ -125,7 +125,7 @@ Club types (v1.3) are ranked by average shot length over tee-like colors, and sh
 ### v1.2: Hazards
 - **Shape:** a hazard is a "looks-like" region: a center color and a radius in yards (OKLab distance × 1000, 30–60 yds). A color is inside if its distance to the center is under the radius, measured the same way as yards and the hole.
 - **Water:** landing in it costs +1 penalty stroke and the ball returns to where it was hit from (stroke and distance).
-- **Sand:** landing in it is allowed; the next shot must be a wedge (Tints, Shades, Tones, Saturate). No drivers, irons or putter until the ball is out, as in golf. Measured over all 59 bunkers: any one wedge can escape, but each of the four is the only best recovery on some bunkers (all four: 2.31 strokes to the hole on average; Tones alone 2.83, Saturate alone 3.47). A "sand wedge only" rule is a possible Expert lever.
+- **Sand:** landing in it is allowed; the next shot must be a wedge (Tints, Shades, Tones, Saturate). No drivers, irons or putter until the ball is out, as in golf. Measured over all 59 bunkers: any one wedge can escape, but each of the four is the only best recovery on some bunkers (all four: 2.31 strokes to the hole on average; Tones alone 2.83, Saturate alone 3.47). Expert bunkers (v1.4) each name a single wedge.
 - The tee and the hole are never inside a hazard. Undo works as usual (1 per 9).
 - **Solver stays exact:** both rules depend only on the current color, so the search is unchanged in size. Water landings are skipped (always 2 wasted strokes); from sand only the wedges are tried. Perfect is the true minimum with hazards, so a route through a bunker can be the best one.
 - **Placement (generator):** water goes on a landing spot of the hole's hazard-free perfect route, forcing a layup or dogleg; bunkers guard the hole (centers 40–90 yds from the target, often beside the lip-out). Some holes deliberately keep a bunker on the new perfect route as a risk/reward line. Every hole is re-checked: perfect still under par, finishable within par with all hazards treated as blocked, and inside the course's difficulty range.
@@ -165,10 +165,10 @@ Club types (v1.3) are ranked by average shot length over tee-like colors, and sh
 ### v1.2.1: Golf Map in HSL ✓
 - During a game, the map uses the HSL version of the current shape (the toggle is hidden in game mode). Leaving the game restores the user's choice.
 
-### v1.4: Golf Variety
-- **Peeling that looks like peeling:** when the layer changes, the outer shell visibly comes away (briefly shrinking or fading it) instead of only cross-fading colors.
-- **"Sand wedge only" on Expert courses:** in bunkers, only one wedge (e.g. Tones) can be played. Measured: about half a stroke harder per bunker. The generator and solver account for it per course.
-- **Per-course par layouts:** each course gets its own sequence of par 3s, 4s and 5s (e.g. Ember Dunes with more par 5s), so courses feel different beyond their colors.
+### v1.4: Golf Variety ✓
+- **Peeling that looks like peeling:** a jump to another layer (a Color Golf stroke, or typing a layer number) peels. Going deeper, a copy of the old shell lifts off (grows about 20% and fades over 0.65 s) over the new layer; coming back out, the new layer settles down onto the shape. One-step changes (scroll, `]` / `[`) keep the smooth cross-fade, which would look jittery if every step peeled.
+- **"Sand wedge only" on Expert:** every Expert bunker names the one wedge that can be played out of it ("Shades only"), shown in the panel and as letters on its map icon (Ti / Sh / To / Sa). Each bunker gets its own wedge, so each is its own puzzle; the generator picks it and re-checks the hole, and the solver and the rules use the same check. Applies to Royal Indigo (23 bunkers), the Championship Saturday dailies and Expert practice (Cobalt Bay has no sand).
+- **Per-course par layouts:** Ember Dunes is long (par 73, 5 par 5s) and Verdant Pines is tight (par 70, 5 par 3s). Prism Point (72) and Cobalt Bay (71) keep their holes and bests; Royal Indigo (70) keeps its layout but was regenerated for the wedge rule. Regenerated courses get a new `rev`, so their old bests no longer show.
 
 ### v1.5: Engine Cleanup
 - **Three.js:** load the installed npm package (imported as a module) instead of the r128 CDN global. Update APIs that changed since r128 (color management, `outputColorSpace`, geometry helpers) and retest every view, the texture pipeline and Color Golf.

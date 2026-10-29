@@ -3,8 +3,9 @@
 // ----------------------------------
 // Builds one hole per date into src/golf/daily.json, following the weekly rotation in
 // src/golf/daily.js. Each day is seeded by its date, so days already in the file are kept and
-// only new ones are built: run it again with a later --until to extend the list.
-// Run: npm run daily [-- --until 2028-12-31]
+// only new ones are built: run it again with a later --until to extend the list. After a rotation
+// change, --weekdays rebuilds those days in place (0 = Sunday … 6 = Saturday).
+// Run: npm run daily [-- --until 2028-12-31] [--weekdays 5,6]
 //
 // Days are independent, so they're built in parallel (one worker thread per spare CPU core).
 
@@ -35,15 +36,22 @@ if (!isMainThread) {
     const existing = existsSync(out) ? JSON.parse(readFileSync(out)) : { start: START, holes: [] };
     if (existing.start !== START) throw new Error(`daily.json starts ${existing.start}, expected ${START}`);
 
+    const weekdaysArg = process.argv.indexOf("--weekdays");
+    const rebuild = new Set(weekdaysArg > 0 ? process.argv[weekdaysArg + 1].split(",").map(Number) : []);
     const total = daysBetween(START, until) + 1;
-    const holes = existing.holes.slice(0, total);
-    const todo = Array.from({ length: total - holes.length }, (_, i) => addDays(START, holes.length + i));
+    const holes = Array.from({ length: total }, (_, i) => (rebuild.has(weekday(addDays(START, i))) ? undefined : existing.holes[i]));
+    const todo = holes.flatMap((hole, i) => (hole ? [] : [addDays(START, i)]));
 
-    // One hole per line, so additions read clearly in a diff
-    const save = () => writeFileSync(out, `{"start":"${START}","holes":[\n${holes.map(h => `  ${JSON.stringify(h)}`).join(",\n")}\n]}\n`);
+    // One hole per line, so additions read clearly in a diff. Only the days built so far, in order
+    // (a rebuilt day keeps its old hole until its new one is ready).
+    const save = () => {
+        const ready = holes.map((hole, i) => hole ?? existing.holes[i]);
+        const end = ready.findIndex(hole => !hole);
+        const list = end < 0 ? ready : ready.slice(0, end);
+        writeFileSync(out, `{"start":"${START}","holes":[\n${list.map(h => `  ${JSON.stringify(h)}`).join(",\n")}\n]}\n`);
+    };
 
-    console.log(`${holes.length} days kept; building ${todo.length} (${todo[0] ?? "–"} to ${until})`);
-    const built = new Map();
+    console.log(`${total - todo.length} days kept; building ${todo.length}`);
     let next = 0;
     let done = 0;
     const threads = Math.max(1, Math.min(availableParallelism() - 1, todo.length));
@@ -54,13 +62,7 @@ if (!isMainThread) {
             else worker.terminate().then(resolve);
         };
         worker.on("message", ({ key, hole }) => {
-            built.set(key, hole);
-            // Keep the file's days contiguous: append every finished day that's next in line
-            while (built.has(addDays(START, holes.length))) {
-                const day = addDays(START, holes.length);
-                holes.push(built.get(day));
-                built.delete(day);
-            }
+            holes[daysBetween(START, key)] = hole;
             if (++done % 25 === 0 || done === todo.length) {
                 save();
                 console.log(`  ${done}/${todo.length} built`);

@@ -90,7 +90,9 @@ function drawTee() {
 }
 
 // Hazard icons: on the hazard's patch, or at its own spot when it doesn't reach the layer shown
-function drawHazardIcon(type) {
+// A named-wedge bunker (Expert) shows the wedge's first letters instead of grains
+const WEDGE_LETTERS = { tints: "Ti", shades: "Sh", tones: "To", saturate: "Sa" };
+function drawHazardIcon(type, wedge) {
     const canvas = document.createElement("canvas");
     canvas.width = canvas.height = 64;
     const ctx = canvas.getContext("2d");
@@ -111,6 +113,12 @@ function drawHazardIcon(type) {
             ctx.bezierCurveTo(42, y - 8, 46, y + 6, 50, y);
             ctx.stroke();
         }
+    } else if (wedge) {
+        ctx.fillStyle = "#3d2b0c";
+        ctx.font = "bold 28px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(WEDGE_LETTERS[wedge], 32, 34);
     } else { // sand grains
         ctx.fillStyle = "#8a6a33";
         [[22, 24], [36, 20], [44, 32], [28, 38], [40, 44], [20, 46], [32, 30]].forEach(([x, y]) => {
@@ -197,12 +205,12 @@ export class GolfMapView {
             }));
             ring.renderOrder = 3;
             this.group.add(ring);
-            return { fill: [], ring: [ring], type: hazard.type, ringColor, icon: spot.point.clone().addScaledVector(spot.normal, LIFT) };
+            return { fill: [], ring: [ring], type: hazard.type, wedge: hazard.wedge, ringColor, icon: spot.point.clone().addScaledVector(spot.normal, LIFT) };
         }
 
         const meshes = patches.map(patch => this._patch(patch, water, ringColor));
         const icon = this._onSurface(patches[0].center.clone(), LIFT);
-        return { fill: meshes.map(m => m.fill), ring: meshes.map(m => m.ring), type: hazard.type, ringColor, icon };
+        return { fill: meshes.map(m => m.fill), ring: meshes.map(m => m.ring), type: hazard.type, wedge: hazard.wedge, ringColor, icon };
     }
 
     // One traced patch: fill and edge ring
@@ -314,10 +322,10 @@ export class GolfMapView {
 
         // Hazards: footprint on this layer, plus an icon on it
         this.decals = this.hazards.map(hazard => this._decal(hazard, focus.layer));
-        this.decals.forEach(({ type, icon }) => this.group.add(this._sprite(drawHazardIcon(type), icon, 0.08, [0.5, 0.5])));
+        this.decals.forEach(({ type, wedge, icon }) => this.group.add(this._sprite(drawHazardIcon(type, wedge), icon, wedge ? 0.1 : 0.08, [0.5, 0.5])));
         this.main.object.add(this.group);
 
-        this.main.layerTarget = focus.layer;
+        this.main.peelTo(focus.layer);
         this.onLayer?.(focus.layer);
         this.main.rotateToQuaternion(new THREE.Quaternion().setFromUnitVectors(focus.normal, new THREE.Vector3(0, 0, 1)));
     }

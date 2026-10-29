@@ -1,6 +1,6 @@
 import { searchFrom, parFor, pathTo, reachesWithin } from "./solver.js";
 import { allStrikes, roundHSL, encode } from "./clubs.js";
-import { hazardMap, isWedge } from "./hazards.js";
+import { hazardMap, isWedge, WEDGES } from "./hazards.js";
 import { hslDistance, IN_THE_HOLE, ON_THE_GREEN } from "./oklab.js";
 
 // ----------------------------------
@@ -179,11 +179,13 @@ export function placeHazards(rand, hole, plan, band, layup) {
             } else {
                 for (let n = 0; n < (plan.water ?? 0) && lines.length; n++) hazards.push({ type: "water", center: pick(lines), radius: radius(30, 50) });
             }
+            // Expert bunkers (v1.4) name the one wedge that can be played out of them
+            const sand = (center, r) => ({ type: "sand", center, radius: r, ...(plan.wedgeOnly && { wedge: pick(WEDGES) }) });
             for (let n = 0; n < (plan.greenside ?? 0); n++) {
                 const spot = besideHole(rand, target);
-                if (spot) hazards.push({ type: "sand", center: spot, radius: radius(20, 35) });
+                if (spot) hazards.push(sand(spot, radius(20, 35)));
             }
-            for (let n = 0; n < (plan.route ?? 0) && wedgeSpots.length; n++) hazards.push({ type: "sand", center: pick(wedgeSpots), radius: radius(20, 30) });
+            for (let n = 0; n < (plan.route ?? 0) && wedgeSpots.length; n++) hazards.push(sand(pick(wedgeSpots), radius(20, 30)));
         }
         if (!hazards.length) return null;
 
@@ -216,7 +218,7 @@ export function buildHole({ rand, hazardRand, windRand }, { par, perfect, hues, 
         const line = layup ? LAYUP_LINE : plan ? SELECT_LINE[difficulty] : BIRDIE_LINE[difficulty];
         hole = makeHole(rand, par, perfect, hues, line);
         if (!plan && !layup) break;
-        const placed = placeHazards(hazardRand, hole, plan ?? {}, BIRDIE_LINE[difficulty], layup);
+        const placed = placeHazards(hazardRand, hole, { ...plan, wedgeOnly: difficulty === "Expert" }, BIRDIE_LINE[difficulty], layup);
         if (placed) {
             Object.assign(hole, placed);
             break;

@@ -487,17 +487,22 @@ export function setupGolf() {
         const note = $("golf-hazard-note");
         note.hidden = false;
         if (lie?.landed === "water") note.textContent = "Water! +1 stroke, playing again from your last spot.";
-        else if (round.inSand && !round.holeDone) note.textContent = "In the bunker: wedges only (Tints, Shades, Tones, Saturate).";
+        else if (round.inSand && !round.holeDone) {
+            note.textContent = round.sandWedge
+                ? `In the bunker: ${ROW_NAMES[round.sandWedge]} only.`
+                : "In the bunker: wedges only (Tints, Shades, Tones, Saturate).";
+        }
         else note.hidden = true;
         note.className = lie?.landed === "water" ? "water" : "sand";
 
         $("golf-hazards").replaceChildren(...hazards.map(hazard => {
             const item = document.createElement("li");
             item.className = hazard.type;
-            if (round.expert) item.textContent = hazard.type === "water" ? "Water" : "Bunker"; // no yardage on Expert
+            const bunker = hazard.wedge ? `Bunker (${ROW_NAMES[hazard.wedge]} only)` : "Bunker";
+            if (round.expert) item.textContent = hazard.type === "water" ? "Water" : bunker; // no yardage on Expert
             else item.textContent = hazard.type === "water"
                 ? `Water: ${yards(round.current, hazard.center) + hazard.radius} yds to carry`
-                : `Bunker: ${Math.max(0, yards(round.hole.target, hazard.center) - hazard.radius)} yds from the pin`;
+                : `${bunker}: ${Math.max(0, yards(round.hole.target, hazard.center) - hazard.radius)} yds from the pin`;
             return item;
         }));
 

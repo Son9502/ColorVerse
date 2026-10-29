@@ -9,6 +9,29 @@ Each entry is tagged with how it was produced:
 
 ---
 
+## Milestone 19 — Golf Variety (v1.4.0) `[ai-assisted]`
+**2026-10-29**
+
+Peeling, named-wedge bunkers on Expert and themed course layouts. Choices by the developer (peel on jumps only, one wedge per bunker, themed par 73 / par 70 layouts); implementation `[ai-assisted]`.
+
+**Added**
+- Peel: `MainBase.peelTo(layer)`: going deeper, a see-through copy of the old shell lifts off (grows 22% and fades over 0.65 s) over the new layer; coming out, the new layer settles onto the shape. Shell parts come from `MainSphere` / `MainCube` `_shellParts` (shared geometry, own materials). Used by golf strokes and typed layer numbers; a new jump ends the one in progress; scroll and `]` / `[` keep the cross-fade
+- Named-wedge bunkers: Expert bunkers carry `wedge` (picked by the generator, re-checked); `hazardMap.allows` / `wedgeAt` are the one rule for the round (`GolfRound.canPlay`, `sandWedge`), the solver and the generator; panel note "In the bunker: Shades only", "Bunker (Shades only)" in the list, letters on the map icon
+- Themed layouts: Ember Dunes par 73 (5 par 5s), Verdant Pines par 70 (5 par 3s)
+- `generateDaily.mjs --weekdays`: rebuild given weekdays in place after a rotation change
+
+**Regenerated**
+- Ember Dunes and Verdant Pines (rev 2, new layouts), Royal Indigo (rev 3: 23 bunkers, each naming a wedge: 10 Tones, 5 Tints, 5 Saturate, 3 Shades); Prism Point and Cobalt Bay unchanged
+- The 114 Championship Saturday dailies (228 named bunkers); the other 682 days unchanged
+- The 18 Expert-with-hazards practice starter holes; the other 90 unchanged
+
+**Verified**
+- All courses, daily holes and pool holes: stored perfect matches the solver under the wedge rule, finishable within par avoiding hazards, lengths follow par
+- Rule check: a "Tones only" bunker allows 5 swatches (any-wedge bunker: 20); driver and putter refused; outside sand everything plays
+- Real built app (Chrome DevTools): typed-layer peel deeper and back out on the sphere, peel on the cube, Expert practice with "Bunker (Tints only)" and a "Ti" icon on the map; no console errors
+
+---
+
 ## Milestone 18 — Daily Hole, Practice & Pro (v1.3.0) `[ai-assisted]`
 **2026-10-28**
 

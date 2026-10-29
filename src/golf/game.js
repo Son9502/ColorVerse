@@ -1,6 +1,6 @@
 import { strike, PUTTER } from "./clubs.js";
 import { hslDistance, IN_THE_HOLE } from "./oklab.js";
-import { hazardMap, isWedge } from "./hazards.js";
+import { hazardMap } from "./hazards.js";
 
 // ----------------------------------
 // Color Golf round: strokes, undo, score card
@@ -53,8 +53,9 @@ export class GolfRound {
     get inSand() { return this.hazards.at(this.current) === "sand"; }
     get canUndo() { return !this.holeDone && this.history.length > 0 && this.undosLeft[this.nine] > 0; }
 
-    // Clubs allowed from here: wedges only in a bunker
-    canPlay(club) { return !this.inSand || isWedge(club); }
+    // Clubs allowed from here: wedges only in a bunker (just one, in an Expert bunker that names it)
+    canPlay(club) { return this.hazards.allows(this.current, club); }
+    get sandWedge() { return this.inSand ? this.hazards.wedgeAt(this.current) : null; }
 
     // Distance to the target, whether that's in the hole, whether it's on the green
     // (2 putts or fewer will hole it, as in golf) and which hazard, if any, the ball is in
