@@ -13,7 +13,6 @@ const LIFT = 0.02; // markers sit just off the surface
 const GOLD = 0xffc83d; // perfect-route replay
 const WHITE = new THREE.Color(0xffffff);
 const DECAL_LIFT = 0.006; // hazard footprints sit just above the texture, under the trail
-const HALO = 0.03; // halo reaches colors this far (OKLab) outside a hazard
 const TRAIL_RADIUS = 0.008; // path thickness
 
 const cssColor = ({ h, s, l }) => `hsl(${h}, ${s}%, ${l}%)`;
@@ -70,8 +69,30 @@ function hazardTexture(type) {
     return texture;
 }
 
-// Hazard icons, drawn at each hazard's center so hazards on other layers are still visible
-function drawHazardIcon(type) {
+// Tee: a small peg where both the player's trail and the perfect route start
+function drawTee() {
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 64;
+    const ctx = canvas.getContext("2d");
+    ctx.beginPath();
+    ctx.arc(32, 32, 24, 0, Math.PI * 2);
+    ctx.fillStyle = "#fff";
+    ctx.fill();
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = "#111";
+    ctx.stroke();
+    ctx.fillStyle = "#111";
+    ctx.font = "bold 30px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("T", 32, 34);
+    return canvas;
+}
+
+// Hazard icons: on the hazard's patch, or at its own spot when it doesn't reach the layer shown
+// A named-wedge bunker (Expert) shows the wedge's first letters instead of grains
+const WEDGE_LETTERS = { tints: "Ti", shades: "Sh", tones: "To", saturate: "Sa" };
+function drawHazardIcon(type, wedge) {
     const canvas = document.createElement("canvas");
     canvas.width = canvas.height = 64;
     const ctx = canvas.getContext("2d");
@@ -92,6 +113,12 @@ function drawHazardIcon(type) {
             ctx.bezierCurveTo(42, y - 8, 46, y + 6, 50, y);
             ctx.stroke();
         }
+    } else if (wedge) {
+        ctx.fillStyle = "#3d2b0c";
+        ctx.font = "bold 28px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(WEDGE_LETTERS[wedge], 32, 34);
     } else { // sand grains
         ctx.fillStyle = "#8a6a33";
         [[22, 24], [36, 20], [44, 32], [28, 38], [40, 44], [20, 46], [32, 30]].forEach(([x, y]) => {
@@ -156,10 +183,9 @@ export class GolfMapView {
     }
 
     // Footprint of a hazard on the current layer, traced exactly (golf/map.js footprintOnLayer):
-    // the layer's colors inside the hazard, with an edge ring and a faint halo for colors just
-    // outside it (inside it a few layers in or out). The ball is always on this layer, so it's
-    // inside the patch exactly when it's in the hazard. If the hazard doesn't reach this layer,
-    // only a faint outline marks where it is.
+    // the layer's colors inside the hazard, with an edge ring. The ball is always on this layer,
+    // so it's inside the patch exactly when it's in the hazard. If the hazard doesn't reach this
+    // layer, only a faint outline marks where it is. Returns where its icon goes.
     _decal(hazard, focusLayer) {
         const water = hazard.type === "water";
         const ringColor = new THREE.Color(water ? 0x0b3a8c : 0x6b4f16);
@@ -167,7 +193,7 @@ export class GolfMapView {
         const key = `${this.getColorSpace()}|${JSON.stringify(hazard)}|${focusLayer}`;
         if (!this.footprints.has(key)) {
             const { h, s, l } = hazard.center;
-            this.footprints.set(key, footprintOnLayer(hslToRgb(h, s, l), [r, r + HALO], this.shape, this.getColorSpace(), focusLayer));
+            this.footprints.set(key, footprintOnLayer(hslToRgb(h, s, l), [r], this.shape, this.getColorSpace(), focusLayer));
         }
         const patches = this.footprints.get(key);
 
@@ -179,16 +205,17 @@ export class GolfMapView {
             }));
             ring.renderOrder = 3;
             this.group.add(ring);
-            return { fill: [], ring: [ring], type: hazard.type, ringColor };
+            return { fill: [], ring: [ring], type: hazard.type, wedge: hazard.wedge, ringColor, icon: spot.point.clone().addScaledVector(spot.normal, LIFT) };
         }
 
         const meshes = patches.map(patch => this._patch(patch, water, ringColor));
-        return { fill: meshes.map(m => m.fill), ring: meshes.map(m => m.ring), type: hazard.type, ringColor };
+        const icon = this._onSurface(patches[0].center.clone(), LIFT);
+        return { fill: meshes.map(m => m.fill), ring: meshes.map(m => m.ring), type: hazard.type, wedge: hazard.wedge, ringColor, icon };
     }
 
-    // One traced patch: fill, halo band and edge ring
+    // One traced patch: fill and edge ring
     _patch(patch, water, ringColor) {
-        const [edge, haloEdge] = patch.outlines.map(points => points.map(p => this._onSurface(p.clone())));
+        const [edge] = patch.outlines.map(points => points.map(p => this._onSurface(p.clone())));
         const center = this._onSurface(patch.center.clone());
 
         // Fill: a fan from the closest point out to the edge
@@ -199,15 +226,8 @@ export class GolfMapView {
             map: hazardTexture(water ? "water" : "sand"), transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide,
         }));
 
-        // Halo: the band between the edge and the larger outline
-        const haloGeometry = new THREE.BufferGeometry().setFromPoints([...edge, ...haloEdge]);
-        const n = edge.length;
-        haloGeometry.setIndex(edge.flatMap((_, k) => { const k1 = (k + 1) % n; return [k, n + k, k1, k1, n + k, n + k1]; }));
-        const halo = new THREE.Mesh(haloGeometry, new THREE.MeshBasicMaterial({
-            color: water ? 0x4d8bff : 0xe8cf96, transparent: true, opacity: 0.28, depthWrite: false, side: THREE.DoubleSide,
-        }));
-
         // Edge ring: a thin tube around the outline
+        const n = edge.length;
         const path = new THREE.CurvePath();
         edge.forEach((p, k) => {
             const next = edge[(k + 1) % n];
@@ -218,8 +238,8 @@ export class GolfMapView {
             new THREE.MeshBasicMaterial({ color: ringColor.clone() }),
         );
 
-        [halo, fill, ring].forEach((mesh, order) => { mesh.renderOrder = 2 + order; });
-        this.group.add(halo, fill, ring);
+        [fill, ring].forEach((mesh, order) => { mesh.renderOrder = 2 + order; });
+        this.group.add(fill, ring);
         return { fill, ring };
     }
 
@@ -290,18 +310,22 @@ export class GolfMapView {
             this.group.add(this._sprite(drawBall(ghost, "#ffc83d"), lifted(this._locate(ghost)), 0.12, [0.5, 0.5]));
         }
         this.group.add(this._sprite(drawFlag(state.target), lifted(target), 0.22, [0.12, 0.02]));
+        if (state.tee) {
+            const tee = this._sprite(drawTee(), lifted(this._locate(state.tee)), 0.07, [0.5, 0.5]);
+            tee.renderOrder = 9; // under the ball while it's still on the tee
+            tee.material.depthTest = true; // hidden on the far side, so it can't show through the shape
+            this.group.add(tee);
+        }
         // Follow the ghost ball during a replay, otherwise the player's ball:
         // peel to its layer and turn it to face the camera
         const focus = ghost ? this._locate(state.replayHoled ? state.target : ghost) : current;
 
-        // Hazards: footprint on this layer, plus an icon at the center
+        // Hazards: footprint on this layer, plus an icon on it
         this.decals = this.hazards.map(hazard => this._decal(hazard, focus.layer));
-        for (const hazard of this.hazards) {
-            this.group.add(this._sprite(drawHazardIcon(hazard.type), lifted(this._locate(hazard.center)), 0.08, [0.5, 0.5]));
-        }
+        this.decals.forEach(({ type, wedge, icon }) => this.group.add(this._sprite(drawHazardIcon(type, wedge), icon, wedge ? 0.1 : 0.08, [0.5, 0.5])));
         this.main.object.add(this.group);
 
-        this.main.layerTarget = focus.layer;
+        this.main.peelTo(focus.layer);
         this.onLayer?.(focus.layer);
         this.main.rotateToQuaternion(new THREE.Quaternion().setFromUnitVectors(focus.normal, new THREE.Vector3(0, 0, 1)));
     }

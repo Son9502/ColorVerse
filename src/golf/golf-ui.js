@@ -4,14 +4,20 @@ import { PUTTER, strike } from "./clubs.js";
 import { IN_THE_HOLE, hslDistance } from "./oklab.js";
 import { harmonySets, selectBaseColor, clearBaseColor } from "../harmony.js";
 import { setMapState } from "./mapState.js";
+import { WEEK, dateKey, daysBetween, dayLabel, weekday, streak } from "./daily.js";
+import { poolKey, PARS } from "./practice.js";
 
 // ----------------------------------
 // Color Golf screen
 // ----------------------------------
 // body.golf hides the explore controls (search, sliders, help) and shows the putter row;
-// 3d-mode.js and dropdown.js skip canvas picking and Esc while it's set.
+// 3d-mode.js and dropdown.js skip canvas picking and Esc while it's set. body.golf-pro hides the
+// swatch colors in a Pro round. Three ways to play: a course (18 holes), the daily hole, practice.
+// Expert (any mode) is always Pro and hides the yardage until you're on the green.
 
 const BEST_KEY = "colorverse.golf.best.v2"; // v2: courses regenerated in v1.1.1, so older bests no longer apply
+const DAILY_KEY = "colorverse.golf.daily.v1"; // { "2026-10-28": { strokes, par, perfect, time, pickedUp, pro } }
+const PRO_KEY = "colorverse.golf.pro";
 
 const ROW_NAMES = {
     "complementary": "Complementary", "split-complementary": "Split-comp.", "triadic": "Triadic",
@@ -34,6 +40,21 @@ function clubName({ row, index }) {
     return `${ROW_NAMES[row]} ${(index + 1) * 20}%`;
 }
 
+// Club type per harmony row, by how far its shots travel (average yards over tee-like colors):
+// Complementary 319, Split-comp. 305, Triadic / Tetradic / Double-comp. 253–270, Analogous 92.
+// The wedges move lightness and saturation instead of hue, and are the bunker clubs.
+const CLUB_TYPES = {
+    "complementary": "Driver", "split-complementary": "Wood",
+    "triadic": "Hybrid", "tetradic": "Hybrid", "double-complementary": "Hybrid", "analogous": "Iron",
+    "tints": "Wedge", "shades": "Wedge", "tones": "Wedge", "saturate": "Wedge",
+};
+
+// Pro label under a swatch: the row name is already above it, so just the shift or strength
+function proLabel({ row, index }) {
+    if (row === "putter") return PUTTER[index].label;
+    return clubName({ row, index }).slice(ROW_NAMES[row].length + 1);
+}
+
 // The perfect route comes from a worker (the search can take most of a second).
 // Created on first use; the worker path must stay a literal so Vite bundles it.
 let solver = null;
@@ -53,6 +74,30 @@ function solveRoute({ tee, target, perfect, hazards = [], wind = null }) {
     return new Promise((resolve, reject) => {
         pendingRoutes.set(id, { resolve, reject });
         solver.postMessage({ id, tee, target, perfect, hazards, wind });
+    });
+}
+
+// Practice holes come from their own worker (building one takes 0.5–20 s). A newer request
+// replaces an unfinished one by restarting the worker, so changing settings never queues builds.
+let builder = null;
+let building = null; // { reject } for the request in progress
+function buildPracticeHole(settings) {
+    if (building) {
+        builder.terminate();
+        builder = null;
+        building.reject(new Error("superseded"));
+    }
+    builder ??= new Worker(new URL("./practice-worker.js", import.meta.url), { type: "module" });
+    const seed = Math.floor(Math.random() * 2 ** 31);
+    return new Promise((resolve, reject) => {
+        const request = { reject };
+        building = request;
+        builder.onmessage = ({ data }) => {
+            if (building === request) building = null;
+            if (data.error) reject(new Error(data.error));
+            else resolve(data.hole);
+        };
+        builder.postMessage({ id: seed, seed, ...settings });
     });
 }
 
@@ -85,17 +130,55 @@ function hazardSummary(hazards = []) {
 
 const formatToPar = (n) => (n === 0 ? "E" : n > 0 ? `+${n}` : `${n}`);
 
-// Best rounds per course, in this browser only. localStorage can throw: fall back to none
-function loadBest() {
-    try { return JSON.parse(localStorage.getItem(BEST_KEY)) ?? {}; } catch { return {}; }
+// Saved in this browser only. localStorage can throw: fall back to nothing saved
+function load(key, fallback) {
+    try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; }
 }
-function saveBest(courseId, totals) {
-    const best = loadBest();
-    if (best[courseId] && compareRounds(best[courseId], totals) <= 0) return false;
-    best[courseId] = { strokes: totals.strokes, toPar: totals.toPar, time: totals.time };
-    try { localStorage.setItem(BEST_KEY, JSON.stringify(best)); } catch { /* ignore */ }
+function save(key, value) {
+    try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* ignore */ }
+}
+
+// Best rounds per course; Pro rounds are kept apart under "<id>:pro". A record from an older
+// version of a course's holes (its `rev`, 1 if absent) doesn't count.
+const bestKey = (courseId, pro) => (pro ? `${courseId}:pro` : courseId);
+function bestFor(course, pro) {
+    const record = load(BEST_KEY, {})[bestKey(course.id, pro)];
+    return record && (record.rev ?? 1) === (course.rev ?? 1) ? record : null;
+}
+function saveBest(course, pro, totals) {
+    const record = bestFor(course, pro);
+    if (record && compareRounds(record, totals) <= 0) return false;
+    const best = load(BEST_KEY, {});
+    best[bestKey(course.id, pro)] = { strokes: totals.strokes, toPar: totals.toPar, time: totals.time, rev: course.rev ?? 1 };
+    save(BEST_KEY, best);
     return true;
 }
+
+// Daily results by date. The first stroke of a scored try saves a pick-up (double par), which
+// finishing the hole replaces, so quitting or reloading can't buy a second try.
+const loadDaily = () => load(DAILY_KEY, {});
+function saveDaily(day, result) {
+    save(DAILY_KEY, { ...loadDaily(), [day]: result });
+}
+
+// The daily list loads on first use (it's a few hundred kB), then stays
+let dailyList = null;
+const loadDailyList = () => (dailyList ??= import("./daily.json").then(module => module.default));
+async function todaysHole(day = dateKey()) {
+    const { start, holes } = await loadDailyList();
+    return holes[daysBetween(start, day)] ?? null;
+}
+
+// Practice starter pool: a few pre-built holes per setting, so a session starts without waiting
+let practicePool = null;
+async function starterHole({ difficulty, par, hazards }) {
+    const pool = await (practicePool ??= import("./practice.json").then(module => module.default));
+    const holePar = par === "any" ? PARS[Math.floor(Math.random() * PARS.length)] : par;
+    const holes = pool[poolKey(difficulty, holePar, hazards)] ?? [];
+    return holes[Math.floor(Math.random() * holes.length)] ?? null;
+}
+
+const isExpert = (difficulty) => difficulty === "Expert";
 
 // Closeness meter wording; only updated after a stroke
 function lieLabel({ distance, holed, onGreen }) {
@@ -120,6 +203,17 @@ export function setupGolf() {
     let timer = null;
     let mapState = null; // last state sent to the map; the replay draws on top of it
     let replayToken = 0; // bumped to stop a replay in progress
+    let mode = "course"; // "course" | "daily" | "practice"
+    let daily = null; // { day, scored, started } during a daily round
+    let practice = null; // { settings, next } — the next practice hole, built while you play
+
+    // The map is HSL during a game: the game's colors are HSL, and the RGB sphere doesn't reach
+    // the most vivid ones. The toggle is hidden meanwhile; leaving restores the user's choice.
+    const spaceToggle = $("toggle");
+    let exploringSpace = null; // toggle state before the game, null when not in golf
+    const setSpaceToggle = (checked) => {
+        if (spaceToggle.checked !== checked) spaceToggle.click(); // fires the same handlers as the user's click
+    };
 
     // Every swatch is a club: harmony squares from harmonySets, plus the putter row
     const clubs = new Map();
@@ -128,6 +222,25 @@ export function setupGolf() {
     }
     const putterBoxes = PUTTER.map((_, index) => $(`putt${index + 1}`));
     putterBoxes.forEach((box, index) => clubs.set(box, { row: "putter", index }));
+    // Pro rounds show these under the swatches instead of the colors (index.css)
+    for (const [box, club] of clubs) box.closest(".square-wrapper")?.setAttribute("data-club", proLabel(club));
+    // In a game each row heading starts with its club type (hidden while exploring)
+    for (const [row, elements] of Object.entries(harmonySets)) {
+        const heading = elements[0]?.box?.closest(".colors-row")?.querySelector(".row-header h3");
+        if (!heading || !CLUB_TYPES[row]) continue;
+        const type = document.createElement("span");
+        type.className = "club-type";
+        type.textContent = CLUB_TYPES[row];
+        heading.prepend(type);
+    }
+
+    // Pro: the switch on the setup screen applies to the next round and picks which bests are shown
+    const proSwitch = $("golf-pro");
+    proSwitch.checked = load(PRO_KEY, false);
+    proSwitch.addEventListener("change", () => {
+        save(PRO_KEY, proSwitch.checked);
+        renderCourses();
+    });
 
     const show = (section) => {
         for (const el of [setup, hud, roundEnd]) el.hidden = el !== section;
@@ -140,10 +253,14 @@ export function setupGolf() {
         stopTimer();
         round = null;
         setMapState(null);
+        exploringSpace ??= spaceToggle.checked;
+        setSpaceToggle(true);
         document.body.classList.add("golf");
+        document.body.classList.remove("golf-pro");
         panel.hidden = false;
         clearBaseColor();
         putterBoxes.forEach(box => { box.style.backgroundColor = ""; });
+        renderDaily();
         renderCourses();
         show(setup);
     };
@@ -154,36 +271,132 @@ export function setupGolf() {
         stopTimer();
         round = null;
         setMapState(null);
-        document.body.classList.remove("golf");
+        document.body.classList.remove("golf", "golf-pro");
+        if (exploringSpace !== null) setSpaceToggle(exploringSpace);
+        exploringSpace = null;
         panel.hidden = true;
         clearBaseColor();
     };
 
     const renderCourses = () => {
-        const best = loadBest();
         $("golf-courses").replaceChildren(...courses.map(course => {
             const [from, to] = course.hues;
             const span = ((to - from + 359) % 360) + 1;
             const stops = Array.from({ length: 7 }, (_, i) => `hsl(${(from + (span * i) / 6) % 360}, 75%, 50%)`);
             const par = course.holes.reduce((sum, hole) => sum + hole.par, 0);
             const length = course.holes.reduce((sum, hole) => sum + yards(hole.tee, hole.target), 0);
-            const record = best[course.id];
+            const pro = proSwitch.checked || isExpert(course.difficulty);
+            const record = bestFor(course, pro);
 
             const item = document.createElement("li");
             item.className = "golf-course";
             item.innerHTML = `
                 <h3>${course.name}</h3>
                 <div class="golf-hues" style="background: linear-gradient(to right, ${stops.join(", ")})"></div>
-                <span class="golf-best">${course.difficulty} · ${course.holes.length} holes · par ${par} · ${length.toLocaleString()} yds${record ? ` · best ${record.strokes} (${formatToPar(record.toPar)}), ${formatTime(record.time)}` : ""}</span>
+                <span class="golf-best">${course.difficulty} · ${course.holes.length} holes · par ${par} · ${length.toLocaleString()} yds${record ? ` · ${pro ? "Pro best" : "best"} ${record.strokes} (${formatToPar(record.toPar)}), ${formatTime(record.time)}` : ""}</span>
                 <button class="btn btn-primary" type="button">Play</button>`;
             item.querySelector("button").addEventListener("click", () => startRound(course));
             return item;
         }));
     };
 
+    // Daily card: today's hole, your result if you've played it, and your streak
+    const renderDaily = async () => {
+        const day = dateKey();
+        const play = $("golf-daily-play");
+        const { name, difficulty } = WEEK[weekday(day)];
+        $("golf-daily-date").textContent = `· ${dayLabel(day)}`;
+        play.disabled = true;
+        const hole = await todaysHole(day).catch(() => null);
+        if (!hole) {
+            $("golf-daily-info").textContent = "No daily hole today. Check back after the next update.";
+            $("golf-daily-status").textContent = "";
+            return;
+        }
+        const summary = hazardSummary(hole.hazards);
+        $("golf-daily-info").textContent = [name, difficulty, isExpert(difficulty) && "Pro", `par ${hole.par}`, `${yards(hole.tee, hole.target)} yds`, summary, hole.wind && "wind"]
+            .filter(Boolean).join(" · ");
+        const results = loadDaily();
+        const result = results[day];
+        const run = streak(results, day);
+        $("golf-daily-status").textContent = result
+            ? `Today: ${result.pickedUp ? "picked up" : scoreName(result.strokes, result.par)} (${result.strokes})${result.pro ? ", Pro" : ""} · streak ${run}`
+            : run ? `Streak ${run}: play today to keep it` : "Play today to start a streak";
+        play.textContent = result ? "Replay" : "Play";
+        play.disabled = false;
+    };
+
+    const startDaily = async () => {
+        const day = dateKey();
+        const hole = await todaysHole(day);
+        if (!hole || setup.hidden) return; // none today, or left the setup screen meanwhile
+        daily = { day, scored: !loadDaily()[day], started: false };
+        startRound({ id: "daily", name: "Daily hole", difficulty: WEEK[weekday(day)].difficulty, holes: [hole] }, "daily");
+    };
+
+    // Practice: the first hole comes from the starter pool; each next one is built while you play
+    const practiceSettings = () => ({
+        difficulty: $("golf-practice-difficulty").value,
+        par: $("golf-practice-par").value === "any" ? "any" : Number($("golf-practice-par").value),
+        hazards: $("golf-practice-hazards").checked,
+    });
+    const prefetchPractice = () => {
+        const settings = practiceSettings();
+        const next = buildPracticeHole(settings);
+        next.catch(() => {}); // superseded or failed: handled when the hole is needed
+        practice = { settings, next };
+    };
+    // The prefetched hole, waiting out any newer request that replaced it; null if building failed
+    const nextPracticeHole = async () => {
+        for (;;) {
+            const pending = practice.next;
+            try {
+                return await pending;
+            } catch {
+                if (practice.next === pending) return null;
+            }
+        }
+    };
+
+    // Waits for the next practice hole on `button` ("Building…"); null if it failed or the game moved on
+    const awaitPracticeHole = async (button, label) => {
+        const current = round;
+        button.disabled = true;
+        button.textContent = "Building…";
+        const hole = await nextPracticeHole();
+        button.disabled = false;
+        button.textContent = hole ? label : "Try again";
+        if (!hole) prefetchPractice();
+        return round === current ? hole : null;
+    };
+
+    const startPractice = async () => {
+        const settings = practiceSettings();
+        const hole = await starterHole(settings);
+        if (!hole || setup.hidden) return; // none for these settings, or left the setup screen meanwhile
+        startRound({ id: "practice", name: "Practice", difficulty: settings.difficulty, holes: [hole] }, "practice");
+        prefetchPractice();
+    };
+
+    const nextPractice = async () => {
+        const hole = await awaitPracticeHole($("golf-next"), "Next hole");
+        if (!hole) return;
+        round.course.holes.push(hole);
+        round.nextHole();
+        prefetchPractice();
+        startHole();
+    };
+
     // ---- A round ----
-    const startRound = (course) => {
-        round = new GolfRound(course);
+    const startRound = (course, newMode = "course") => {
+        mode = newMode;
+        round = new GolfRound(course, undefined, mode === "practice" ? { undos: Infinity } : {});
+        round.expert = isExpert(course.difficulty);
+        round.pro = proSwitch.checked || round.expert;
+        document.body.classList.toggle("golf-pro", round.pro);
+        $("golf-card-toggle").hidden = mode !== "course";
+        $("golf-card-toggle").setAttribute("aria-expanded", "false");
+        liveCard.hidden = true;
         show(hud);
         startHole();
     };
@@ -191,9 +404,24 @@ export function setupGolf() {
     const startHole = () => {
         replayToken++;
         const { hole, holeIndex } = round;
-        $("golf-hole-title").textContent = `Hole ${holeIndex + 1} · Par ${hole.par}`;
+        const length = !round.expert && `${yards(hole.tee, hole.target)} yds`; // Expert: no yardage
         const summary = hazardSummary(hole.hazards);
-        $("golf-hole-info").textContent = `${round.course.name} · ${round.nine === 0 ? "Front" : "Back"} 9 · ${yards(hole.tee, hole.target)} yds${summary ? ` · ${summary}` : ""}`;
+        const pro = round.pro && "Pro";
+        const line = hole.lines !== undefined && `perfect line ${hole.lines} of 41`;
+        let title, info;
+        if (mode === "daily") {
+            title = `Daily hole · Par ${hole.par}`;
+            info = [WEEK[weekday(daily.day)].name, dayLabel(daily.day), length, summary, line, pro, !daily.scored && "replay, not scored"];
+        } else if (mode === "practice") {
+            const { holes, toPar } = round.totals();
+            title = `Practice ${holeIndex + 1} · Par ${hole.par}`;
+            info = [round.course.difficulty, length, summary, line, pro, holes && `thru ${holes}: ${formatToPar(toPar)}`];
+        } else {
+            title = `Hole ${holeIndex + 1} · Par ${hole.par}`;
+            info = [round.course.name, `${round.nine === 0 ? "Front" : "Back"} 9`, length, summary, line, pro];
+        }
+        $("golf-hole-title").textContent = title;
+        $("golf-hole-info").textContent = info.filter(Boolean).join(" · ");
         // Wind: drifts every full shot (the swatches show the calm landing, so aim off)
         const wind = windText(hole.wind);
         $("golf-wind").hidden = !wind;
@@ -218,27 +446,31 @@ export function setupGolf() {
 
         $("golf-strokes").textContent = round.strokes;
         const undosLeft = round.undosLeft[round.nine];
-        undoButton.textContent = `Undo (${undosLeft})`;
+        undoButton.textContent = undosLeft === Infinity ? "Undo" : `Undo (${undosLeft})`;
         undoButton.disabled = !round.canUndo;
         refreshLiveCard();
         const hazards = round.hole.hazards ?? [];
         // Landing in a hazard flashes its outline on the map
         const flash = lie?.landedIn ? { index: hazards.indexOf(lie.landedIn), start: performance.now() } : mapState?.flash;
-        mapState = { current, target: round.hole.target, trail: [...round.trail], holed: !!lie?.holed, hazards, flash };
+        mapState = { current, tee: round.hole.tee, target: round.hole.target, trail: [...round.trail], holed: !!lie?.holed, hazards, flash };
         setMapState(mapState);
         renderHazards(lie);
 
-        // Yards: last shot's length and what's left to the pin
+        // Yards: last shot's length and what's left to the pin. Expert hides distance (meter
+        // included) until the ball is on the green; you judge it from the map.
         const last = round.trail.at(-1);
-        $("golf-yards").textContent = last
+        const hidden = round.expert && !lie?.onGreen;
+        $("golf-yards").textContent = hidden
+            ? "Expert: no yardage until you're on the green"
+            : last
             ? `Last shot ${yards(last, current)} yds · ${lie?.holed ? "in the hole" : `${yards(current, round.hole.target)} yds to the pin`}`
             : `${yards(current, round.hole.target)} yds to the pin`;
 
         const fill = $("golf-meter-fill");
         const label = $("golf-meter-label");
-        if (!lie) {
+        if (!lie || hidden) {
             fill.style.width = "0";
-            label.textContent = "Tee off";
+            label.textContent = lie ? "Off the green" : "Tee off";
             return;
         }
         // Full bar at the hole's edge, empty at 0.4 (about as far as two colors get)
@@ -255,16 +487,22 @@ export function setupGolf() {
         const note = $("golf-hazard-note");
         note.hidden = false;
         if (lie?.landed === "water") note.textContent = "Water! +1 stroke, playing again from your last spot.";
-        else if (round.inSand && !round.holeDone) note.textContent = "In the bunker: wedges only (Tints, Shades, Tones, Saturate).";
+        else if (round.inSand && !round.holeDone) {
+            note.textContent = round.sandWedge
+                ? `In the bunker: ${ROW_NAMES[round.sandWedge]} only.`
+                : "In the bunker: wedges only (Tints, Shades, Tones, Saturate).";
+        }
         else note.hidden = true;
         note.className = lie?.landed === "water" ? "water" : "sand";
 
         $("golf-hazards").replaceChildren(...hazards.map(hazard => {
             const item = document.createElement("li");
             item.className = hazard.type;
-            item.textContent = hazard.type === "water"
+            const bunker = hazard.wedge ? `Bunker (${ROW_NAMES[hazard.wedge]} only)` : "Bunker";
+            if (round.expert) item.textContent = hazard.type === "water" ? "Water" : bunker; // no yardage on Expert
+            else item.textContent = hazard.type === "water"
                 ? `Water: ${yards(round.current, hazard.center) + hazard.radius} yds to carry`
-                : `Bunker: ${Math.max(0, yards(round.hole.target, hazard.center) - hazard.radius)} yds from the pin`;
+                : `${bunker}: ${Math.max(0, yards(round.hole.target, hazard.center) - hazard.radius)} yds from the pin`;
             return item;
         }));
 
@@ -280,7 +518,7 @@ export function setupGolf() {
         $("golf-result").textContent = result.pickedUp ? "Picked up" : scoreName(result.strokes, result.par);
         $("golf-result-info").textContent =
             `${result.strokes} strokes · Par ${result.par} · Perfect ${result.perfect} · ${formatTime(result.time)}`;
-        $("golf-next").textContent = round.finished ? "See score card" : "Next hole";
+        $("golf-next").textContent = mode === "practice" || !round.finished ? "Next hole" : mode === "daily" ? "See result" : "See score card";
         $("golf-show-path").disabled = false;
         $("golf-show-path").hidden = false;
         holeEnd.hidden = false;
@@ -328,11 +566,25 @@ export function setupGolf() {
         replayToken++;
         $("golf-wind-badge").hidden = true;
         const totals = round.totals();
-        const isBest = saveBest(round.course.id, totals);
-        $("golf-round-title").textContent = `${round.course.name}: ${totals.strokes} (${formatToPar(totals.toPar)})`;
-        $("golf-round-info").textContent =
-            `Par ${totals.par} · Perfect ${totals.perfect} · ${formatTime(totals.time)}${isBest ? " · New best!" : ""}`;
-        renderCard($("golf-card"));
+        const pro = round.pro ? " · Pro" : "";
+        if (mode === "daily") {
+            const result = round.card[0];
+            if (daily.scored) saveDaily(daily.day, { ...result, pro: round.pro });
+            const run = streak(loadDaily(), daily.day);
+            $("golf-round-title").textContent = `Daily hole: ${result.pickedUp ? "Picked up" : scoreName(result.strokes, result.par)}`;
+            $("golf-round-info").textContent = `${result.strokes} strokes · Par ${result.par} · Perfect ${result.perfect} · ${formatTime(result.time)}${pro} · ${
+                daily.scored ? `Streak ${run}` : "Replay, not scored"}`;
+            $("golf-card").hidden = true;
+            $("golf-again").textContent = "Color Golf menu";
+        } else {
+            const isBest = saveBest(round.course, round.pro, totals);
+            $("golf-round-title").textContent = `${round.course.name}: ${totals.strokes} (${formatToPar(totals.toPar)})`;
+            $("golf-round-info").textContent =
+                `Par ${totals.par} · Perfect ${totals.perfect} · ${formatTime(totals.time)}${pro}${isBest ? ` · New ${round.pro ? "Pro " : ""}best!` : ""}`;
+            $("golf-card").hidden = false;
+            $("golf-again").textContent = "Choose a course";
+            renderCard($("golf-card"));
+        }
         clearBaseColor();
         setMapState(null);
         show(roundEnd);
@@ -389,7 +641,7 @@ export function setupGolf() {
     // Live card: shown with the Card button, refreshed after every stroke and hole
     const liveCard = $("golf-live-card");
     const refreshLiveCard = () => {
-        if (liveCard.hidden || !round) return;
+        if (liveCard.hidden || !round || mode !== "course") return;
         const { holes, toPar } = round.totals();
         $("golf-live-total").textContent = holes ? `Thru ${holes}: ${formatToPar(toPar)}` : "No holes finished yet";
         renderCard(liveCard.querySelector(".golf-card-tables"));
@@ -428,6 +680,12 @@ export function setupGolf() {
 
         const lie = round.play(club);
         if (!lie) return; // not playable from here (e.g. a driver in a bunker)
+        if (mode === "daily" && daily.scored && !daily.started) {
+            // Today's try has started: it counts as a pick-up unless the hole is finished
+            daily.started = true;
+            const { par, perfect } = round.hole;
+            saveDaily(daily.day, { par, perfect, strokes: par * 2, time: 0, pickedUp: true, pro: round.pro });
+        }
         renderPosition(lie);
         if (round.holeDone) endHole();
     }, { capture: true });
@@ -438,15 +696,21 @@ export function setupGolf() {
     });
 
     $("golf-next").addEventListener("click", () => {
-        if (round.finished) endRound();
+        if (mode === "practice") nextPractice();
+        else if (round.finished) endRound();
         else if (round.nextHole()) startHole();
     });
     $("golf-show-path").addEventListener("click", showPath);
     $("golf-quit").addEventListener("click", () => {
-        if (confirm("Quit this round? It won't be saved.")) openSetup();
+        if (mode === "practice" || (mode === "daily" && !daily.started) || round.finished) openSetup();
+        else if (mode === "daily") {
+            if (confirm("Leave today's hole? It counts as a pick-up.")) openSetup();
+        } else if (confirm("Quit this round? It won't be saved.")) openSetup();
     });
 
     $("golf-play").addEventListener("click", openSetup);
+    $("golf-daily-play").addEventListener("click", startDaily);
+    $("golf-practice-play").addEventListener("click", startPractice);
     $("golf-quit-setup").addEventListener("click", exitGolf);
     $("golf-again").addEventListener("click", openSetup);
     $("golf-done").addEventListener("click", exitGolf);

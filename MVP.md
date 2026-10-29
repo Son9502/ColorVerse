@@ -51,7 +51,11 @@ Someone can open ColorVerse, explore RGB and HSL as an interactive **3-D** color
 | **v1.1.2** | Perfect route solved in a Web Worker and replayed on the map ✅ | Finishes the v1.1 spec |
 | **v1.1.3** | Thicker map paths ✅ | Readability |
 | **v1.2** | Color Golf hazards (sand, water), wind, Cobalt Bay and Royal Indigo ✅ (v1.2.0) | Adds route choice once the core game is solid |
+| **v1.2.1** | Golf map uses HSL during a game | The RGB sphere doesn't contain the most vivid colors, so markers and hazard footprints can't match there |
 | **v1.3** | Daily hole + practice by difficulty | Reuses the generator and par solver |
+| **v1.4** | Golf variety: peeling that looks like peeling, "sand wedge only" on Expert courses, per-course par layouts | Makes courses and layer changes feel distinct |
+| **v1.5** | Engine cleanup: Three.js r128 → npm package; delete ShaderCache | Ends the r128 API gaps before v2.0's new renderers |
+| **v1.6** | Accounts + score database | Daily streaks and leaderboards are what make accounts worth having |
 | **v2.0** | 1-D and 2-D modes + shared color across dimensions | Delivers the "multi-dimensional" promise; new renderers and shared state |
 | **v2.x / v3** | More shapes and color spaces | v2.x if they reuse the 3-D pipeline; v3 if they need a new color model throughout |
 
@@ -62,10 +66,14 @@ Get from a start color (the **tee**) to a target color (the **hole**) in as few 
 
 | Club | Rows | Shot |
 |---|---|---|
-| Driver | Complementary, Triadic, Tetradic | Big fixed hue jumps |
-| Irons | Split-Complementary, Analogous | Medium hue moves |
+| Driver | Complementary | The longest hue jump (average 319 yds) |
+| Wood | Split-Complementary | Long hue jumps (305 yds) |
+| Hybrids | Triadic, Tetradic, Double-Complementary | Big hue jumps (253–270 yds) |
+| Iron | Analogous | Short hue moves (92 yds) |
 | Wedges | Tints, Shades, Tones, Saturate | Lightness/saturation moves in 5 strengths (20–100%); over- and undershooting is part of the skill |
 | Putter (game mode only) | New row | Small nudges of hue, saturation or lightness (±3–5%), so a near miss can be finished |
+
+Club types (v1.3) are ranked by average shot length over tee-like colors, and shown as a small label above each row's harmony name in a game (DRIVER / Complementary); the harmony names stay, since they're what the game teaches and what Pro's "+120°" labels refer to.
 
 **Rules**
 - A stroke is a double-click on a harmony swatch. Clicking the 3-D shape, the sliders and search are all disabled in game mode.
@@ -98,8 +106,8 @@ Get from a start color (the **tee**) to a target color (the **hole**) in as few 
   | Course | Hues | Par | Release |
   |---|---|---|---|
   | Prism Point | Full spectrum | 72 | v1.1 |
-  | Ember Dunes | Reds, oranges, yellows (345°–60°) | 72 | v1.1 |
-  | Verdant Pines | Greens (75°–165°) | 72 | v1.1 |
+  | Ember Dunes | Reds, oranges, yellows (345°–60°) | 73 (v1.4) | v1.1 |
+  | Verdant Pines | Greens (75°–165°) | 70 (v1.4) | v1.1 |
   | Cobalt Bay | Blues and teals (180°–250°) | 71 | v1.2 |
   | Royal Indigo | Purples (250°–320°) | 70 | v1.2 |
 - Par 71/70 courses swap par 5s for par 3s (layouts in `generateCourses.mjs`).
@@ -109,7 +117,7 @@ Get from a start color (the **tee**) to a target color (the **hole**) in as few 
 - Two large swatches across the top: *You* | *Target*, plus strokes, par, timer, undo left and the closeness meter.
 - **? (How to play):** goal, the four club types, what the meter means, par vs perfect, undo and pick-up.
 - **Card:** live score card (front 9 / back 9, "Thru N: ±X"), with the hole in progress highlighted; a hole's perfect score stays hidden until it's played.
-- The 3-D shape becomes a **map**: a ball for the current color, a flag at the target's spot, and a trail along the surface linking each stroke. The view peels to the current color's layer and turns that spot toward the camera after every stroke. Clicking it does nothing. Spots are found by searching the same functions that draw the textures (`golf/map.js`), so markers always match what's drawn; very vivid colors that the RGB sphere doesn't contain go to its closest color.
+- The 3-D shape becomes a **map**: a ball for the current color, a flag at the target's spot, and a trail along the surface linking each stroke. The view peels to the current color's layer and turns that spot toward the camera after every stroke. Clicking it does nothing. Spots are found by searching the same functions that draw the textures (`golf/map.js`), so markers always match what's drawn; During a game the map is always the HSL version of the shape (v1.2.1).
 - End-of-hole card with score and "Show perfect route": the solver (in a Web Worker) finds the route, then a gold ghost ball replays it on the map stroke by stroke while the list of clubs fills in; end-of-round score card.
 - **Yards:** OKLab distance × 1000. Hole length under the title; after each stroke, the last shot's length and the yards left to the pin.
 - Leaving game mode restores the normal app (sliders, search, canvas picking).
@@ -117,7 +125,7 @@ Get from a start color (the **tee**) to a target color (the **hole**) in as few 
 ### v1.2: Hazards
 - **Shape:** a hazard is a "looks-like" region: a center color and a radius in yards (OKLab distance × 1000, 30–60 yds). A color is inside if its distance to the center is under the radius, measured the same way as yards and the hole.
 - **Water:** landing in it costs +1 penalty stroke and the ball returns to where it was hit from (stroke and distance).
-- **Sand:** landing in it is allowed; the next shot must be a wedge (Tints, Shades, Tones, Saturate). No drivers, irons or putter until the ball is out, as in golf. Measured over all 59 bunkers: any one wedge can escape, but each of the four is the only best recovery on some bunkers (all four: 2.31 strokes to the hole on average; Tones alone 2.83, Saturate alone 3.47). A "sand wedge only" rule is a possible Expert lever.
+- **Sand:** landing in it is allowed; the next shot must be a wedge (Tints, Shades, Tones, Saturate). No drivers, irons or putter until the ball is out, as in golf. Measured over all 59 bunkers: any one wedge can escape, but each of the four is the only best recovery on some bunkers (all four: 2.31 strokes to the hole on average; Tones alone 2.83, Saturate alone 3.47). Expert bunkers (v1.4) each name a single wedge.
 - The tee and the hole are never inside a hazard. Undo works as usual (1 per 9).
 - **Solver stays exact:** both rules depend only on the current color, so the search is unchanged in size. Water landings are skipped (always 2 wasted strokes); from sand only the wedges are tried. Perfect is the true minimum with hazards, so a route through a bunker can be the best one.
 - **Placement (generator):** water goes on a landing spot of the hole's hazard-free perfect route, forcing a layup or dogleg; bunkers guard the hole (centers 40–90 yds from the target, often beside the lip-out). Some holes deliberately keep a bunker on the new perfect route as a risk/reward line. Every hole is re-checked: perfect still under par, finishable within par with all hazards treated as blocked, and inside the course's difficulty range.
@@ -125,10 +133,11 @@ Get from a start color (the **tee**) to a target color (the **hole**) in as few 
 - **No swatch warnings:** swatches don't flag hazard landings; the map shows the hazards, the same way a golfer can see a lake but has to judge the shot. The game panel reports what happened: "In the bunker: wedges only" (other rows grey out) or "Water! +1 stroke, playing again from your last spot".
 - **Map details** (all in v1.2):
   - **Edge rings:** a crisp outline around each hazard's footprint on the current layer.
-  - **Icons:** a small wave or sand icon at each hazard's center, so hazards on other layers are still visible.
+  - **Icons:** a small wave or sand icon on each hazard's footprint (v1.3; it was at the hazard's own spot, which could sit beside the footprint), or at its spot when the hazard doesn't reach the layer shown.
+  - **Tee marker** (v1.3): a "T" where the player's path and the perfect route both start.
   - **Yardage to hazards** in the game panel: "Water: 120 yds to carry", "Bunker: 40 yds short of the pin".
   - **Hole summary:** "2 bunkers, 1 lake" under the hole title and on the score card.
-  - **Faint footprints on nearby layers:** a faint halo traced around each footprint for colors up to 30 yds outside the hazard (they fall inside it a few layers in or out), so you see a hazard coming as you change layers.
+  - **Faint footprints on nearby layers:** ~~a faint halo around each footprint~~ removed in v1.3: its traced outline came out spiky and read as a smear. A hazard that doesn't reach the layer shown keeps its faint outline.
   - **Landing highlight:** landing in a hazard flashes its outline, so it's clear which one caught you.
 - **Wind:** each hole can have a fixed wind, e.g. "Wind 6° ↻" (hue drifts clockwise) or "Wind: brightening +3%". After every full shot, the landing color drifts by that much. Putts are unaffected (greens are sheltered). Shown in the game panel and as an arrow on the map. Players aim upwind: if the target is +40° of hue and the wind adds 6°, two Analogous +20° shots end at +52°.
   - Wind is fixed for the whole hole, so the par solver applies it to every full shot and par/perfect stay exact. No gusts that change shot to shot, since those would make true par impossible to compute.
@@ -146,10 +155,31 @@ Get from a start color (the **tee**) to a target color (the **hole**) in as few 
   | Cobalt Bay | Water: lakes in color space to route around |
   | Royal Indigo | Sand and water: the hardest course |
 
-### v1.3: Daily Hole and Practice
-- **Daily hole:** one seeded hole per day, the same for everyone; best score and streak saved in the browser.
-- **Practice:** endless random holes filtered by difficulty (par range), with hazards on or off.
-- **Pro setting:** swatches show only the club name (e.g. "Tints 60%"), not the color, so play is on color theory alone.
+### v1.3: Daily Hole and Practice ✓
+- **Daily hole:** one hole per day, the same for everyone, built ahead of time (`npm run daily`, to 2028-12-31) so every browser gets exactly the same hole. Weekly rotation: Ace Sunday (par 3, one swatch holes it), Easy Monday (par 3), Tuesday (par 4), Windy Wednesday (par 4, bunker, wind), Long Thursday (par 5, bunkers), Water Friday (Expert par 4, lakes, strong wind), Championship Saturday (Expert par 5, lakes and bunkers). One scored try: the first stroke starts it, and leaving counts as a pick-up; replays afterwards aren't scored. Result and streak saved in the browser.
+- **Practice:** endless random holes by difficulty (Beginner / Standard / Expert) and par (any, 3, 4, 5), with hazards and wind on or off. Unlimited undo, nothing saved. The first hole comes from a pre-built starter pool (`npm run practice`, 6 per setting); the next one is built while you play.
+- **Expert you can feel:** Expert (courses, the Friday/Saturday dailies, practice) always plays as Pro, hides the yardage, meter and hazard distances until you're on the green, and uses Expert par: par = perfect on par 3s and 4s, perfect 4 on par 5s, so birdies only come on par 5s. Cobalt Bay and Royal Indigo were regenerated for it (old bests on them no longer show).
+- **Perfect line:** each hole shows how many of the 41 first shots keep the perfect score reachable (Beginner 6+, Standard 3–6, Expert 1–3), so difficulty is visible.
+- **Pro setting:** a Colors ◯ Clubs toggle. With Clubs, swatches are blank and show only the club ("+120°", "60%", "Hue −"; the row name is above), so play is on color theory alone. Applies to courses, daily and practice; Pro bests are kept separately.
+
+### v1.2.1: Golf Map in HSL ✓
+- During a game, the map uses the HSL version of the current shape (the toggle is hidden in game mode). Leaving the game restores the user's choice.
+
+### v1.4: Golf Variety ✓
+- **Peeling that looks like peeling:** a jump to another layer (a Color Golf stroke, or typing a layer number) peels. Going deeper, a copy of the old shell lifts off (grows about 20% and fades over 0.65 s) over the new layer; coming back out, the new layer settles down onto the shape. One-step changes (scroll, `]` / `[`) keep the smooth cross-fade, which would look jittery if every step peeled.
+- **"Sand wedge only" on Expert:** every Expert bunker names the one wedge that can be played out of it ("Shades only"), shown in the panel and as letters on its map icon (Ti / Sh / To / Sa). Each bunker gets its own wedge, so each is its own puzzle; the generator picks it and re-checks the hole, and the solver and the rules use the same check. Applies to Royal Indigo (23 bunkers), the Championship Saturday dailies and Expert practice (Cobalt Bay has no sand).
+- **Per-course par layouts:** Ember Dunes is long (par 73, 5 par 5s) and Verdant Pines is tight (par 70, 5 par 3s). Prism Point (72) and Cobalt Bay (71) keep their holes and bests; Royal Indigo (70) keeps its layout but was regenerated for the wedge rule. Regenerated courses get a new `rev`, so their old bests no longer show.
+
+### v1.5: Engine Cleanup
+- **Three.js:** load the installed npm package (imported as a module) instead of the r128 CDN global. Update APIs that changed since r128 (color management, `outputColorSpace`, geometry helpers) and retest every view, the texture pipeline and Color Golf.
+- **ShaderCache:** delete it. It was meant to cache one blended material per (color space, layer pair, face), but the main objects keep one material per face and swap its textures, which is simpler and cheaper.
+
+### v1.6: Accounts and Score Database
+- **Backend:** a hosted service (Supabase or Firebase, to decide), since GitHub Pages is static.
+- **Sign-in** (email link or Google) with a short privacy note; playing without an account still works, with scores kept in the browser.
+- **Stored:** rounds, personal bests per course, daily-hole results and streaks; leaderboards later.
+- **Cheat-proof scores:** the browser submits its list of strokes and the server replays them with the same rules (the game is deterministic), so a submitted score can't be faked.
+- **Sync:** scores saved locally while signed out are uploaded on sign-in.
 
 ### v2.0: 1-D and 2-D Modes
 Developed on the `feature/1d-2d` branch.
@@ -166,8 +196,6 @@ Developed on the `feature/1d-2d` branch.
 ### Unscheduled
 - Export of the selected color and its harmonies
 - Mobile / touch input
-- `ShaderCache` integration
-- Moving Three.js from the CDN global to the npm package
 
 ---
 

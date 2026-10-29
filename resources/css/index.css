@@ -1035,6 +1035,7 @@ Color Golf (golf/golf-ui.js): body.golf while a game screen is open
 }
 
 body.golf #golf-play,
+body.golf #hsltoggle,
 body.golf #ui-combo,
 body.golf #help {
     display: none;
@@ -1138,6 +1139,82 @@ body.golf .square:hover {
 .golf-course .btn {
     grid-column: 2;
     grid-row: 1 / span 3;
+}
+
+/* Daily hole and practice cards sit above the courses, in the same card style */
+.golf-course h3 .golf-sub {
+    font-weight: 400;
+}
+
+.golf-practice-options {
+    grid-column: 1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+    font-size: 0.8rem;
+}
+
+.golf-practice-options select {
+    width: auto; /* the explore panel's selects are full width */
+    font: inherit;
+    padding: 2px 4px;
+    border: 1px solid #bbb;
+    border-radius: 6px;
+    background: #fff;
+}
+
+.golf-practice-options label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Colors [toggle] Clubs, styled like the RGB / HSL switch */
+#golf-swatch-mode:not(:has(#golf-pro:checked)) .mode-colors,
+#golf-swatch-mode:has(#golf-pro:checked) .mode-clubs {
+    color: #000;
+    font-weight: 700;
+}
+
+/* Club type above each row's harmony name in a game ("DRIVER" / "Complementary") */
+.club-type {
+    display: none;
+}
+
+body.golf .club-type {
+    display: block;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #777;
+}
+
+.golf-section-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #666;
+}
+
+/* Pro round: swatches are blank and labeled with the club (data-club from golf-ui.js) */
+body.golf-pro .square {
+    background-color: #e6e6e6 !important;
+    background-image: repeating-linear-gradient(45deg, transparent 0 4px, rgba(0, 0, 0, 0.06) 4px 8px);
+}
+
+body.golf-pro .square-wrapper .square-label {
+    display: none;
+}
+
+body.golf-pro .square-wrapper::after {
+    content: attr(data-club);
+    margin-top: clamp(2px, 0.3vh, 6px);
+    font-size: clamp(0.7rem, 1.2vh, 1.1rem);
+    text-align: center;
+    white-space: nowrap;
 }
 
 /* You | Target */

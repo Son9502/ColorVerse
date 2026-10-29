@@ -135,14 +135,26 @@
                     <p>Make <strong>You</strong> match the <strong>Target</strong> in as few strokes as you can.
                         A stroke is a double-click on any swatch below; each row is a club:</p>
                     <dl>
-                        <dt>Drivers</dt><dd>Complementary, Triadic, Tetradic, Double-comp.: big jumps around the hue wheel</dd>
-                        <dt>Irons</dt><dd>Split-comp., Analogous: medium hue moves</dd>
-                        <dt>Wedges</dt><dd>Tints, Shades, Tones, Saturate: lighter, darker, grayer or more vivid, 20–100%. Easy to over- or undershoot</dd>
+                        <dt>Driver</dt><dd>Complementary: the longest hue jump, straight across the wheel</dd>
+                        <dt>Wood</dt><dd>Split-comp.: long jumps, just either side of the driver</dd>
+                        <dt>Hybrids</dt><dd>Triadic, Tetradic, Double-comp.: big jumps around the hue wheel</dd>
+                        <dt>Iron</dt><dd>Analogous: short hue moves</dd>
+                        <dt>Wedges</dt><dd>Tints, Shades, Tones, Saturate: lighter, darker, grayer or more vivid, 20–100%. Easy to over- or undershoot.
+                            The only clubs out of a bunker; an Expert bunker allows just the one it names</dd>
                         <dt>Putter</dt><dd>Small nudges to finish the hole</dd>
                     </dl>
                     <p>The meter updates after each stroke. <strong>On the green</strong> means 2 putts or fewer will hole it.</p>
                     <p><strong>Par</strong> is a good score; <strong>perfect</strong> (shown after each hole) is the fewest possible.
                         One under par is a birdie. You get 1 free undo per 9 holes, a hole ends at double par, and time breaks ties.</p>
+                    <p><strong>Daily hole:</strong> a new hole every day, the same for everyone, following a weekly rotation
+                        (Ace Sunday to Championship Saturday). Your first try is your score: once you've played a stroke,
+                        leaving counts as a pick-up. Play every day to build a streak.</p>
+                    <p><strong>Practice:</strong> endless random holes at the difficulty you choose. <strong>Pro:</strong>
+                        swatches show only the club (e.g. "+120°", "60%"), so you play on color theory alone.</p>
+                    <p><strong>Difficulty:</strong> the <em>perfect line</em> under each hole title counts the first shots (of 41)
+                        that can still make the perfect score: 6 or more on Beginner, 3–6 on Standard, 1–3 on Expert.
+                        <strong>Expert</strong> also plays as Pro, hides the yardage until you're on the green, and has tighter
+                        par (par = perfect on par 3s and 4s, so birdies only come on par 5s).</p>
                 </div>
 
                 <!-- Course picker -->
@@ -156,6 +168,50 @@
                     </div>
                     <p class="golf-intro">Get from the tee color to the target in as few strokes as you can.
                         Double-click a harmony swatch to play it; the putter row makes small nudges.</p>
+                    <!-- Pro: Clubs hides the swatch colors (always on for Expert) -->
+                    <div id="golf-swatch-mode" class="field">
+                        <span class="field-label">Swatches</span>
+                        <div class="space-toggle">
+                            <span class="mode-colors">Colors</span>
+                            <label class="switch">
+                                <input type="checkbox" id="golf-pro" aria-label="Pro: show club names instead of colors">
+                                <span class="slider"></span>
+                            </label>
+                            <span class="mode-clubs">Clubs (Pro)</span>
+                        </div>
+                        <span class="golf-sub">Clubs shows only each club (e.g. "+120°", "60%"). Expert always plays with Clubs; Pro scores are kept separately.</span>
+                    </div>
+
+                    <!-- Daily hole: the same for everyone, one scored try (golf/daily.js) -->
+                    <div id="golf-daily" class="golf-course">
+                        <h3>Daily hole <span id="golf-daily-date" class="golf-sub"></span></h3>
+                        <span id="golf-daily-info" class="golf-best"></span>
+                        <span id="golf-daily-status" class="golf-best"></span>
+                        <button id="golf-daily-play" class="btn btn-primary" type="button">Play</button>
+                    </div>
+
+                    <!-- Practice: endless random holes, nothing saved -->
+                    <div id="golf-practice" class="golf-course">
+                        <h3>Practice</h3>
+                        <div class="golf-practice-options">
+                            <select id="golf-practice-difficulty" aria-label="Difficulty">
+                                <option>Beginner</option>
+                                <option selected>Standard</option>
+                                <option>Expert</option>
+                            </select>
+                            <select id="golf-practice-par" aria-label="Par">
+                                <option value="any">Any par</option>
+                                <option value="3">Par 3</option>
+                                <option value="4">Par 4</option>
+                                <option value="5">Par 5</option>
+                            </select>
+                            <label><input type="checkbox" id="golf-practice-hazards" checked> Hazards &amp; wind</label>
+                        </div>
+                        <span class="golf-best">Random holes, unlimited undo, nothing saved</span>
+                        <button id="golf-practice-play" class="btn btn-primary" type="button">Play</button>
+                    </div>
+
+                    <h3 class="golf-section-title">Courses</h3>
                     <ul id="golf-courses"></ul>
                 </div>
 

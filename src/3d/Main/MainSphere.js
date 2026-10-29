@@ -62,6 +62,11 @@ export class MainSphere extends MainBase {
 
         this.currentLayer = z0;
     }
+    // Parts for a peel's shell copy (MainBase.peelTo)
+    _shellParts(textures) {
+        return [new THREE.Mesh(this.object.geometry, this._shellMaterial(textures[0]))];
+    }
+
     async switchColorSpace(colorSpace, duration = 500) {
         const fromSpace = this.colorSpace;
         const toSpace = colorSpace;

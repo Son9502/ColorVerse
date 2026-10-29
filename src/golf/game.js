@@ -1,6 +1,6 @@
 import { strike, PUTTER } from "./clubs.js";
 import { hslDistance, IN_THE_HOLE } from "./oklab.js";
-import { hazardMap, isWedge } from "./hazards.js";
+import { hazardMap } from "./hazards.js";
 
 // ----------------------------------
 // Color Golf round: strokes, undo, score card
@@ -35,9 +35,11 @@ export function puttsToHole(hsl, target, hazards = NO_HAZARDS) {
 }
 
 export class GolfRound {
-    constructor(course, now = () => performance.now()) {
+    // `undos`: free undos per nine (practice passes Infinity)
+    constructor(course, now = () => performance.now(), { undos = UNDOS_PER_NINE } = {}) {
         this.course = course;
         this.now = now;
+        this.undos = undos;
         this.card = []; // finished holes: { par, perfect, strokes, time, pickedUp }
         this.holeIndex = -1;
         this.nextHole();
@@ -51,8 +53,9 @@ export class GolfRound {
     get inSand() { return this.hazards.at(this.current) === "sand"; }
     get canUndo() { return !this.holeDone && this.history.length > 0 && this.undosLeft[this.nine] > 0; }
 
-    // Clubs allowed from here: wedges only in a bunker
-    canPlay(club) { return !this.inSand || isWedge(club); }
+    // Clubs allowed from here: wedges only in a bunker (just one, in an Expert bunker that names it)
+    canPlay(club) { return this.hazards.allows(this.current, club); }
+    get sandWedge() { return this.inSand ? this.hazards.wedgeAt(this.current) : null; }
 
     // Distance to the target, whether that's in the hole, whether it's on the green
     // (2 putts or fewer will hole it, as in golf) and which hazard, if any, the ball is in
@@ -101,7 +104,7 @@ export class GolfRound {
         if (this.holeIndex >= 0 && !this.holeDone) return false;
         if (this.holeIndex + 1 >= this.course.holes.length) return false;
         this.holeIndex++;
-        this.undosLeft ??= [UNDOS_PER_NINE, UNDOS_PER_NINE];
+        this.undosLeft ??= [this.undos, this.undos];
         this.current = { ...this.hole.tee };
         this.trail = []; // colors before each stroke that moved the ball, for the map's trail
         this.history = []; // snapshots before each stroke, for undo

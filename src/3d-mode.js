@@ -143,7 +143,7 @@ export const create3DEnvironment = async (objectType = "cube") => {
 
         previewObject?.hide();
         currentLayer = layerNum;
-        mainObject.layerTarget = currentLayer;
+        mainObject.peelTo(currentLayer);
         threeDText.value = "";
         canvasText.textContent = `Layer ${currentLayer}`;
     }, { signal });

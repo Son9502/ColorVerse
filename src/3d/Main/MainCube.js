@@ -93,6 +93,16 @@ export class MainCube extends MainBase {
 
         this.currentLayer = z0;
     }
+    // Parts for a peel's shell copy (MainBase.peelTo): one plane per face, placed like the faces
+    _shellParts(textures) {
+        return this.cubeSides.map(({ plane }, i) => {
+            const part = new THREE.Mesh(plane.geometry, this._shellMaterial(textures[i]));
+            part.position.copy(plane.position);
+            part.rotation.copy(plane.rotation);
+            return part;
+        });
+    }
+
     async switchColorSpace(colorSpace, duration = 500) {
         const fromSpace = this.colorSpace;
         const toSpace = colorSpace;
