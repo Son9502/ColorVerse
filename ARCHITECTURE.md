@@ -232,4 +232,4 @@ Get from a tee color to a target color in as few strokes as possible; the harmon
 | Three.js version | `index.html` loads **r128** from CDN as a global, but the code uses `THREE.SRGBColorSpace` / `outputColorSpace`, which were added in r152. Those assignments are currently no-ops. The npm `three@0.181` dependency is installed but not imported |
 | `ShaderCache` | Instantiated per shape but never read. Main objects build their materials directly |
 | r128 API gaps | Newer Three.js helpers (`Object3D.removeFromParent`, `BufferGeometry.applyQuaternion`) don't exist in r128 and fail silently until called; golf code uses the r128 equivalents |
-| RGB sphere | It sits inside the RGB cube, so the most vivid colors aren't on any layer; golf markers and hazard footprints for those colors go to the closest color it has |
+| RGB sphere | It sits inside the RGB cube, so the most vivid colors aren't on any layer. Color Golf avoids it by switching the map to HSL during a game (v1.2.1) |

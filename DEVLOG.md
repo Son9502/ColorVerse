@@ -9,6 +9,20 @@ Each entry is tagged with how it was produced:
 
 ---
 
+## Milestone 17 — Golf Map in HSL (v1.2.1) `[ai-assisted]`
+**2026-10-28**
+
+The golf map now always uses HSL, so every marker and hazard footprint can sit on its exact color. Decision by the developer (from the v1.2.0 measurements); implementation `[ai-assisted]`.
+
+**Modified**
+- `golf/golf-ui.js`: entering golf remembers the RGB/HSL toggle and switches to HSL (through the toggle itself, so the shape, mini object, sliders and details card all follow); leaving restores it
+- `index.css`: the color-space toggle is hidden while `body.golf` is set
+
+**Verified**
+- Real built app (Chrome DevTools): RGB user → HSL in setup and play, toggle hidden, RGB restored on exit; HSL user stays HSL; ball and flag drawn on the HSL sphere; no console errors
+
+---
+
 ## Milestone 16 — Hazards, Wind & Expert Courses (v1.2.0) `[ai-assisted]`
 **2026-10-28**
 

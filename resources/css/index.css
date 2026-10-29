@@ -1035,6 +1035,7 @@ Color Golf (golf/golf-ui.js): body.golf while a game screen is open
 }
 
 body.golf #golf-play,
+body.golf #hsltoggle,
 body.golf #ui-combo,
 body.golf #help {
     display: none;

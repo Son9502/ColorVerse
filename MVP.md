@@ -113,7 +113,7 @@ Get from a start color (the **tee**) to a target color (the **hole**) in as few 
 - Two large swatches across the top: *You* | *Target*, plus strokes, par, timer, undo left and the closeness meter.
 - **? (How to play):** goal, the four club types, what the meter means, par vs perfect, undo and pick-up.
 - **Card:** live score card (front 9 / back 9, "Thru N: ±X"), with the hole in progress highlighted; a hole's perfect score stays hidden until it's played.
-- The 3-D shape becomes a **map**: a ball for the current color, a flag at the target's spot, and a trail along the surface linking each stroke. The view peels to the current color's layer and turns that spot toward the camera after every stroke. Clicking it does nothing. Spots are found by searching the same functions that draw the textures (`golf/map.js`), so markers always match what's drawn; very vivid colors that the RGB sphere doesn't contain go to its closest color.
+- The 3-D shape becomes a **map**: a ball for the current color, a flag at the target's spot, and a trail along the surface linking each stroke. The view peels to the current color's layer and turns that spot toward the camera after every stroke. Clicking it does nothing. Spots are found by searching the same functions that draw the textures (`golf/map.js`), so markers always match what's drawn; During a game the map is always the HSL version of the shape (v1.2.1).
 - End-of-hole card with score and "Show perfect route": the solver (in a Web Worker) finds the route, then a gold ghost ball replays it on the map stroke by stroke while the list of clubs fills in; end-of-round score card.
 - **Yards:** OKLab distance × 1000. Hole length under the title; after each stroke, the last shot's length and the yards left to the pin.
 - Leaving game mode restores the normal app (sliders, search, canvas picking).
@@ -155,8 +155,8 @@ Get from a start color (the **tee**) to a target color (the **hole**) in as few 
 - **Practice:** endless random holes filtered by difficulty (par range), with hazards on or off.
 - **Pro setting:** swatches show only the club name (e.g. "Tints 60%"), not the color, so play is on color theory alone.
 
-### v1.2.1: Golf Map in HSL
-- During a game, the map uses the HSL version of the current shape (the toggle is hidden in game mode). Exploring keeps the user's choice.
+### v1.2.1: Golf Map in HSL ✓
+- During a game, the map uses the HSL version of the current shape (the toggle is hidden in game mode). Leaving the game restores the user's choice.
 
 ### v1.4: Golf Variety
 - **Peeling that looks like peeling:** when the layer changes, the outer shell visibly comes away (briefly shrinking or fading it) instead of only cross-fading colors.

@@ -121,6 +121,14 @@ export function setupGolf() {
     let mapState = null; // last state sent to the map; the replay draws on top of it
     let replayToken = 0; // bumped to stop a replay in progress
 
+    // The map is HSL during a game: the game's colors are HSL, and the RGB sphere doesn't reach
+    // the most vivid ones. The toggle is hidden meanwhile; leaving restores the user's choice.
+    const spaceToggle = $("toggle");
+    let exploringSpace = null; // toggle state before the game, null when not in golf
+    const setSpaceToggle = (checked) => {
+        if (spaceToggle.checked !== checked) spaceToggle.click(); // fires the same handlers as the user's click
+    };
+
     // Every swatch is a club: harmony squares from harmonySets, plus the putter row
     const clubs = new Map();
     for (const [row, elements] of Object.entries(harmonySets)) {
@@ -140,6 +148,8 @@ export function setupGolf() {
         stopTimer();
         round = null;
         setMapState(null);
+        exploringSpace ??= spaceToggle.checked;
+        setSpaceToggle(true);
         document.body.classList.add("golf");
         panel.hidden = false;
         clearBaseColor();
@@ -155,6 +165,8 @@ export function setupGolf() {
         round = null;
         setMapState(null);
         document.body.classList.remove("golf");
+        if (exploringSpace !== null) setSpaceToggle(exploringSpace);
+        exploringSpace = null;
         panel.hidden = true;
         clearBaseColor();
     };
