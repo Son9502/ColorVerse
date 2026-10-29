@@ -51,13 +51,20 @@ Someone can open ColorVerse, explore RGB and HSL as an interactive **3-D** color
 | **v1.1.2** | Perfect route solved in a Web Worker and replayed on the map ✅ | Finishes the v1.1 spec |
 | **v1.1.3** | Thicker map paths ✅ | Readability |
 | **v1.2** | Color Golf hazards (sand, water), wind, Cobalt Bay and Royal Indigo ✅ (v1.2.0) | Adds route choice once the core game is solid |
-| **v1.2.1** | Golf map uses HSL during a game | The RGB sphere doesn't contain the most vivid colors, so markers and hazard footprints can't match there |
-| **v1.3** | Daily hole + practice by difficulty | Reuses the generator and par solver |
-| **v1.4** | Golf variety: peeling that looks like peeling, "sand wedge only" on Expert courses, per-course par layouts | Makes courses and layer changes feel distinct |
+| **v1.2.1** | Golf map uses HSL during a game ✅ | The RGB sphere doesn't contain the most vivid colors, so markers and hazard footprints can't match there |
+| **v1.3** | Daily hole, practice, Pro, Expert you can feel ✅ (v1.3.0) | Reuses the generator and par solver |
+| **v1.4** | Golf variety: peeling, named-wedge bunkers on Expert, themed par layouts ✅ (v1.4.0) | Makes courses and layer changes feel distinct |
 | **v1.5** | Engine cleanup: Three.js r128 → npm package; delete ShaderCache | Ends the r128 API gaps before v2.0's new renderers |
-| **v1.6** | Accounts + score database | Daily streaks and leaderboards are what make accounts worth having |
+| **v1.6** | Accounts + score database | Gives the daily hole real stakes; the only backend work, best done before the codebase grows |
+| **v1.7** | Mobile and accessibility | Golf needs double-clicks, drags and color vision today; fix that before adding more views |
 | **v2.0** | 1-D and 2-D modes + shared color across dimensions | Delivers the "multi-dimensional" promise; new renderers and shared state |
-| **v2.x / v3** | More shapes and color spaces | v2.x if they reuse the 3-D pipeline; v3 if they need a new color model throughout |
+| **v2.1** | Golf in 2-D | A flat map shows a whole hole at once (no far side of a sphere) |
+| **v2.2** | More 3-D shapes: HSL cylinder, HSV cone / bicone | Reuses the 3-D pipeline |
+| **v3.0** | Perceptual color spaces: OKLab / OKLCH, CIELAB / LCh, gamut views | A new color model throughout; golf already scores in OKLab |
+| **v4.0** | Palette studio | Turns harmonies into something designers keep and export |
+| **v5.0** | Image colors | Brings your own colors into the space |
+| **v6.0** | Social golf | Builds on v1.6 accounts |
+| **v7.0** | Learn and explore | Everything above, taught and opened up (offline, WebXR) |
 
 ### v1.1: Color Golf (minigame)
 Get from a start color (the **tee**) to a target color (the **hole**) in as few harmony moves (**strokes**) as possible. Developed on the `feature/color-golf` branch.
@@ -189,13 +196,44 @@ Developed on the `feature/1d-2d` branch.
 - Both work in RGB and HSL, and clicking picks a color.
 - **Shared state across dimensions:** a color picked in one dimension stays highlighted when you switch to another.
 
-### v2.x / v3: More Shapes and Color Spaces
-- **v2.x (reuse the 3-D pipeline):** HSL cylinder, HSV cone / bicone.
-- **v3 (new color model):** perceptual spaces such as OKLCH and LAB.
+### Before v2.0: Housekeeping
+- Run the remaining v1 live checks (first load under 3 s, 10 shape switches).
+- Merge `main` into `feature/1d-2d`, which has drifted far behind.
+- Playtest Expert by hand: its difficulty has only been measured by the solver.
 
-### Unscheduled
-- Export of the selected color and its harmonies
-- Mobile / touch input
+### v1.7: Mobile and Accessibility
+- **Touch:** tap a swatch to play a stroke (with a confirm on Expert), pinch to zoom, one-finger drag to rotate.
+- **Colour-blind mode:** name colors ("muted teal") and show the distance to the target as a number, so the game doesn't rely on telling colors apart.
+- **Keyboard play:** move between swatches with the arrow keys, play with Enter.
+
+### v2.1: Golf in 2-D
+- Play holes on the hue wheel (angle = hue, radius = saturation, a slider for lightness) or a square slice. The tee, the flag, both paths and the hazards are all visible at once, which fixes paths seeming to disconnect around the back of the sphere.
+- The 3-D map stays available; the player picks the view.
+
+### v2.2: More 3-D Shapes
+- HSL cylinder and HSV cone / bicone, reusing the texture pipeline and the golf map search.
+
+### v3.0: Perceptual Color Spaces
+- OKLab / OKLCH and CIELAB / LCh as shapes. Color Golf already measures distance in OKLab, so this shows the space it scores in.
+- **Gamut views:** where sRGB sits inside wider spaces such as Display P3.
+
+### v4.0: Palette Studio
+- Build palettes from harmonies and save them.
+- Contrast checks (WCAG 2 and APCA) and colour-blindness simulation.
+- Export as CSS variables, Tailwind config or JSON (replaces the old "export the selected color" idea).
+
+### v5.0: Image Colors
+- Drop in a photo and see its pixels as a point cloud inside the shape.
+- Pull a palette out of the clusters.
+
+### v6.0: Social Golf
+- Course editor with share codes.
+- Head-to-head races, weekly tournaments and friend leaderboards (needs v1.6).
+
+### v7.0: Learn and Explore
+- Guided color-theory lessons that use golf holes as exercises.
+- Installable offline app (PWA).
+- WebXR: walk around inside a color space.
 
 ---
 
