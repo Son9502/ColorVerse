@@ -66,10 +66,14 @@ Get from a start color (the **tee**) to a target color (the **hole**) in as few 
 
 | Club | Rows | Shot |
 |---|---|---|
-| Driver | Complementary, Triadic, Tetradic | Big fixed hue jumps |
-| Irons | Split-Complementary, Analogous | Medium hue moves |
+| Driver | Complementary | The longest hue jump (average 319 yds) |
+| Wood | Split-Complementary | Long hue jumps (305 yds) |
+| Hybrids | Triadic, Tetradic, Double-Complementary | Big hue jumps (253–270 yds) |
+| Iron | Analogous | Short hue moves (92 yds) |
 | Wedges | Tints, Shades, Tones, Saturate | Lightness/saturation moves in 5 strengths (20–100%); over- and undershooting is part of the skill |
 | Putter (game mode only) | New row | Small nudges of hue, saturation or lightness (±3–5%), so a near miss can be finished |
+
+Club types (v1.3) are ranked by average shot length over tee-like colors, and shown as a small label above each row's harmony name in a game (DRIVER / Complementary); the harmony names stay, since they're what the game teaches and what Pro's "+120°" labels refer to.
 
 **Rules**
 - A stroke is a double-click on a harmony swatch. Clicking the 3-D shape, the sliders and search are all disabled in game mode.
@@ -129,10 +133,11 @@ Get from a start color (the **tee**) to a target color (the **hole**) in as few 
 - **No swatch warnings:** swatches don't flag hazard landings; the map shows the hazards, the same way a golfer can see a lake but has to judge the shot. The game panel reports what happened: "In the bunker: wedges only" (other rows grey out) or "Water! +1 stroke, playing again from your last spot".
 - **Map details** (all in v1.2):
   - **Edge rings:** a crisp outline around each hazard's footprint on the current layer.
-  - **Icons:** a small wave or sand icon at each hazard's center, so hazards on other layers are still visible.
+  - **Icons:** a small wave or sand icon on each hazard's footprint (v1.3; it was at the hazard's own spot, which could sit beside the footprint), or at its spot when the hazard doesn't reach the layer shown.
+  - **Tee marker** (v1.3): a "T" where the player's path and the perfect route both start.
   - **Yardage to hazards** in the game panel: "Water: 120 yds to carry", "Bunker: 40 yds short of the pin".
   - **Hole summary:** "2 bunkers, 1 lake" under the hole title and on the score card.
-  - **Faint footprints on nearby layers:** a faint halo traced around each footprint for colors up to 30 yds outside the hazard (they fall inside it a few layers in or out), so you see a hazard coming as you change layers.
+  - **Faint footprints on nearby layers:** ~~a faint halo around each footprint~~ removed in v1.3: its traced outline came out spiky and read as a smear. A hazard that doesn't reach the layer shown keeps its faint outline.
   - **Landing highlight:** landing in a hazard flashes its outline, so it's clear which one caught you.
 - **Wind:** each hole can have a fixed wind, e.g. "Wind 6° ↻" (hue drifts clockwise) or "Wind: brightening +3%". After every full shot, the landing color drifts by that much. Putts are unaffected (greens are sheltered). Shown in the game panel and as an arrow on the map. Players aim upwind: if the target is +40° of hue and the wind adds 6°, two Analogous +20° shots end at +52°.
   - Wind is fixed for the whole hole, so the par solver applies it to every full shot and par/perfect stay exact. No gusts that change shot to shot, since those would make true par impossible to compute.
@@ -150,10 +155,12 @@ Get from a start color (the **tee**) to a target color (the **hole**) in as few 
   | Cobalt Bay | Water: lakes in color space to route around |
   | Royal Indigo | Sand and water: the hardest course |
 
-### v1.3: Daily Hole and Practice
-- **Daily hole:** one seeded hole per day, the same for everyone; best score and streak saved in the browser.
-- **Practice:** endless random holes filtered by difficulty (par range), with hazards on or off.
-- **Pro setting:** swatches show only the club name (e.g. "Tints 60%"), not the color, so play is on color theory alone.
+### v1.3: Daily Hole and Practice ✓
+- **Daily hole:** one hole per day, the same for everyone, built ahead of time (`npm run daily`, to 2028-12-31) so every browser gets exactly the same hole. Weekly rotation: Ace Sunday (par 3, one swatch holes it), Easy Monday (par 3), Tuesday (par 4), Windy Wednesday (par 4, bunker, wind), Long Thursday (par 5, bunkers), Water Friday (Expert par 4, lakes, strong wind), Championship Saturday (Expert par 5, lakes and bunkers). One scored try: the first stroke starts it, and leaving counts as a pick-up; replays afterwards aren't scored. Result and streak saved in the browser.
+- **Practice:** endless random holes by difficulty (Beginner / Standard / Expert) and par (any, 3, 4, 5), with hazards and wind on or off. Unlimited undo, nothing saved. The first hole comes from a pre-built starter pool (`npm run practice`, 6 per setting); the next one is built while you play.
+- **Expert you can feel:** Expert (courses, the Friday/Saturday dailies, practice) always plays as Pro, hides the yardage, meter and hazard distances until you're on the green, and uses Expert par: par = perfect on par 3s and 4s, perfect 4 on par 5s, so birdies only come on par 5s. Cobalt Bay and Royal Indigo were regenerated for it (old bests on them no longer show).
+- **Perfect line:** each hole shows how many of the 41 first shots keep the perfect score reachable (Beginner 6+, Standard 3–6, Expert 1–3), so difficulty is visible.
+- **Pro setting:** a Colors ◯ Clubs toggle. With Clubs, swatches are blank and show only the club ("+120°", "60%", "Hue −"; the row name is above), so play is on color theory alone. Applies to courses, daily and practice; Pro bests are kept separately.
 
 ### v1.2.1: Golf Map in HSL ✓
 - During a game, the map uses the HSL version of the current shape (the toggle is hidden in game mode). Leaving the game restores the user's choice.

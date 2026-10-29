@@ -9,6 +9,42 @@ Each entry is tagged with how it was produced:
 
 ---
 
+## Milestone 18 — Daily Hole, Practice & Pro (v1.3.0) `[ai-assisted]`
+**2026-10-28**
+
+Three new ways to play Color Golf, and an Expert difficulty you can feel. Choices by the developer (pre-built daily list, one scored try, weekly rotation, separate Pro bests, all four Expert levers, the Colors / Clubs toggle, woods and hybrids); implementation `[ai-assisted]`.
+
+**Added**
+- `golf/holeMaker.js`: hole building moved out of the course generator (unchanged: regenerated `courses.json` is byte-identical), so the course generator, the daily generator and the practice worker share it
+- Daily hole: `golf/daily.js` (weekly rotation from Ace Sunday to Championship Saturday, dates, streaks) and `resources/generateDaily.mjs` (`npm run daily`; one seed per date, built in parallel, extendable with `--until`) → `daily.json`, 796 days to 2028-12-31, loaded only when Color Golf opens (19 kB gzipped)
+- One scored try per day: the first stroke saves a pick-up that finishing replaces; replays aren't scored; streak of consecutive days
+- Practice: `golf/practice-worker.js` builds random holes by difficulty, par and hazards on/off; the next hole is built during play; changing settings restarts the worker instead of queueing; unlimited undo
+- Pro: blank swatches labeled with the club (`data-club`, `body.golf-pro`); Pro bests stored under `<course>:pro`; a Colors ◯ Clubs toggle styled like the RGB ◯ HSL switch
+- Expert (courses, Friday/Saturday dailies, practice): always Pro; no yardage, meter or hazard distances until the ball is on the green; Expert par (`holeMaker.js` `expertPerfect`: par = perfect on par 3s and 4s, perfect 4 on par 5s; ace and layup holes keep theirs)
+- Perfect line: every hole stores `lines` (first shots of 41 that keep perfect reachable), shown in the hole info, so difficulty is visible
+- Club types: each row heading shows its club in a game (DRIVER Complementary, WOOD Split-Comp., HYBRID Triadic / Tetradic / Double-Comp., IRON Analogous, WEDGE Tints / Shades / Tones / Saturate), ranked by measured average shot length
+- Practice starter pool: `golf/practice.js` (one practice hole from a seed and settings, shared by the worker and the generator) and `resources/generatePractice.mjs` (`npm run practice`) → `practice.json`, 6 holes per setting (108), so a session starts instantly; later holes are built during play
+- Course revisions: regenerated courses carry `rev`, and bests saved against an older revision aren't shown
+- Setup screen: swatch toggle, daily card (today's hole, result, streak), practice card, then the courses; help text for all three and for difficulty
+
+**Modified**
+- `game.js`: `GolfRound` takes `{ undos }` (practice passes Infinity)
+- Map (developer's playtest): the hazard halo is gone (its traced outline was spiky and looked like a smear around bunkers); hazard icons sit on the footprint drawn for the current layer instead of at the hazard's own spot beside it; a "T" marker shows the tee, where the player's path and the perfect route both start (hidden when it's on the far side)
+- Expert holes built without hazards are chosen on the final birdie line (1–3) instead of the wider pre-hazard one (no effect on existing courses or the daily list)
+- Cobalt Bay and Royal Indigo regenerated with Expert par (rev 2; perfect 65 on par 71 / 70); Prism Point, Ember Dunes and Verdant Pines unchanged apart from `lines`
+- Solver: `parFor` keeps each search's OKLab colors (the generators ask the same search about hundreds of targets), and the new `reachesWithin` answers the birdie-line checks with an early exit and a reused scratch table; same answers, Expert clear holes about 6× faster
+
+**Fixed**
+- The setup screen's Pro label had the class `golf-pro`, the same class set on `<body>` in a Pro round, so the whole page took the label's small grey text during Pro play
+
+**Verified**
+- All 796 daily holes: stored perfect matches the solver with hazards and wind, finishable within par avoiding hazards, length follows par, rotation matches the weekday; rebuilding sample days from their date gives identical holes
+- All 5 courses, 796 daily holes and 108 pool holes: stored perfect matches the solver, finishable within par avoiding hazards, Expert par where it applies, perfect line in the difficulty's range (pool); the 568 non-Expert daily days are unchanged apart from `lines`
+- Practice build times (Node, after the solver changes): Beginner 0.4–1.7 s, Standard 0.7–6.7 s, Expert clear 1–5 s, Expert with lakes 4–28 s (hence the starter pool)
+- Real built app (Chrome DevTools): today's daily hole played along the solver's route (birdie, streak 1, saved; pick-up saved after the first stroke; card shows "Replay" afterwards); practice at each difficulty with hazards on and off, next hole ready in 0.5 s; Pro swatches blank with "+120°" / "60%" / "Hue −", Pro shown in the hole info; Expert practice from the pool in 0.4–0.7 s with yardage hidden ("Off the green") and Pro forced; club types shown only in a game; no console errors
+
+---
+
 ## Milestone 17 — Golf Map in HSL (v1.2.1) `[ai-assisted]`
 **2026-10-28**
 

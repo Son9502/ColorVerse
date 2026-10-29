@@ -31,12 +31,18 @@ main.js              Bootstrap: wires toggle, dimension selector, search, harmon
 │   ├── hazards.js            Sand and water regions, cached "which hazard is this color in"
 │   ├── solver.js             Breadth-first par solver over ≈3.7M whole-number HSL states
 │   ├── solver-worker.js      Perfect route for the end-of-hole replay, off the main thread
+│   ├── holeMaker.js          Builds one hole (tee, target, hazards, wind) from seeded random sequences
+│   ├── practice.js           One practice hole from a seed + settings (worker and pool generator)
+│   ├── practice-worker.js    Random practice holes, built off the main thread
+│   ├── daily.js              Daily hole rotation by weekday, dates, streaks
 │   ├── game.js               A round: strokes, penalties, undo, pick-up, score card
-│   ├── golf-ui.js            Game screen: course picker, panel, cards, replay, wind, hazards
+│   ├── golf-ui.js            Game screen: daily / practice / course picker, Pro, panel, cards, replay
 │   ├── map.js                Where a color sits on the shape; hazard footprints per layer
 │   ├── mapView.js            Ball, flag, trails, hazard patches and icons on the 3-D shape
 │   ├── mapState.js           Shared game → 3-D view state
-│   └── courses.json          Generated courses (npm run courses)
+│   ├── courses.json          Generated courses (npm run courses)
+│   ├── daily.json            Generated daily holes to 2028-12-31 (npm run daily); loaded on first use
+│   └── practice.json         Practice starter pool, 6 holes per setting (npm run practice)
 │
 └── src/3d/                   ── 3-D engine ──
     ├── sharedRenderer.js     Singleton WebGLRenderer + PerspectiveCamera
@@ -59,6 +65,8 @@ main.js              Bootstrap: wires toggle, dimension selector, search, harmon
 public/named_colors.csv       ~3,200 named colors (name, hex, r, g, b)
 resources/colorTable.py       Scraper that produced the CSV (offline tool)
 resources/generateCourses.mjs Color Golf course generator (seeded; npm run courses)
+resources/generateDaily.mjs   Daily hole generator (one seed per date, parallel; npm run daily [-- --until YYYY-MM-DD])
+resources/generatePractice.mjs Practice starter pool generator (parallel; npm run practice)
 archive/smartCube.js          Pre-refactor monolithic cube (reference only, not imported)
 ```
 
@@ -206,6 +214,12 @@ Get from a tee color to a target color in as few strokes as possible; the harmon
 - **State is whole-number HSL** (h 0–359, s and l 0–100), the values the swatches show. Every stroke rounds, so the game and the solver can never disagree about where a stroke lands, and the whole state space (≈3.7M) fits in typed arrays.
 - **Solver** (`solver.js`): breadth-first search from the tee over all 41 clubs (10 harmony rows + putter). Perfect = fewest strokes to land within OKLab 0.02 of the target. Hazards and wind keep it exact because they depend only on the current color: water landings are skipped (always 2 wasted strokes), sand allows wedges only, wind is a fixed drift per hole.
 - **Courses** are generated offline (`resources/generateCourses.mjs`, seeded) into `courses.json`: hole length follows par (yards = OKLab distance × 1000), difficulty is the *birdie line* (first shots that keep perfect reachable), and hazards and wind are placed from separate seeded sequences and kept only if every check still passes (perfect unchanged or +1 on a layup hole, finishable within par avoiding hazards, birdie line in range).
+- **Hole building** (`holeMaker.js`) is shared by both generators and the practice worker, so every hole, wherever it's made, passes the same checks.
+- **Daily hole** (v1.3): built ahead of time into `daily.json`, one hole per date from its own seed (`daily.js` holds the weekly rotation), so it's identical in every browser and the list can be extended without changing past days. One scored try: the first stroke saves a pick-up that finishing replaces. Results and streaks are in `localStorage`.
+- **Practice** (v1.3): the first hole comes from the pre-built pool in `practice.json`; later ones are built in `practice-worker.js` (0.5 s to ~30 s for Expert with lakes) while the current one is played. A newer request restarts the worker instead of queueing.
+- **Pro** (v1.3): `body.golf-pro` blanks the swatches and shows each club's label (`data-club`); Pro bests are stored separately.
+- **Expert** (v1.3): always Pro, yardage hidden until the green, Expert par (`expertPerfect`). Holes store their perfect line (`lines`). Regenerated courses carry `rev`; bests from an older revision are ignored.
+- **Solver speed**: `parFor` caches each search's OKLab colors; `reachesWithin` answers yes/no reach checks with an early exit and one reused scratch table. Both give exactly the answers of a full search, so generated holes don't change.
 - **Map** (`map.js`, `mapView.js`): markers are placed by searching the same functions that draw the textures, so they match what's drawn. Hazard footprints are traced on the layer being viewed (the layer's colors inside the hazard), so the ball is inside a patch exactly when it's in that hazard.
 - **Game ↔ view**: the game screen never touches Three.js objects; it sets `mapState`, and `3d-mode.js` hands that to `GolfMapView`. A rebuilt or still-loading view reads the current state on creation.
 
@@ -220,6 +234,7 @@ Get from a tee color to a target color in as few strokes as possible; the harmon
 | Two-tier cache (buffers vs GPU textures) | Buffers are cheap to keep around; GPU textures are more expensive. Separate LRU limits allow tuning each independently |
 | Shared renderer/camera singleton | Avoids creating multiple WebGL contexts when switching shapes (browsers cap the number of contexts) |
 | Base-class families (Main/Preview/Mini) | Adding a new shape means writing geometry plus a couple of hooks, not re-implementing input, physics, and animation |
+| Daily holes pre-built, not generated in the browser | Browsers may round `Math.cbrt`/`Math.pow` differently, which could change a borderline hole; a shipped list is identical everywhere, instant, and checkable by a future score server |
 | Golf courses generated offline | Generation runs the solver thousands of times (minutes); shipping a seeded JSON makes courses instant and identical for everyone |
 | Golf map markers found by search, not inverse formulas | One search over the texture functions works for every shape and color space, and can't drift from what's drawn |
 
