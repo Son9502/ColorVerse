@@ -22,7 +22,8 @@ main.js              Bootstrap: wires toggle, dimension selector, search, harmon
 │   ├── sliders.js            HSL/RGB sliders in the details card; follow the toggle
 │   ├── welcome.js            First-visit welcome modal + spotlight tour (localStorage flag)
 │   ├── LoaderManager.js      Loading overlay, progress bar, ETA
-│   ├── color-utils.js        Color math: HSL→RGB, gamma, cube/sphere color mapping, mini shaders
+│   ├── three-setup.js        Three.js (npm, r181) configured once; every module imports THREE from here
+│   ├── color-utils.js        Color math: HSL→RGB, gamma, cube/sphere color mapping (no Three.js: the texture worker imports it)
 │   └── utils.js              clamp, lerp
 │
 ├── src/golf/                 ── Color Golf (v1.1+) ──
@@ -46,12 +47,11 @@ main.js              Bootstrap: wires toggle, dimension selector, search, harmon
 │
 └── src/3d/                   ── 3-D engine ──
     ├── sharedRenderer.js     Singleton WebGLRenderer + PerspectiveCamera
-    ├── TextureRegistry.js    Per-shape cache factory: getCaches(type) → [TextureCache, ShaderCache]
+    ├── TextureRegistry.js    Per-shape cache factory: getTextureCache(type)
     ├── Caches/
     │   ├── LRUCache.js       Base LRU (Map insertion order) with dispose-on-evict
     │   ├── WorkerCache.js    Raw pixel buffers; drives the Web Worker
     │   ├── TextureCache.js   THREE.DataTexture per (layer, colorSpace, face)
-    │   └── ShaderCache.js    Blended materials per layer pair (currently unused)
     ├── Textures/
     │   ├── worker-texture.js Web Worker entry: generates pixel buffers
     │   └── thread-texture.js Main-thread fallback generator
@@ -146,7 +146,7 @@ TextureCache.makeTexture(buffer) → THREE.DataTexture (RGBA8, linear filtering)
 - **Neighbor prefetch:** after any generation, `±prefetchRange` (default 2) neighboring layers are queued.
 - **Progress:** pixel-weighted progress flows up to `LoaderManager`, which renders a bar and ETA.
 
-**Registry:** `TextureRegistry.getCaches(type)` memoizes one cache pair per shape, so switching cube → sphere → cube reuses the cube's warm cache.
+**Registry:** `TextureRegistry.getTextureCache(type)` memoizes one texture cache per shape, so switching cube → sphere → cube reuses the cube's warm cache.
 
 ---
 
@@ -246,7 +246,5 @@ Get from a tee color to a target color in as few strokes as possible; the harmon
 
 | Area | Issue |
 |------|-------|
-| Three.js version | `index.html` loads **r128** from CDN as a global, but the code uses `THREE.SRGBColorSpace` / `outputColorSpace`, which were added in r152. Those assignments are currently no-ops. The npm `three@0.181` dependency is installed but not imported |
-| `ShaderCache` | Instantiated per shape but never read. Main objects build their materials directly |
-| r128 API gaps | Newer Three.js helpers (`Object3D.removeFromParent`, `BufferGeometry.applyQuaternion`) don't exist in r128 and fail silently until called; golf code uses the r128 equivalents |
+| Color management | Three.js's automatic sRGB ↔ linear conversion is switched off (`three-setup.js`) and the renderer writes pixels as-is, matching r128: the shaders convert colors themselves and sprites must show exact CSS colors. New built-in materials or textures follow the same rule (no `colorSpace` flags) |
 | RGB sphere | It sits inside the RGB cube, so the most vivid colors aren't on any layer. Color Golf avoids it by switching the map to HSL during a game (v1.2.1) |

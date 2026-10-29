@@ -9,6 +9,31 @@ Each entry is tagged with how it was produced:
 
 ---
 
+## Milestone 20 — Engine Cleanup (v1.5.0) `[ai-assisted]`
+**2026-10-29**
+
+Three.js moves from the r128 CDN global to the npm package (r181), and the unused ShaderCache goes. Decision by the developer (roadmap v1.5; confirmed ShaderCache has no use); implementation `[ai-assisted]`.
+
+**Added**
+- `src/three-setup.js`: imports Three.js once, switches off automatic color management, and re-exports `THREE`; all 17 modules that use Three.js import it from here
+- `src/3d/Mini/miniMaterials.js`: the mini objects' shader materials, moved out of `color-utils.js` so the texture worker (which imports `color-utils.js`) stays free of Three.js (worker still 3.4 kB)
+- `vite.config.js`: Three.js in its own chunk (516 kB, 133 kB gzipped; app code 114 kB)
+
+**Modified**
+- Renderer writes pixels as-is (`outputColorSpace` linear) and layer textures are no longer flagged sRGB, matching r128's behavior (the shaders convert colors themselves)
+- `mapView.js` / `MainBase.js`: `removeFromParent()` and `BufferGeometry.applyQuaternion()` replace the r128 workarounds
+- `TextureRegistry.getTextureCache(type)` replaces `getCaches(type)`
+
+**Removed**
+- `ShaderCache.js` (never read) and the r128 `<script>` tag in `index.html`
+
+**Verified**
+- Pixel comparison of r128 vs r181 screenshots (sphere RGB / HSL, cube, golf map on the cube): every pixel within 1/255, apart from a mid-fade frame of the mini sphere
+- Hex labels now round like CSS (#808080 for 50% gray; r128 truncated to #7F7F7F)
+- Real built app: peel on sphere and cube, Expert practice with a named-wedge bunker, daily hole with replay; no console errors
+
+---
+
 ## Milestone 19 — Golf Variety (v1.4.0) `[ai-assisted]`
 **2026-10-29**
 

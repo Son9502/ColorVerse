@@ -54,7 +54,7 @@ Someone can open ColorVerse, explore RGB and HSL as an interactive **3-D** color
 | **v1.2.1** | Golf map uses HSL during a game ✅ | The RGB sphere doesn't contain the most vivid colors, so markers and hazard footprints can't match there |
 | **v1.3** | Daily hole, practice, Pro, Expert you can feel ✅ (v1.3.0) | Reuses the generator and par solver |
 | **v1.4** | Golf variety: peeling, named-wedge bunkers on Expert, themed par layouts ✅ (v1.4.0) | Makes courses and layer changes feel distinct |
-| **v1.5** | Engine cleanup: Three.js r128 → npm package; delete ShaderCache | Ends the r128 API gaps before v2.0's new renderers |
+| **v1.5** | Engine cleanup: Three.js r128 → npm package; delete ShaderCache ✅ (v1.5.0) | Ends the r128 API gaps before v2.0's new renderers |
 | **v1.6** | Accounts + score database | Gives the daily hole real stakes; the only backend work, best done before the codebase grows |
 | **v1.7** | Mobile and accessibility | Golf needs double-clicks, drags and color vision today; fix that before adding more views |
 | **v2.0** | 1-D and 2-D modes + shared color across dimensions | Delivers the "multi-dimensional" promise; new renderers and shared state |
@@ -177,9 +177,10 @@ Club types (v1.3) are ranked by average shot length over tee-like colors, and sh
 - **"Sand wedge only" on Expert:** every Expert bunker names the one wedge that can be played out of it ("Shades only"), shown in the panel and as letters on its map icon (Ti / Sh / To / Sa). Each bunker gets its own wedge, so each is its own puzzle; the generator picks it and re-checks the hole, and the solver and the rules use the same check. Applies to Royal Indigo (23 bunkers), the Championship Saturday dailies and Expert practice (Cobalt Bay has no sand).
 - **Per-course par layouts:** Ember Dunes is long (par 73, 5 par 5s) and Verdant Pines is tight (par 70, 5 par 3s). Prism Point (72) and Cobalt Bay (71) keep their holes and bests; Royal Indigo (70) keeps its layout but was regenerated for the wedge rule. Regenerated courses get a new `rev`, so their old bests no longer show.
 
-### v1.5: Engine Cleanup
-- **Three.js:** load the installed npm package (imported as a module) instead of the r128 CDN global. Update APIs that changed since r128 (color management, `outputColorSpace`, geometry helpers) and retest every view, the texture pipeline and Color Golf.
-- **ShaderCache:** delete it. It was meant to cache one blended material per (color space, layer pair, face), but the main objects keep one material per face and swap its textures, which is simpler and cheaper.
+### v1.5: Engine Cleanup ✓
+- **Three.js:** the installed npm package (r181) replaces the r128 CDN global, imported through one setup module (`src/three-setup.js`). Colors render exactly as before: automatic color management is off and the renderer writes pixels as-is (checked pixel for pixel against r128 screenshots). Golf uses the modern helpers (`removeFromParent`, `applyQuaternion`). Vite puts Three.js in its own cached chunk.
+- **ShaderCache:** deleted. It was meant to cache one blended material per (color space, layer pair, face), but nothing read it: the textures (`TextureCache`) are the expensive part, and Three.js already reuses each compiled shader.
+- Hex labels now round (127.5 → 128) like CSS, instead of truncating as r128 did, so they match the swatch shown.
 
 ### v1.6: Accounts and Score Database
 - **Backend:** a hosted service (Supabase or Firebase, to decide), since GitHub Pages is static.

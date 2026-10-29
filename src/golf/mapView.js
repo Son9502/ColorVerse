@@ -1,5 +1,6 @@
 import { hslToRgb } from "../color-utils.js";
 import { locateColor, footprintOnLayer } from "./map.js";
+import { THREE } from "../three-setup.js";
 
 // ----------------------------------
 // Color Golf map markers on the main shape
@@ -252,9 +253,7 @@ export class GolfMapView {
     // Bend a flat disk/ring (in the XY plane) onto the surface around `spot`: orient it along the
     // normal, then push every vertex onto the sphere or the cube, just above the texture
     _wrap(geometry, spot) {
-        // (BufferGeometry.applyQuaternion() is r130+; the app uses r128)
-        const turn = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), spot.normal);
-        geometry.applyMatrix4(new THREE.Matrix4().makeRotationFromQuaternion(turn));
+        geometry.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), spot.normal));
         geometry.translate(spot.point.x, spot.point.y, spot.point.z);
         const position = geometry.attributes.position;
         const v = new THREE.Vector3();
@@ -378,7 +377,7 @@ export class GolfMapView {
 
     clear() {
         if (!this.group) return;
-        this.group.parent?.remove(this.group); // (removeFromParent() needs r129+; the app uses r128)
+        this.group.removeFromParent();
         this.group.traverse(obj => {
             obj.geometry?.dispose();
             if (!Object.values(textures).includes(obj.material?.map)) obj.material?.map?.dispose(); // footprint textures are shared

@@ -1,5 +1,6 @@
 import { PreviewBase } from "./PreviewBase.js";
 import { createLayerFadeMaterial } from "../FaderTextures/layerMaterial.js";
+import { THREE } from "../../three-setup.js";
 export class PreviewSphere extends PreviewBase {
     constructor(textureCache, size = 1, opacity = 0.25, scale = 1.5, colorSpace = "RGB") {
         super(textureCache, size, opacity, scale, colorSpace);

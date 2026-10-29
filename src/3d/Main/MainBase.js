@@ -1,4 +1,5 @@
 import { createLayerFadeMaterial } from "../FaderTextures/layerMaterial.js";
+import { THREE } from "../../three-setup.js";
 
 export class MainBase {
     constructor(scene, cache, camera, onProgress, {
@@ -181,7 +182,7 @@ export class MainBase {
         const finish = () => {
             if (done) return;
             done = true;
-            shell.parent?.remove(shell);
+            shell.removeFromParent();
             shell.traverse(part => part.material?.dispose()); // geometry is shared with the object
             if (!deeper) settle();
             if (this._peel?.finish === finish) this._peel = null;

@@ -1,5 +1,6 @@
 import vert from "./shaders/layerFade.vert?raw";
 import frag from "./shaders/layerFade.frag?raw";
+import { THREE } from "../../three-setup.js";
 
 export function createLayerFadeMaterial(texA, texB, mixFactor = 0, opacity = 1.0, lightNeeded = true, lightPos = new THREE.Vector3(5, 10, 5), camPos = new THREE.Vector3(0, 0, 5), shine = 0.5) {
     const material = new THREE.ShaderMaterial({

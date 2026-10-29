@@ -4,10 +4,11 @@ import { MainCube } from './3d/Main/MainCube.js';
 import { MainSphere } from './3d/Main/MainSphere.js';
 import { setBaseColors, clearBaseColor } from './harmony.js';
 import { LoaderManager } from './LoaderManager.js';
-import { getCaches } from './3d/TextureRegistry.js';
+import { getTextureCache } from './3d/TextureRegistry.js';
 import { getSharedRenderer, resizeSharedRenderer } from './3d/sharedRenderer.js';
 import { GolfMapView } from './golf/mapView.js';
 import { getMapState } from './golf/mapState.js';
+import { THREE } from "./three-setup.js";
 
 // Layer carried over when switching shapes (saved on dispose)
 let lastLayer = 127;
@@ -21,7 +22,7 @@ export const create3DEnvironment = async (objectType = "cube") => {
     // --- Renderer + Scene ---
     const container = document.getElementById("ui-canvas");
     const { renderer, camera } = getSharedRenderer(container);
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.outputColorSpace = THREE.LinearSRGBColorSpace; // write pixels as-is (three-setup.js)
     renderer.toneMapping = THREE.NoToneMapping;
     resizeSharedRenderer(container);
     // Each shape starts at the default zoom (the camera is shared between shapes)
@@ -43,21 +44,21 @@ export const create3DEnvironment = async (objectType = "cube") => {
     const scene = new THREE.Scene();
 
     // --- Texture caches ---
-    const caches = getCaches(objectType); // [0] = textureCache, [1] = shaderCache
+    const textureCache = getTextureCache(objectType);
 
     // --- Preload Textures ---
     loader.show("Preparing textures...");
-    await caches[0].preload((loaded, total, current, progress, totalProgress) => {
+    await textureCache.preload((loaded, total, current, progress, totalProgress) => {
         loader.handleLayerProgress(loaded, total, current, progress, totalProgress);
     });
-    //console.log("Texture caches after preload:", [...caches[0].cache.keys()]);
+    //console.log("Texture caches after preload:", [...textureCache.cache.keys()]);
 
     // --- Main,Preview and Mini 3D Object ---
     let mainObject, previewObject, miniObject;
     switch (objectType) {
         case "cube":
             loader.setMessage("Creating Cube...");
-            mainObject = new MainCube(scene, caches[0], camera, (loaded, total) => {
+            mainObject = new MainCube(scene, textureCache, camera, (loaded, total) => {
                 loader.handleProgress(loaded, total);
             }, objectOptions);
             loader.setMessage("Setting up MiniObject for Cube...");
@@ -65,7 +66,7 @@ export const create3DEnvironment = async (objectType = "cube") => {
             break;
         case "sphere":
             loader.setMessage("Creating Sphere...");
-            mainObject = new MainSphere(scene, caches[0], camera, (loaded, total) => {
+            mainObject = new MainSphere(scene, textureCache, camera, (loaded, total) => {
                 loader.handleProgress(loaded, total);
             }, objectOptions);
             loader.setMessage("Setting up MiniObject for Sphere...");
@@ -81,12 +82,12 @@ export const create3DEnvironment = async (objectType = "cube") => {
         switch (objectType) {
             case "cube": {
                 const { PreviewCube } = await import('./3d/Preview/PreviewCube.js');
-                previewObject = new PreviewCube(caches[0], undefined, undefined, undefined, colorSpace);
+                previewObject = new PreviewCube(textureCache, undefined, undefined, undefined, colorSpace);
                 break;
             }
             case "sphere": {
                 const { PreviewSphere } = await import('./3d/Preview/PreviewSphere.js');
-                previewObject = new PreviewSphere(caches[0], undefined, undefined, undefined, colorSpace);
+                previewObject = new PreviewSphere(textureCache, undefined, undefined, undefined, colorSpace);
                 break;
             }
         }

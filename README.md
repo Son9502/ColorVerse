@@ -64,7 +64,7 @@ In HSL, saturation also decreases toward the core, so inner layers converge on g
 ## Tech Stack
 
 - **JavaScript (ES modules)**: no framework
-- **[Three.js](https://threejs.org/)**: 3D rendering (currently loaded as a global from CDN r128 in `index.html`)
+- **[Three.js](https://threejs.org/)**: 3D rendering (npm package, r181, bundled by Vite into its own cached chunk)
 - **WebGL / GLSL**: custom shaders for layer cross-fading, Blinn-Phong lighting, and pick highlights
 - **Web Workers**: off-main-thread pixel generation, with a main-thread fallback
 - **Vite**: dev server and build tool
@@ -151,7 +151,7 @@ See [MVP.md](MVP.md#roadmap-post-v1) for details.
 - [x] **v1.2.1:** Golf map uses HSL during a game
 - [x] **v1.3:** Daily hole, practice by difficulty, Pro setting (no swatch previews)
 - [x] **v1.4:** Golf variety: layer peeling animation, "sand wedge only" on Expert courses, per-course par layouts
-- [ ] **v1.5:** Engine cleanup: Three.js r128 → npm package; remove the unused `ShaderCache`
+- [x] **v1.5:** Engine cleanup: Three.js r128 → npm package; remove the unused `ShaderCache`
 - [ ] **v1.6:** Accounts + score database: cloud bests, daily streaks, leaderboards, server-checked scores
 - [ ] **v1.7:** Mobile and accessibility: tap to play, colour-blind mode, keyboard play
 - [ ] **v2.0:** 1-D mode (single-channel gradient line) and 2-D mode (square/circle planes), with the picked color shared across dimensions

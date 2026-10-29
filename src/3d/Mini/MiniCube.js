@@ -1,4 +1,5 @@
 import { MiniBase } from "./MiniBase.js";
+import { THREE } from "../../three-setup.js";
 
 export class MiniCube extends MiniBase {
     constructor(renderer, colorSpace = "RGB") {

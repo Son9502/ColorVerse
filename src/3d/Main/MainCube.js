@@ -1,5 +1,6 @@
 import { MainBase } from "./MainBase.js";
 import { createLayerFadeMaterial } from "../FaderTextures/layerMaterial.js";
+import { THREE } from "../../three-setup.js";
 export class MainCube extends MainBase {
     constructor(scene, textureCache, camera, onProgress, {
         size = 1,

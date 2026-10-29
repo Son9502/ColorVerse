@@ -1,4 +1,5 @@
-import { makeRGBMat, makeHSLMat } from "../../color-utils.js";
+import { makeRGBMat, makeHSLMat } from "./miniMaterials.js";
+import { THREE } from "../../three-setup.js";
 export class MiniBase {
     constructor(renderer, colorSpace = "RGB", size = 2, offset = 20, padding = 10, {fadeIn = 200, fadeOut = 400, idleDelay = 1500} = {}) {
         this.renderer = renderer;
