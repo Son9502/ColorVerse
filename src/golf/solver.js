@@ -11,7 +11,8 @@ import { isWedge } from "./hazards.js";
 // the current color: a water landing is never worth it (+1 penalty, back where you were), so those
 // strokes are skipped; from sand only wedges are tried (only the named one in an Expert bunker). `avoidHazards` treats sand as blocked too,
 // for the "finishable within par without touching a hazard" check. `wind` drifts every full shot
-// (see clubs.js); it's fixed per hole, so the search stays exact.
+// (see clubs.js); it's fixed per hole, so the search stays exact. A landing in a portal (v1.8) is the
+// portal's exit, which depends only on the landing, so that stays exact too.
 
 const UNSEEN = 255;
 
@@ -38,8 +39,9 @@ export function searchFrom(tee, maxDepth = 7, hazards = null, { avoidHazards = f
             const from = decode(code);
             const inSand = blocked && hazards.at(from, code) === "sand";
             const wedge = inSand ? hazards.wedgeAt(from, code) : null;
-            allStrikes(from, wind).forEach((hsl, clubIndex) => {
+            allStrikes(from, wind).forEach((landing, clubIndex) => {
                 if (inSand && !sandAllows(clubIndex, wedge)) return;
+                const hsl = blocked ? hazards.land(landing) : landing; // through a portal, if it's in one
                 const to = encode(hsl);
                 if (dist[to] !== UNSEEN) return;
                 if (blocked) {
@@ -105,7 +107,7 @@ export function reachesWithin(from, target, maxDepth, hazards = null, { avoidHaz
                 const landings = allStrikes(here, wind);
                 for (let clubIndex = 0; clubIndex < landings.length; clubIndex++) {
                     if (inSand && !sandAllows(clubIndex, wedge)) continue;
-                    const hsl = landings[clubIndex];
+                    const hsl = blocked ? hazards.land(landings[clubIndex]) : landings[clubIndex];
                     const to = encode(hsl);
                     if (seen[to]) continue;
                     if (blocked) {

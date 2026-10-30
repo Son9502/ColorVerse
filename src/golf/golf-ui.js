@@ -125,11 +125,12 @@ function windText(wind) {
     return `${wind.light > 0 ? "brightening +" : "darkening −"}${Math.abs(wind.light)}%`;
 }
 
-// "2 bunkers, 1 lake" (empty for a clear hole)
+// "2 bunkers, 1 lake, 1 portal" (empty for a clear hole)
 function hazardSummary(hazards = []) {
     const count = (type) => hazards.filter(h => h.type === type).length;
     const part = (n, one, many) => (n ? `${n} ${n === 1 ? one : many}` : "");
-    return [part(count("sand"), "bunker", "bunkers"), part(count("water"), "lake", "lakes")].filter(Boolean).join(", ");
+    return [part(count("sand"), "bunker", "bunkers"), part(count("water"), "lake", "lakes"), part(count("portal"), "portal", "portals")]
+        .filter(Boolean).join(", ");
 }
 
 const formatToPar = (n) => (n === 0 ? "E" : n > 0 ? `+${n}` : `${n}`);
@@ -558,8 +559,11 @@ export function setupGolf() {
                 <h3>${course.name}</h3>
                 <div class="golf-hues" style="background: linear-gradient(to right, ${stops.join(", ")})"></div>
                 <span class="golf-best">${course.difficulty} · ${course.holes.length} holes · par ${par} · ${length.toLocaleString()} yds${record ? ` · ${pro ? "Pro best" : "best"} ${record.strokes} (${formatToPar(record.toPar)}), ${formatTime(record.time)}` : ""}</span>
+                ${course.gimmick ? `<span class="golf-best golf-gimmick">${course.gimmick}</span>` : ""}
                 ${locked ? `<span class="golf-best golf-lock">🔒 ${locked}</span>` : ""}
                 <button class="btn btn-primary" type="button"${locked ? " disabled" : ""}>Play</button>`;
+            // The button spans every line of the card
+            item.querySelector("button").style.gridRow = `1 / span ${3 + !!course.gimmick + !!locked}`;
             item.querySelector("button").addEventListener("click", () => startRound(course));
             return item;
         }));
@@ -761,22 +765,24 @@ export function setupGolf() {
         const note = $("golf-hazard-note");
         note.hidden = false;
         if (lie?.landed === "water") note.textContent = "Water! +1 stroke, playing again from your last spot.";
+        else if (lie?.landed === "portal") note.textContent = "Portal! The ball warped to its exit.";
         else if (round.inSand && !round.holeDone) {
             note.textContent = round.sandWedge
                 ? `In the bunker: ${ROW_NAMES[round.sandWedge]} only.`
                 : "In the bunker: wedges only (Tints, Shades, Tones, Saturate).";
         }
         else note.hidden = true;
-        note.className = lie?.landed === "water" ? "water" : "sand";
+        note.className = lie?.landed === "water" || lie?.landed === "portal" ? lie.landed : "sand";
 
         $("golf-hazards").replaceChildren(...hazards.map(hazard => {
             const item = document.createElement("li");
             item.className = hazard.type;
             const bunker = hazard.wedge ? `Bunker (${ROW_NAMES[hazard.wedge]} only)` : "Bunker";
-            if (round.expert) item.textContent = hazard.type === "water" ? "Water" : bunker; // no yardage on Expert
-            else item.textContent = hazard.type === "water"
-                ? `Water: ${yards(round.current, hazard.center) + hazard.radius} yds to carry`
-                : `${bunker}: ${Math.max(0, yards(round.hole.target, hazard.center) - hazard.radius)} yds from the pin`;
+            const name = { water: "Water", portal: "Portal", sand: bunker }[hazard.type];
+            if (round.expert) item.textContent = name; // no yardage on Expert
+            else if (hazard.type === "water") item.textContent = `Water: ${yards(round.current, hazard.center) + hazard.radius} yds to carry`;
+            else if (hazard.type === "portal") item.textContent = `Portal: ${Math.max(0, yards(round.current, hazard.center) - hazard.radius)} yds from you`;
+            else item.textContent = `${bunker}: ${Math.max(0, yards(round.hole.target, hazard.center) - hazard.radius)} yds from the pin`;
             return item;
         }));
 
@@ -829,6 +835,9 @@ export function setupGolf() {
             if (token !== replayToken) return;
 
             const { club, hsl } = route[i];
+            // Through a portal: the replay jumps from where the shot landed to the exit
+            const landing = strike(stops.at(-1), club, hole.wind);
+            if (round.hazards.portalAt(landing)) stops.push({ ...landing, warp: true });
             stops.push(hsl);
             const item = document.createElement("li");
             item.innerHTML = `<span class="swatch" style="background-color: ${css(hsl)}"></span>${clubName(club)}`;
@@ -914,9 +923,10 @@ export function setupGolf() {
                 const current = !played && index === round.holeIndex;
                 const sand = (hole.hazards ?? []).filter(h => h.type === "sand").length;
                 const water = (hole.hazards ?? []).filter(h => h.type === "water").length;
+                const portal = (hole.hazards ?? []).filter(h => h.type === "portal").length;
                 return {
                     label: index + 1, par: hole.par, current,
-                    hazards: `<span class="sand">${"●".repeat(sand)}</span><span class="water">${"●".repeat(water)}</span>`,
+                    hazards: `<span class="sand">${"●".repeat(sand)}</span><span class="water">${"●".repeat(water)}</span><span class="portal">${"●".repeat(portal)}</span>`,
                     perfect: played ? played.perfect : "–",
                     strokes: played ? played.strokes : current ? round.strokes : "–",
                     parPlayed: played ? hole.par : null,

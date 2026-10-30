@@ -221,13 +221,16 @@ Seven account-only courses after Royal Indigo, each built around one gimmick, th
 **Difficulty:** Standard par rules (par above perfect), with the birdie line of Standard to Expert courses (1–4 of 41 first shots). No Expert hiding (yardage and the meter stay), since the gimmicks are the challenge.
 
 **How it's built:**
-- **Hole rules in one place:** `hole.rules` (portals, mirrors, bans, wind cycle, roulette shifts, flip) read by one function the game, the solver, the generator and the server share; `wind` moves into it, and old holes keep working.
+- **Regions are hazards:** portals (v1.8.0) are a hazard type (`hazards.js`: `portalAt`, `land`), so the round, the solver, the generator, the map and the server replay reuse the hazard code. Mirror greens will be one too.
+- **Hole rules in one place:** gimmicks that aren't regions (bans, the wind cycle, roulette shifts) go in a `hole.rules` object read by one function the game, the solver, the generator and the server share, starting with v1.8.2.
 - **New clubs at the end:** Roulette (4) and Flip (5) are appended to the club list after the putter, so recorded rounds from v1.6–v1.7 still replay. They appear only on holes that have them (like the putter row, which shows only in golf).
 - **Solver:** Portals, mirrors, bans, roulette and flip depend only on the color, so the search is unchanged in kind. Turning wind adds "which shot in the cycle" to the state: memory × the cycle length (2–3), so the search stays exact.
 - **Generator:** `generateCourses.mjs` gains a placement step per gimmick (portals on or across the hazard-free perfect route, mirror regions near the tee or the green, bans chosen so the perfect route must change, wind cycles and roulette sets kept only if the hole passes the usual checks). Every hole is re-checked: perfect under par, finishable within par, birdie line in range, and the gimmick must matter (the perfect route with it differs from the one without).
 - **Map:** portals as a ring with a swirl icon and a dotted line to the exit; mirror regions as a silver patch with a ⇄ icon (the same footprint tracing as hazards); wind badge shows now → next.
 - **Survival on the server:** a round may end early (the first hole over par); bests compare holes survived first. A `survival/{uid}` best per player feeds the top 10.
 - **Help:** each course's card says its gimmick in a line, and "How to play" gains a section per gimmick.
+
+**Done:** v1.8.0 Violet Vortex: 17 portal holes (5 with a trap as well) and the ace; every portal hole is a stroke longer without its portal, so the perfect route always warps. Par 72, perfect 51.
 
 **Order:** one course per release, each playable and committed before the next: v1.8.0 hole rules + Portals (Violet Vortex), v1.8.1 Mirror greens (Silverglass Greens), v1.8.2 Club bans (Caddie Strike), v1.8.3 Turning wind (Saffron Whirlwind), v1.8.4 Roulette (Scarlet Roulette), v1.8.5 Flip (Hexflip Hollow), v1.8.6 Survival (The Obsidian Gauntlet).
 

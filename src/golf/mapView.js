@@ -38,14 +38,26 @@ function drawBall(hsl, rim = "#fff") {
     return canvas;
 }
 
-// Footprint textures: sand speckle, or water stripes that drift (see tick)
+// Footprint textures: sand speckle, water stripes that drift, or a portal's violet rings that turn (see tick)
 const textures = {};
+const RING_COLORS = { water: 0x0b3a8c, sand: 0x6b4f16, portal: 0x5b1f9e };
 function hazardTexture(type) {
     if (textures[type]) return textures[type];
     const canvas = document.createElement("canvas");
     canvas.width = canvas.height = 128;
     const ctx = canvas.getContext("2d");
-    if (type === "water") {
+    if (type === "portal") {
+        ctx.fillStyle = "#4b1a8a";
+        ctx.fillRect(0, 0, 128, 128);
+        ctx.strokeStyle = "rgba(220, 190, 255, 0.75)";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        for (let a = 0; a < Math.PI * 10; a += 0.1) { // a spiral out from the middle
+            const r = a * 2;
+            ctx.lineTo(64 + Math.cos(a) * r, 64 + Math.sin(a) * r);
+        }
+        ctx.stroke();
+    } else if (type === "water") {
         ctx.fillStyle = "#2a63d4";
         ctx.fillRect(0, 0, 128, 128);
         ctx.strokeStyle = "rgba(170, 205, 255, 0.7)";
@@ -66,8 +78,24 @@ function hazardTexture(type) {
     const texture = new THREE.CanvasTexture(canvas);
     texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
     texture.repeat.set(3, 3);
+    texture.center.set(0.5, 0.5); // a portal's spiral turns about its middle
     textures[type] = texture;
     return texture;
+}
+
+// A portal's exit (v1.8): a hollow violet ring where warped balls come out
+function drawPortalExit() {
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 64;
+    const ctx = canvas.getContext("2d");
+    for (const [r, color, width] of [[24, "#111", 9], [24, "#b48cff", 5], [12, "#b48cff", 3]]) {
+        ctx.beginPath();
+        ctx.arc(32, 32, r, 0, Math.PI * 2);
+        ctx.lineWidth = width;
+        ctx.strokeStyle = color;
+        ctx.stroke();
+    }
+    return canvas;
 }
 
 // Tee: a small peg where both the player's trail and the perfect route start
@@ -99,12 +127,18 @@ function drawHazardIcon(type, wedge) {
     const ctx = canvas.getContext("2d");
     ctx.beginPath();
     ctx.arc(32, 32, 28, 0, Math.PI * 2);
-    ctx.fillStyle = type === "water" ? "#1f5fd6" : "#e8cf96";
+    ctx.fillStyle = type === "portal" ? "#6a2bc2" : type === "water" ? "#1f5fd6" : "#e8cf96";
     ctx.fill();
     ctx.lineWidth = 3;
     ctx.strokeStyle = "#111";
     ctx.stroke();
-    if (type === "water") { // two waves
+    if (type === "portal") { // a spiral
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        for (let a = 0; a < Math.PI * 5; a += 0.15) ctx.lineTo(32 + Math.cos(a) * a * 1.4, 32 + Math.sin(a) * a * 1.4);
+        ctx.stroke();
+    } else if (type === "water") { // two waves
         ctx.strokeStyle = "#fff";
         ctx.lineWidth = 4;
         for (const y of [26, 40]) {
@@ -178,6 +212,7 @@ export class GolfMapView {
             else flash = (1 - t) * (0.5 + 0.5 * Math.cos(t * Math.PI * 6));
         }
         if (textures.water) textures.water.offset.x = (now / 8000) % 1; // shared by every lake
+        if (textures.portal) textures.portal.rotation = -(now / 2500) % (Math.PI * 2); // and every portal
         this.decals.forEach(({ ring, ringColor }, i) => {
             ring.forEach(mesh => mesh.material.color.copy(ringColor).lerp(WHITE, this.flash?.index === i ? flash : 0));
         });
@@ -188,8 +223,7 @@ export class GolfMapView {
     // so it's inside the patch exactly when it's in the hazard. If the hazard doesn't reach this
     // layer, only a faint outline marks where it is. Returns where its icon goes.
     _decal(hazard, focusLayer) {
-        const water = hazard.type === "water";
-        const ringColor = new THREE.Color(water ? 0x0b3a8c : 0x6b4f16);
+        const ringColor = new THREE.Color(RING_COLORS[hazard.type] ?? RING_COLORS.sand);
         const r = hazard.radius / 1000;
         const key = `${this.getColorSpace()}|${JSON.stringify(hazard)}|${focusLayer}`;
         if (!this.footprints.has(key)) {
@@ -209,13 +243,13 @@ export class GolfMapView {
             return { fill: [], ring: [ring], type: hazard.type, wedge: hazard.wedge, ringColor, icon: spot.point.clone().addScaledVector(spot.normal, LIFT) };
         }
 
-        const meshes = patches.map(patch => this._patch(patch, water, ringColor));
+        const meshes = patches.map(patch => this._patch(patch, hazard.type, ringColor));
         const icon = this._onSurface(patches[0].center.clone(), LIFT);
         return { fill: meshes.map(m => m.fill), ring: meshes.map(m => m.ring), type: hazard.type, wedge: hazard.wedge, ringColor, icon };
     }
 
     // One traced patch: fill and edge ring
-    _patch(patch, water, ringColor) {
+    _patch(patch, type, ringColor) {
         const [edge] = patch.outlines.map(points => points.map(p => this._onSurface(p.clone())));
         const center = this._onSurface(patch.center.clone());
 
@@ -224,7 +258,7 @@ export class GolfMapView {
         fillGeometry.setIndex(edge.flatMap((_, k) => [0, k + 1, ((k + 1) % edge.length) + 1]));
         fillGeometry.setAttribute("uv", new THREE.Float32BufferAttribute([center, ...edge].flatMap(p => [(p.x + p.z) * 4, p.y * 4]), 2));
         const fill = new THREE.Mesh(fillGeometry, new THREE.MeshBasicMaterial({
-            map: hazardTexture(water ? "water" : "sand"), transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide,
+            map: hazardTexture(type === "portal" || type === "water" ? type : "sand"), transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide,
         }));
 
         // Edge ring: a thin tube around the outline
@@ -322,6 +356,13 @@ export class GolfMapView {
         // Hazards: footprint on this layer, plus an icon on it
         this.decals = this.hazards.map(hazard => this._decal(hazard, focus.layer));
         this.decals.forEach(({ type, wedge, icon }) => this.group.add(this._sprite(drawHazardIcon(type, wedge), icon, wedge ? 0.1 : 0.08, [0.5, 0.5])));
+        // Portal exits: where a warped ball comes out (hidden on the far side, like the tee)
+        for (const portal of this.hazards.filter(h => h.type === "portal")) {
+            const exit = this._sprite(drawPortalExit(), lifted(this._locate(portal.exit)), 0.08, [0.5, 0.5]);
+            exit.renderOrder = 9;
+            exit.material.depthTest = true;
+            this.group.add(exit);
+        }
         this.main.object.add(this.group);
 
         this.main.peelTo(focus.layer);
@@ -329,22 +370,30 @@ export class GolfMapView {
         this.main.rotateToQuaternion(new THREE.Quaternion().setFromUnitVectors(focus.normal, new THREE.Vector3(0, 0, 1)));
     }
 
-    // A path along the surface through `colors` (→ the pin if holed), with dots where strokes landed
+    // A path along the surface through `colors` (→ the pin if holed), with dots where strokes landed.
+    // A portal landing (marked `warp`, v1.8) breaks the path: the ball jumps from there to the exit.
     _trail(colors, holed, color) {
         const lifted = (spot) => spot.point.clone().addScaledVector(spot.normal, LIFT);
         const stops = colors.map(hsl => lifted(this._locate(hsl)));
         if (holed) stops.push(lifted(this._locate(this._target)));
         if (stops.length < 2) return;
-        // A thin tube rather than a Line: WebGL draws lines 1 px wide whatever linewidth says
-        const points = stops.slice(1).flatMap((stop, i) => this._arc(stops[i], stop));
-        const path = new THREE.CurvePath();
-        points.slice(1).forEach((point, i) => {
-            if (!point.equals(points[i])) path.add(new THREE.LineCurve3(points[i], point));
+        const runs = [[stops[0]]];
+        stops.slice(1).forEach((stop, i) => {
+            if (colors[i]?.warp) runs.push([stop]);
+            else runs.at(-1).push(stop);
         });
-        if (path.curves.length) this.group.add(new THREE.Mesh(
-            new THREE.TubeGeometry(path, points.length * 2, TRAIL_RADIUS, 6, false),
-            new THREE.MeshBasicMaterial({ color }),
-        ));
+        for (const run of runs.filter(run => run.length > 1)) {
+            // A thin tube rather than a Line: WebGL draws lines 1 px wide whatever linewidth says
+            const points = run.slice(1).flatMap((stop, i) => this._arc(run[i], stop));
+            const path = new THREE.CurvePath();
+            points.slice(1).forEach((point, i) => {
+                if (!point.equals(points[i])) path.add(new THREE.LineCurve3(points[i], point));
+            });
+            if (path.curves.length) this.group.add(new THREE.Mesh(
+                new THREE.TubeGeometry(path, points.length * 2, TRAIL_RADIUS, 6, false),
+                new THREE.MeshBasicMaterial({ color }),
+            ));
+        }
         stops.slice(0, holed ? -2 : -1).forEach(stop => this.group.add(this._dot(stop, color)));
     }
 

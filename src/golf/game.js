@@ -67,8 +67,10 @@ export class GolfRound {
     }
 
     // One stroke with a club ({ row, index }); returns the new lie plus `landed`
-    // ("water" / "sand" / null) and `landedIn` (that hazard), or null if the club can't be played.
+    // ("water" / "sand" / "portal" / null) and `landedIn` (that hazard), or null if the club can't be played.
     // Water: +1 penalty stroke and the ball stays where it was hit from.
+    // Portal (v1.8): the ball warps to the portal's exit; the trail keeps the landing, marked `warp`,
+    // so the map can show the jump instead of a shot.
     play(club) {
         if (this.holeDone || !this.canPlay(club)) return null;
         this.history.push({ current: this.current, strokes: this.strokes, trail: this.trail.length });
@@ -79,6 +81,10 @@ export class GolfRound {
         const landedIn = landed ? this.hazards.which(landing) : null;
         if (landed === "water") {
             this.strokes += 2; // the stroke + 1 penalty
+        } else if (landed === "portal") {
+            this.trail.push(this.current, { ...landing, warp: true });
+            this.current = { ...landedIn.exit };
+            this.strokes++;
         } else {
             this.trail.push(this.current);
             this.current = landing;

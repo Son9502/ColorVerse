@@ -9,6 +9,26 @@ Each entry is tagged with how it was produced:
 
 ---
 
+## Milestone 25 — Portals: Violet Vortex (v1.8.0) `[ai-assisted]`
+**2026-10-30**
+
+The first expansion course. Spec agreed with the developer (7 gimmick courses, names with colors, unlock chain from Royal Indigo, one course per release); implementation `[ai-assisted]`.
+
+**Added**
+- Portals (`hazards.js`): a hazard type whose landing warps the ball to its `exit`; `portalAt` and `land` used by the round, the solver (`searchFrom`, `reachesWithin`), the birdie-line count and the map
+- `placePortals` (`holeMaker.js`): the hole is built one stroke longer, then a shortcut portal on a tee shot exits two strokes along its best route, so the perfect score needs the portal; with `trap`, a second portal on the obvious line exits 250+ yds from the hole. Re-checked: perfect, finishable within par, birdie line 1–4 (new `Expansion` difficulty)
+- Violet Vortex (`generateCourses.mjs`, seed 6, 250°–300°, par 72): 17 portal holes, 5 with traps, plus the ace; `gimmick` line on its course card
+- Map: violet swirl footprint and icon (turning), exit ring, and the trail breaks at a portal (the ball jumps); the perfect-route replay jumps too
+- Panel: "Portal! The ball warped to its exit.", "Portal: N yds from you", portal dots on the score card, "2 portals" in the hole summary; How to play section on expansion courses
+- Unlock: Violet Vortex needs −2 or better on Royal Indigo
+
+**Verified**
+- Every hole: stored perfect matches the solver; without portals each portal hole needs one more stroke; every perfect route warps; tee, pin and exits outside every portal; courses 1–5 unchanged byte for byte
+- `replayRound` of a perfect Violet Vortex round: 51 strokes (−21), so the score server accepts it
+- Headless Chrome: hole 1 played on its perfect route (warp note, jump on the map, birdie); no console errors
+
+---
+
 ## Milestone 24 — Mobile & Accessibility (v1.7.0) `[ai-assisted]`
 **2026-10-30**
 

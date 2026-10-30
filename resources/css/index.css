@@ -1478,6 +1478,17 @@ body.golf-pro .square-wrapper::after {
     color: #1f5fd6;
 }
 
+.golf-card .portal,
+#golf-hazards .portal::before {
+    color: #6a2bc2;
+}
+
+/* An expansion course's gimmick, on its card */
+.golf-course .golf-gimmick {
+    color: #5b1f9e;
+    font-weight: 600;
+}
+
 /* Wind: line in the panel, badge over the map */
 #golf-wind {
     font-size: 0.82rem;
@@ -1513,6 +1524,11 @@ body.golf-pro .square-wrapper::after {
 #golf-hazard-note.water {
     background: #dde8fb;
     color: #123f8f;
+}
+
+#golf-hazard-note.portal {
+    background: #ece0fb;
+    color: #4b1a8a;
 }
 
 #golf-hazard-note.sand {
@@ -1562,9 +1578,7 @@ body.golf .golf-blocked {
     opacity: 0.4;
 }
 
-.golf-course.locked .btn {
-    grid-row: 1 / span 4;
-}
+
 
 /* -----------------------------------------------
    Touch, keyboard and phones (v1.7)

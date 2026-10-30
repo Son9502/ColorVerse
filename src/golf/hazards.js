@@ -2,15 +2,18 @@ import { STATE_COUNT, encode } from "./clubs.js";
 import { hslToOklab, oklabDistance } from "./oklab.js";
 
 // ----------------------------------
-// Color Golf hazards: sand and water
+// Color Golf hazards: sand, water and portals
 // ----------------------------------
-// A hazard is a "looks-like" region of color space: { type: "sand" | "water", center: {h, s, l},
+// A hazard is a "looks-like" region of color space: { type: "sand" | "water" | "portal", center: {h, s, l},
 // radius } with the radius in yards (OKLab distance × 1000), the same measure as yards and the hole.
 //
 // Rules (see game.js and solver.js):
 // - Water: +1 penalty stroke and the ball returns to where it was hit from.
 // - Sand: the next shot must be a wedge (Tints, Shades, Tones, Saturate); no putter.
 //   An Expert bunker (v1.4) names one wedge (`wedge: "shades"`), and only that one can be played.
+// - Portal (v1.8): the ball warps straight to the portal's `exit` color, which is never inside any
+//   region. Only the landing matters, so the solver stays exact. Water wins over a portal, a portal
+//   over sand, if regions ever overlap.
 
 export const WEDGES = ["tints", "shades", "tones", "saturate"];
 export const WEDGE_ROWS = new Set(WEDGES);
@@ -19,6 +22,7 @@ export const isWedge = (club) => WEDGE_ROWS.has(club.row);
 const NONE = 1;
 const SAND = 2; // any wedge; SAND + 1 + i: only WEDGES[i]
 const WATER = 7;
+const PORTAL = 8; // PORTAL + i: inside the portal at hazards[i]
 
 // Which hazard a color is in, memoized per whole-number HSL state.
 // Water wins if a color is somehow inside both.
@@ -29,10 +33,11 @@ export function hazardMap(hazards = []) {
     const classify = (hsl) => {
         const lab = hslToOklab(hsl);
         let found = NONE;
-        for (const { type, center, radius, wedge } of centers) {
+        for (const [i, { type, center, radius, wedge }] of centers.entries()) {
             if (oklabDistance(lab, center) >= radius) continue;
             if (type === "water") return WATER;
-            if (found === NONE) found = wedge ? SAND + 1 + WEDGES.indexOf(wedge) : SAND; // the first bunker's rule
+            if (type === "portal") { if (found < PORTAL) found = PORTAL + i; }
+            else if (found === NONE) found = wedge ? SAND + 1 + WEDGES.indexOf(wedge) : SAND; // the first bunker's rule
         }
         return found;
     };
@@ -41,12 +46,22 @@ export function hazardMap(hazards = []) {
         return cache[code];
     };
 
-    // "sand", "water" or null
+    // "sand", "water", "portal" or null
     const at = (hsl, code = encode(hsl)) => {
         if (!cache) return null;
         const k = kind(hsl, code);
-        return k === WATER ? "water" : k === NONE ? null : "sand";
+        return k >= PORTAL ? "portal" : k === WATER ? "water" : k === NONE ? null : "sand";
     };
+
+    // The portal a color is in (its hazard object), or null
+    const portalAt = (hsl, code = encode(hsl)) => {
+        if (!cache) return null;
+        const k = kind(hsl, code);
+        return k >= PORTAL ? hazards[k - PORTAL] : null;
+    };
+
+    // Where a ball that lands on `hsl` ends up: the portal's exit, or right there
+    const land = (hsl, code = encode(hsl)) => portalAt(hsl, code)?.exit ?? hsl;
 
     // In a bunker: the one wedge row allowed there, or null if any wedge is (also null outside sand)
     const wedgeAt = (hsl, code = encode(hsl)) => {
@@ -62,11 +77,13 @@ export function hazardMap(hazards = []) {
         return wedge ? club.row === wedge : isWedge(club);
     };
 
-    // The hazard object itself (for the landing highlight and yardage)
+    // The hazard object itself (for the landing highlight and yardage); the portal, for a portal landing
     const which = (hsl) => {
+        const portal = portalAt(hsl);
+        if (portal) return portal;
         const lab = hslToOklab(hsl);
         return hazards.find((h, i) => oklabDistance(lab, centers[i].center) < centers[i].radius) ?? null;
     };
 
-    return { hazards, at, wedgeAt, allows, which, empty: !centers.length };
+    return { hazards, at, portalAt, land, wedgeAt, allows, which, empty: !centers.length };
 }

@@ -22,8 +22,9 @@ export function rng(seed) {
 
 // Birdie line range (first shots, out of 41, that keep the perfect score reachable) per difficulty,
 // measured after hazards. Expert holes are chosen with more lines (`select`) so hazards can remove some.
-export const BIRDIE_LINE = { Beginner: [6, 41], Standard: [3, 6], Expert: [1, 3] };
-export const SELECT_LINE = { Beginner: [6, 41], Standard: [3, 6], Expert: [3, 8] };
+// Expansion courses (v1.8) sit between Standard and Expert; their gimmick decides which holes pass.
+export const BIRDIE_LINE = { Beginner: [6, 41], Standard: [3, 6], Expert: [1, 3], Expansion: [1, 4] };
+export const SELECT_LINE = { Beginner: [6, 41], Standard: [3, 6], Expert: [3, 8], Expansion: [1, 41] };
 export const LAYUP_LINE = [2, 5]; // few enough birdie lines to cover every one with a lake
 
 // Expert par (v1.3): no spare stroke on par 3s and 4s (par = perfect), one on par 5s
@@ -109,7 +110,8 @@ function birdieLines(hole, perfect, map = null) {
 }
 const birdieLineCount = (hole, perfect, map, wind = null) => {
     let count = 0;
-    for (const shot of allStrikes(hole.tee, wind)) { // counts clubs, like the selection check
+    for (const landing of allStrikes(hole.tee, wind)) { // counts clubs, like the selection check
+        const shot = map.land(landing); // through a portal (v1.8)
         if (map.at(shot) === "water") continue;
         if (reachesWithin(shot, hole.target, perfect - 1, map, { wind })) count++;
     }
@@ -206,13 +208,67 @@ export function placeHazards(rand, hole, plan, band, layup) {
     return null;
 }
 
+// Portals (v1.8) for a hole built one stroke longer than wanted (its perfect is `wanted` + 1):
+// a shortcut portal on one of the tee's landing spots exits two strokes along the hole's best
+// route, so taking it is what makes `wanted` possible. With `trap`, a second portal on the obvious
+// line (a first shot that still finishes in `wanted` + 1, the hole's own length) throws the ball
+// far from the hole instead, so the natural route is the risky one.
+// Returns { hazards, perfect: wanted }, or null if no placement passes the checks.
+export function placePortals(rand, hole, wanted, band, { trap = false } = {}) {
+    const { tee, target, par } = hole;
+    const base = searchFrom(tee, hole.perfect);
+    const route = pathTo(base, parFor(base, target).end);
+    const shots = allStrikes(tee);
+    const pick = (list) => list[Math.floor(rand() * list.length)];
+    const radius = () => Math.round(20 + rand() * 12);
+    const clear = (spot, portals) => portals.every(p => yardsBetween(spot, p.center) >= p.radius + 10);
+
+    for (let attempt = 0; attempt < 40; attempt++) {
+        const shortcut = { type: "portal", center: pick(shots), radius: radius(), exit: route[1].hsl };
+        const portals = [shortcut];
+        if (trap) {
+            const map = hazardMap(portals);
+            const lines = shots.filter(shot => shot !== shortcut.center && clear(shot, portals)
+                && reachesWithin(map.land(shot), target, wanted, map));
+            // The trap's exit: any clear color at least 250 yds from the hole
+            let far = null;
+            for (let tries = 0; tries < 30 && !far; tries++) {
+                const spot = randomColor(rand, [0, 360]);
+                if (yardsBetween(spot, target) >= 250) far = spot;
+            }
+            if (lines.length && far) portals.push({ type: "portal", center: pick(lines), radius: radius(), exit: far });
+        }
+        // The tee, the hole and every exit stay outside (and clear of the edge of) every portal
+        if (![tee, target, ...portals.map(p => p.exit)].every(spot => clear(spot, portals))) continue;
+
+        const map = hazardMap(portals);
+        if (parFor(searchFrom(tee, wanted, map), target)?.par !== wanted) continue;
+        if ((parFor(searchFrom(tee, par, map), target)?.par ?? Infinity) > par) continue;
+        const line = birdieLineCount(hole, wanted, map);
+        if (line < band[0] || line > band[1]) continue;
+        return { hazards: portals, perfect: wanted };
+    }
+    return null;
+}
+
 // One hole: { tee, target, par, perfect, hazards?, wind? }. `rands` are { rand, hazardRand, windRand }
 // (separate sequences, so adding hazards or wind never changes which tee and target are chosen).
 // `plan` is { water, greenside, route } counts or null; `windPlan` is { hue: [min, max], light: [min, max] }
 // or null. `layup` makes a par 5 whose birdie lines are all under water. `log` reports a hole left clear.
-export function buildHole({ rand, hazardRand, windRand }, { par, perfect, hues, difficulty, plan = null, windPlan = null, layup = false, log = () => {} }) {
-    // If no hazard placement passes the checks, pick another hole (up to 10 tries) before leaving it clear
+export function buildHole({ rand, hazardRand, windRand }, { par, perfect, hues, difficulty, plan = null, windPlan = null, layup = false, portals = null, log = () => {} }) {
+    // Portals (v1.8): build the hole a stroke longer, then the portal makes the perfect score possible
     let hole;
+    for (let attempt = 0; portals && attempt < 10; attempt++) {
+        hole = makeHole(rand, par, perfect + 1, hues, SELECT_LINE[difficulty]);
+        const placed = placePortals(hazardRand, hole, perfect, BIRDIE_LINE[difficulty], portals);
+        if (placed) {
+            Object.assign(hole, placed);
+            hole.lines = birdieLineCount(hole, hole.perfect, hazardMap(hole.hazards));
+            return hole;
+        }
+        if (attempt === 9) log("no portal placement passed the checks; built without portals");
+    }
+    // If no hazard placement passes the checks, pick another hole (up to 10 tries) before leaving it clear
     for (let attempt = 0; attempt < 10; attempt++) {
         // With hazards coming, pick holes with extra birdie lines for them to take away
         const line = layup ? LAYUP_LINE : plan ? SELECT_LINE[difficulty] : BIRDIE_LINE[difficulty];
