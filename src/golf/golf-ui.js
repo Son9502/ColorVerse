@@ -6,6 +6,8 @@ import { harmonySets, selectBaseColor, clearBaseColor } from "../harmony.js";
 import { setMapState } from "./mapState.js";
 import { WEEK, dateKey, daysBetween, dayLabel, weekday, streak } from "./daily.js";
 import { poolKey, PARS } from "./practice.js";
+import { courseLock, unlockToPar } from "./unlocks.js";
+import * as cloud from "../cloud/cloud.js";
 
 // ----------------------------------
 // Color Golf screen
@@ -130,6 +132,15 @@ function hazardSummary(hazards = []) {
 
 const formatToPar = (n) => (n === 0 ? "E" : n > 0 ? `+${n}` : `${n}`);
 
+// A line for the end of a course round, by how it went against par (and perfect, the floor)
+function roundMessage({ strokes, perfect, toPar }) {
+    if (strokes <= perfect) return "A perfect round: the fewest strokes possible.";
+    if (toPar < 0) return "Under par! A round to remember.";
+    if (toPar === 0) return "Level par: a solid round.";
+    if (toPar <= 6) return "Close to par. A few putts from something special.";
+    return "Every round teaches the clubs. Try again?";
+}
+
 // Saved in this browser only. localStorage can throw: fall back to nothing saved
 function load(key, fallback) {
     try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; }
@@ -137,29 +148,62 @@ function load(key, fallback) {
 function save(key, value) {
     try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* ignore */ }
 }
+function remove(key) {
+    try { localStorage.removeItem(key); } catch { /* ignore */ }
+}
+
+// Whose scores the screens show (v1.6): the guest's under the plain keys, a signed-in account's
+// in its own copy ("<key>:<uid>"), which signing out deletes, so the guest's come back untouched
+let owner = cloud.rememberedAccount();
+const scoped = (key, uid = owner) => (uid ? `${key}:${uid}` : key);
+const forgetAccount = (uid) => [BEST_KEY, DAILY_KEY].forEach(key => remove(scoped(key, uid)));
 
 // Best rounds per course; Pro rounds are kept apart under "<id>:pro". A record from an older
 // version of a course's holes (its `rev`, 1 if absent) doesn't count.
 const bestKey = (courseId, pro) => (pro ? `${courseId}:pro` : courseId);
 function bestFor(course, pro) {
-    const record = load(BEST_KEY, {})[bestKey(course.id, pro)];
+    const record = load(scoped(BEST_KEY), {})[bestKey(course.id, pro)];
     return record && (record.rev ?? 1) === (course.rev ?? 1) ? record : null;
 }
 function saveBest(course, pro, totals) {
     const record = bestFor(course, pro);
     if (record && compareRounds(record, totals) <= 0) return false;
-    const best = load(BEST_KEY, {});
+    const best = load(scoped(BEST_KEY), {});
     best[bestKey(course.id, pro)] = { strokes: totals.strokes, toPar: totals.toPar, time: totals.time, rev: course.rev ?? 1 };
-    save(BEST_KEY, best);
+    save(scoped(BEST_KEY), best);
     return true;
 }
 
 // Daily results by date. The first stroke of a scored try saves a pick-up (double par), which
 // finishing the hole replaces, so quitting or reloading can't buy a second try.
-const loadDaily = () => load(DAILY_KEY, {});
+const loadDaily = () => load(scoped(DAILY_KEY), {});
 function saveDaily(day, result) {
-    save(DAILY_KEY, { ...loadDaily(), [day]: result });
+    save(scoped(DAILY_KEY), { ...loadDaily(), [day]: result });
 }
+
+// Signed in: the server's bests and daily results join the account's copy (the better best wins; a
+// finished daily from the server replaces a local one), so rounds still waiting to be sent show too
+function mergeCloudScores({ bests, daily }) {
+    const local = load(scoped(BEST_KEY), {});
+    for (const [key, record] of Object.entries(bests)) {
+        const mine = local[key];
+        const mineRev = mine?.rev ?? 1;
+        // A newer course revision always wins; on the same revision, the better round
+        if (!mine || record.rev > mineRev || (record.rev === mineRev && compareRounds(record, mine) < 0)) local[key] = record;
+    }
+    save(scoped(BEST_KEY), local);
+    const days = loadDaily();
+    for (const [day, result] of Object.entries(daily)) {
+        if (!days[day] || result.final) {
+            const { par, perfect, strokes, time, pickedUp, pro } = result;
+            days[day] = { par, perfect, strokes, time, pickedUp, pro };
+        }
+    }
+    save(scoped(DAILY_KEY), days);
+}
+
+// A finished round as the score server wants it: the clubs played on each hole, to replay
+const playedHoles = (card) => card.map(({ clubs, time }) => ({ clubs, time: Math.round(time) }));
 
 // The daily list loads on first use (it's a few hundred kB), then stays
 let dailyList = null;
@@ -179,6 +223,20 @@ async function starterHole({ difficulty, par, hazards }) {
 }
 
 const isExpert = (difficulty) => difficulty === "Expert";
+
+// Sign-in problems in words (Firebase error codes); anything else gets a general "try again"
+const MIN_PASSWORD = 8;
+const NO_MATCH = "That email and password don't match. Try again, or use Forgot password.";
+const AUTH_ERRORS = {
+    "auth/invalid-credential": NO_MATCH,
+    "auth/wrong-password": NO_MATCH,
+    "auth/user-not-found": NO_MATCH,
+    "auth/email-already-in-use": "That email already has an account. Sign in, or use Forgot password to set a password for it.",
+    "auth/weak-password": `Pick a password of at least ${MIN_PASSWORD} characters.`,
+    "auth/invalid-email": "That doesn't look like an email address.",
+    "auth/too-many-requests": "Too many tries. Wait a minute, then try again.",
+    "auth/network-request-failed": "Couldn't reach the server. Check your connection and try again.",
+};
 
 // Closeness meter wording; only updated after a stroke
 function lieLabel({ distance, holed, onGreen }) {
@@ -234,6 +292,197 @@ export function setupGolf() {
         heading.prepend(type);
     }
 
+    // ---- Account (v1.6): only when Firebase is configured ----
+    if (cloud.cloudAvailable) {
+        $("golf-account").hidden = false;
+        $("golf-leaderboard-toggle").hidden = false;
+        if (cloud.cloudWanted()) cloud.loadCloud(); // signed in before, or back from a sign-in link
+    }
+    const showSignIn = (open) => {
+        $("golf-signin").hidden = !open;
+        $("golf-account-out").hidden = open || !!cloud.currentAccount();
+        $("golf-signin-status").textContent = "";
+    };
+    // Status line under the sign-in buttons: grey for progress, red for a problem
+    const status = (text, problem = false) => {
+        $("golf-signin-status").textContent = text;
+        $("golf-signin-status").classList.toggle("golf-error", problem);
+    };
+    const signInError = (error) => status(error.code === "auth/popup-closed-by-user" ? "" : AUTH_ERRORS[error.code] ?? "Couldn't sign in. Please try again.", true);
+    $("golf-signin-open").addEventListener("click", () => showSignIn(true));
+    $("golf-signin-cancel").addEventListener("click", () => showSignIn(false));
+    $("golf-signin-google").addEventListener("click", () => cloud.signInWithGoogle().catch(signInError));
+
+    // Email: the address is checked by the browser; the password only where one is needed
+    const emailInput = $("golf-email");
+    const passwordInput = $("golf-password");
+    const withEmail = async (needsPassword, working, action) => {
+        if (!emailInput.reportValidity()) return;
+        if (needsPassword && !passwordInput.value) {
+            status("Enter your password (or use a sign-in link instead).", true);
+            passwordInput.focus();
+            return;
+        }
+        status(working);
+        try {
+            await action(emailInput.value.trim(), passwordInput.value);
+        } catch (error) {
+            signInError(error);
+        }
+    };
+    $("golf-signin-email").addEventListener("submit", (event) => {
+        event.preventDefault();
+        withEmail(true, "Signing in…", (email, password) => cloud.signInWithPassword(email, password));
+    });
+    $("golf-signup").addEventListener("click", () => {
+        if (passwordInput.value && passwordInput.value.length < MIN_PASSWORD) {
+            status(AUTH_ERRORS["auth/weak-password"], true);
+            return;
+        }
+        withEmail(true, "Creating your account…", (email, password) => cloud.createAccount(email, password));
+    });
+    $("golf-forgot").addEventListener("click", () => withEmail(false, "Sending…", async (email) => {
+        // The same answer whether or not the account exists, so the form can't be used to look up emails
+        await cloud.sendPasswordReset(email).catch(error => {
+            if (error.code !== "auth/user-not-found") throw error;
+        });
+        status(`If there's an account for ${email}, it has an email with a link to set a new password.`);
+    }));
+    $("golf-signin-link").addEventListener("click", () => withEmail(false, "Sending…", async (email) => {
+        await cloud.sendSignInLink(email);
+        status(`Check ${email} for a sign-in link (it opens this page).`);
+    }));
+    $("golf-signout").addEventListener("click", () => cloud.signOutAccount());
+    // Nickname: a problem (taken, too short, characters) shows in red under the box until it's edited
+    const nicknameInput = $("golf-nickname-input");
+    const nicknameError = (text) => {
+        $("golf-nickname-error").textContent = text ?? "";
+        $("golf-nickname-error").hidden = !text;
+        nicknameInput.setAttribute("aria-invalid", String(!!text));
+    };
+    nicknameInput.addEventListener("input", () => nicknameError(null));
+    $("golf-nickname-edit").addEventListener("click", () => {
+        nicknameError(null);
+        $("golf-nickname").hidden = false;
+        $("golf-nickname-label").textContent = "New nickname for the leaderboard (2–20 characters)";
+        nicknameInput.value = cloud.currentAccount()?.nickname ?? "";
+        nicknameInput.focus();
+    });
+    $("golf-nickname").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const save = $("golf-nickname-save");
+        save.disabled = true;
+        save.textContent = "Saving…";
+        try {
+            await cloud.setNickname(nicknameInput.value);
+            nicknameError(null);
+            $("golf-nickname").hidden = true;
+        } catch (error) {
+            nicknameError(error.message || "Couldn't save that nickname.");
+            nicknameInput.focus();
+        } finally {
+            save.disabled = false;
+            save.textContent = "Save";
+        }
+    });
+    // Change password: the current one first (wrong → red), then 8+ characters that differ from it
+    const passwordForm = $("golf-password-change");
+    const currentInput = $("golf-password-current");
+    const newInput = $("golf-password-new");
+    const passwordStatus = (text, problem = false) => {
+        $("golf-password-status").textContent = text;
+        $("golf-password-status").hidden = !text;
+        $("golf-password-status").classList.toggle("golf-error", problem);
+    };
+    const showPasswordForm = (open) => {
+        passwordForm.hidden = !open;
+        currentInput.value = "";
+        newInput.value = "";
+        passwordStatus("");
+        if (open) currentInput.focus();
+    };
+    $("golf-password-edit").addEventListener("click", () => showPasswordForm(passwordForm.hidden));
+    $("golf-password-cancel").addEventListener("click", () => showPasswordForm(false));
+    passwordForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (!currentInput.value) return passwordStatus("Enter your current password.", true);
+        if (newInput.value.length < MIN_PASSWORD) return passwordStatus(AUTH_ERRORS["auth/weak-password"], true);
+        if (newInput.value === currentInput.value) return passwordStatus("Pick a new password that's different from your current one.", true);
+        const save = $("golf-password-save");
+        save.disabled = true;
+        passwordStatus("Changing your password…");
+        try {
+            await cloud.changePassword(currentInput.value, newInput.value);
+            showPasswordForm(false);
+            passwordStatus("Password changed.");
+        } catch (error) {
+            const wrong = ["auth/invalid-credential", "auth/wrong-password"].includes(error.code);
+            passwordStatus(wrong ? "Your current password isn't right." : AUTH_ERRORS[error.code] ?? "Couldn't change your password. Please try again.", true);
+        } finally {
+            save.disabled = false;
+        }
+    });
+    $("golf-password-forgot").addEventListener("click", async () => {
+        const email = cloud.currentAccount()?.email;
+        if (!email) return;
+        try {
+            await cloud.sendPasswordReset(email);
+            showPasswordForm(false);
+            passwordStatus(`We've emailed ${email} a link to set a new password.`);
+        } catch (error) {
+            passwordStatus(AUTH_ERRORS[error.code] ?? "Couldn't send the email. Please try again.", true);
+        }
+    });
+
+    cloud.onAccount(async (account) => {
+        if (!cloud.cloudAvailable) return;
+        const uid = account?.uid ?? null;
+        if (owner && owner !== uid) forgetAccount(owner); // signed out (or switched): drop that account's copy
+        owner = uid;
+        $("golf-account-out").hidden = !!account || !$("golf-signin").hidden;
+        $("golf-account-in").hidden = !account;
+        $("golf-password-edit").hidden = !account?.hasPassword;
+        if (!account) showPasswordForm(false);
+        if (account) {
+            $("golf-signin").hidden = true;
+            passwordInput.value = "";
+        }
+        $("golf-account-name").textContent = account?.nickname ?? account?.email ?? "";
+        $("golf-nickname").hidden = !account || !!account.nickname; // first sign-in: pick a nickname
+        $("golf-nickname-label").textContent = "Welcome! Pick a nickname for the leaderboard (2–20 characters)";
+        if (account) {
+            try {
+                const scores = await cloud.loadMyScores();
+                if (scores && owner === uid) mergeCloudScores(scores);
+            } catch { /* offline: keep the account's copy */ }
+        }
+        if (!setup.hidden) {
+            renderDaily();
+            renderCourses();
+        }
+    });
+
+    // Daily leaderboard: top 10 for today, your entry in bold
+    const leaderboard = $("golf-leaderboard");
+    $("golf-leaderboard-toggle").addEventListener("click", async (event) => {
+        leaderboard.hidden = !leaderboard.hidden;
+        event.currentTarget.setAttribute("aria-expanded", String(!leaderboard.hidden));
+        if (leaderboard.hidden) return;
+        leaderboard.replaceChildren(Object.assign(document.createElement("li"), { textContent: "Loading…" }));
+        try {
+            const top = await cloud.dailyLeaderboard(dateKey());
+            const me = cloud.currentAccount()?.uid;
+            leaderboard.replaceChildren(...(top.length ? top.map(entry => {
+                const item = document.createElement("li");
+                item.className = entry.uid === me ? "me" : "";
+                item.textContent = `${entry.nickname}: ${entry.strokes} (${formatToPar(entry.toPar)}) · ${formatTime(entry.time)}${entry.pro ? " · Pro" : ""}`;
+                return item;
+            }) : [Object.assign(document.createElement("li"), { textContent: "No scores yet today. Be the first!" })]));
+        } catch {
+            leaderboard.replaceChildren(Object.assign(document.createElement("li"), { textContent: "Couldn't load the leaderboard." }));
+        }
+    });
+
     // Pro: the switch on the setup screen applies to the next round and picks which bests are shown
     const proSwitch = $("golf-pro");
     proSwitch.checked = load(PRO_KEY, false);
@@ -262,6 +511,7 @@ export function setupGolf() {
         putterBoxes.forEach(box => { box.style.backgroundColor = ""; });
         renderDaily();
         renderCourses();
+        cloud.loadCloud(); // the account section needs the SDK now (no-op without a config)
         show(setup);
     };
 
@@ -278,8 +528,18 @@ export function setupGolf() {
         clearBaseColor();
     };
 
+    // Courses after the first few need an account and a good round on the one before (unlocks.js).
+    // Without a Firebase config there are no accounts, so nothing is locked.
+    const lockText = (index) => {
+        if (!cloud.cloudAvailable) return null;
+        const lock = courseLock(courses, index, { signedIn: !!owner, bests: load(scoped(BEST_KEY), {}) });
+        if (lock === "account") return "Sign in to unlock";
+        if (lock === "score") return `Score ${formatToPar(unlockToPar(courses[index]))} or better on ${courses[index - 1].name} to unlock`;
+        return null;
+    };
+
     const renderCourses = () => {
-        $("golf-courses").replaceChildren(...courses.map(course => {
+        $("golf-courses").replaceChildren(...courses.map((course, index) => {
             const [from, to] = course.hues;
             const span = ((to - from + 359) % 360) + 1;
             const stops = Array.from({ length: 7 }, (_, i) => `hsl(${(from + (span * i) / 6) % 360}, 75%, 50%)`);
@@ -287,14 +547,16 @@ export function setupGolf() {
             const length = course.holes.reduce((sum, hole) => sum + yards(hole.tee, hole.target), 0);
             const pro = proSwitch.checked || isExpert(course.difficulty);
             const record = bestFor(course, pro);
+            const locked = lockText(index);
 
             const item = document.createElement("li");
-            item.className = "golf-course";
+            item.className = locked ? "golf-course locked" : "golf-course";
             item.innerHTML = `
                 <h3>${course.name}</h3>
                 <div class="golf-hues" style="background: linear-gradient(to right, ${stops.join(", ")})"></div>
                 <span class="golf-best">${course.difficulty} · ${course.holes.length} holes · par ${par} · ${length.toLocaleString()} yds${record ? ` · ${pro ? "Pro best" : "best"} ${record.strokes} (${formatToPar(record.toPar)}), ${formatTime(record.time)}` : ""}</span>
-                <button class="btn btn-primary" type="button">Play</button>`;
+                ${locked ? `<span class="golf-best golf-lock">🔒 ${locked}</span>` : ""}
+                <button class="btn btn-primary" type="button"${locked ? " disabled" : ""}>Play</button>`;
             item.querySelector("button").addEventListener("click", () => startRound(course));
             return item;
         }));
@@ -568,17 +830,24 @@ export function setupGolf() {
         const totals = round.totals();
         const pro = round.pro ? " · Pro" : "";
         if (mode === "daily") {
-            const result = round.card[0];
-            if (daily.scored) saveDaily(daily.day, { ...result, pro: round.pro });
+            const { clubs, ...result } = round.card[0];
+            if (daily.scored) {
+                saveDaily(daily.day, { ...result, pro: round.pro });
+                sendRound({ kind: "daily", day: daily.day, pro: round.pro, holes: playedHoles(round.card) });
+            }
             const run = streak(loadDaily(), daily.day);
             $("golf-round-title").textContent = `Daily hole: ${result.pickedUp ? "Picked up" : scoreName(result.strokes, result.par)}`;
+            $("golf-round-message").hidden = true;
             $("golf-round-info").textContent = `${result.strokes} strokes · Par ${result.par} · Perfect ${result.perfect} · ${formatTime(result.time)}${pro} · ${
                 daily.scored ? `Streak ${run}` : "Replay, not scored"}`;
             $("golf-card").hidden = true;
             $("golf-again").textContent = "Color Golf menu";
         } else {
             const isBest = saveBest(round.course, round.pro, totals);
+            sendRound({ kind: "course", courseId: round.course.id, rev: round.course.rev ?? 1, pro: round.pro, holes: playedHoles(round.card) });
             $("golf-round-title").textContent = `${round.course.name}: ${totals.strokes} (${formatToPar(totals.toPar)})`;
+            $("golf-round-message").textContent = roundMessage(totals);
+            $("golf-round-message").hidden = false;
             $("golf-round-info").textContent =
                 `Par ${totals.par} · Perfect ${totals.perfect} · ${formatTime(totals.time)}${pro}${isBest ? ` · New ${round.pro ? "Pro " : ""}best!` : ""}`;
             $("golf-card").hidden = false;
@@ -588,6 +857,25 @@ export function setupGolf() {
         clearBaseColor();
         setMapState(null);
         show(roundEnd);
+    };
+
+    // Send a finished round to the score server (or queue it for sign-in) and say what happened
+    const sendRound = async (payload) => {
+        const note = $("golf-round-saved");
+        note.hidden = !cloud.cloudAvailable;
+        if (!cloud.cloudAvailable) return;
+        note.textContent = cloud.currentAccount() ? "Saving to your account…" : "Sign in to save this round to your account (it'll be sent when you do).";
+        try {
+            const answer = await cloud.submitRound(payload);
+            if (answer && payload.kind === "daily") {
+                note.textContent = !answer.scored ? "Today's try was already saved."
+                    : answer.ranked ? "Saved to your account and today's leaderboard."
+                    : "Saved to your account. It isn't ranked: its first stroke didn't reach the server (offline?).";
+            } else if (answer) note.textContent = "Saved to your account.";
+            else if (cloud.currentAccount()) note.textContent = "Offline: this round will be saved when you're back online.";
+        } catch {
+            note.textContent = "The server couldn't check this round, so it wasn't saved to your account.";
+        }
     };
 
     // Score card as two tables so it fits the panel: holes 1–9 + Out, then 10–18 + In + Total.
@@ -620,6 +908,7 @@ export function setupGolf() {
                     perfect: played ? played.perfect : "–",
                     strokes: played ? played.strokes : current ? round.strokes : "–",
                     parPlayed: played ? hole.par : null,
+                    pickedUp: !!played?.pickedUp,
                 };
             });
             columns.push(total(nine === 0 ? "Out" : "In", nine * 9, nine * 9 + 9));
@@ -632,7 +921,9 @@ export function setupGolf() {
                 row("Par", c => `<td>${c.par}</td>`) +
                 row("Perfect", c => `<td>${c.perfect}</td>`) +
                 row("Hazards", c => `<td class="golf-card-hazards">${c.hazards ?? ""}</td>`) +
-                row("You", c => `<td class="${[c.current && "current", under(c) && "under"].filter(Boolean).join(" ")}">${c.strokes}</td>`)
+                row("You", c => c.pickedUp
+                    ? `<td class="picked-up" title="Picked up">${c.strokes}✕</td>`
+                    : `<td class="${[c.current && "current", under(c) && "under"].filter(Boolean).join(" ")}">${c.strokes}</td>`)
             }</table>`;
         };
         container.innerHTML = nineTable(0) + nineTable(1);
@@ -685,6 +976,7 @@ export function setupGolf() {
             daily.started = true;
             const { par, perfect } = round.hole;
             saveDaily(daily.day, { par, perfect, strokes: par * 2, time: 0, pickedUp: true, pro: round.pro });
+            cloud.startDaily(daily.day, round.pro);
         }
         renderPosition(lie);
         if (round.holeDone) endHole();

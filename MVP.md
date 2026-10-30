@@ -51,13 +51,21 @@ Someone can open ColorVerse, explore RGB and HSL as an interactive **3-D** color
 | **v1.1.2** | Perfect route solved in a Web Worker and replayed on the map ✅ | Finishes the v1.1 spec |
 | **v1.1.3** | Thicker map paths ✅ | Readability |
 | **v1.2** | Color Golf hazards (sand, water), wind, Cobalt Bay and Royal Indigo ✅ (v1.2.0) | Adds route choice once the core game is solid |
-| **v1.2.1** | Golf map uses HSL during a game | The RGB sphere doesn't contain the most vivid colors, so markers and hazard footprints can't match there |
-| **v1.3** | Daily hole + practice by difficulty | Reuses the generator and par solver |
-| **v1.4** | Golf variety: peeling that looks like peeling, "sand wedge only" on Expert courses, per-course par layouts | Makes courses and layer changes feel distinct |
-| **v1.5** | Engine cleanup: Three.js r128 → npm package; delete ShaderCache | Ends the r128 API gaps before v2.0's new renderers |
-| **v1.6** | Accounts + score database | Daily streaks and leaderboards are what make accounts worth having |
+| **v1.2.1** | Golf map uses HSL during a game ✅ | The RGB sphere doesn't contain the most vivid colors, so markers and hazard footprints can't match there |
+| **v1.3** | Daily hole, practice, Pro, Expert you can feel ✅ (v1.3.0) | Reuses the generator and par solver |
+| **v1.4** | Golf variety: peeling, named-wedge bunkers on Expert, themed par layouts ✅ (v1.4.0) | Makes courses and layer changes feel distinct |
+| **v1.5** | Engine cleanup: Three.js r128 → npm package; delete ShaderCache ✅ (v1.5.0) | Ends the r128 API gaps before v2.0's new renderers |
+| **v1.6** | Accounts + score database, daily leaderboard, account-only courses 4–5 ✅ (v1.6.0–v1.6.2; Firebase project `colorverse-9efa3`) | Gives the daily hole real stakes; the only backend work, best done before the codebase grows |
+| **v1.7** | Mobile and accessibility | Golf needs double-clicks, drags and color vision today; fix that before adding more views |
+| **v1.8** | Expansion pack: 3–4 account-only courses with gimmicks, ending in a survival course | Reuses accounts, unlocks and the generator; new rules stay solver-exact |
 | **v2.0** | 1-D and 2-D modes + shared color across dimensions | Delivers the "multi-dimensional" promise; new renderers and shared state |
-| **v2.x / v3** | More shapes and color spaces | v2.x if they reuse the 3-D pipeline; v3 if they need a new color model throughout |
+| **v2.1** | Golf in 2-D | A flat map shows a whole hole at once (no far side of a sphere) |
+| **v2.2** | More 3-D shapes: HSL cylinder, HSV cone / bicone | Reuses the 3-D pipeline |
+| **v3.0** | Perceptual color spaces: OKLab / OKLCH, CIELAB / LCh, gamut views | A new color model throughout; golf already scores in OKLab |
+| **v4.0** | Palette studio | Turns harmonies into something designers keep and export |
+| **v5.0** | Image colors | Brings your own colors into the space |
+| **v6.0** | Social golf | Builds on v1.6 accounts |
+| **v7.0** | Learn and explore | Everything above, taught and opened up (offline, WebXR) |
 
 ### v1.1: Color Golf (minigame)
 Get from a start color (the **tee**) to a target color (the **hole**) in as few harmony moves (**strokes**) as possible. Developed on the `feature/color-golf` branch.
@@ -170,16 +178,37 @@ Club types (v1.3) are ranked by average shot length over tee-like colors, and sh
 - **"Sand wedge only" on Expert:** every Expert bunker names the one wedge that can be played out of it ("Shades only"), shown in the panel and as letters on its map icon (Ti / Sh / To / Sa). Each bunker gets its own wedge, so each is its own puzzle; the generator picks it and re-checks the hole, and the solver and the rules use the same check. Applies to Royal Indigo (23 bunkers), the Championship Saturday dailies and Expert practice (Cobalt Bay has no sand).
 - **Per-course par layouts:** Ember Dunes is long (par 73, 5 par 5s) and Verdant Pines is tight (par 70, 5 par 3s). Prism Point (72) and Cobalt Bay (71) keep their holes and bests; Royal Indigo (70) keeps its layout but was regenerated for the wedge rule. Regenerated courses get a new `rev`, so their old bests no longer show.
 
-### v1.5: Engine Cleanup
-- **Three.js:** load the installed npm package (imported as a module) instead of the r128 CDN global. Update APIs that changed since r128 (color management, `outputColorSpace`, geometry helpers) and retest every view, the texture pipeline and Color Golf.
-- **ShaderCache:** delete it. It was meant to cache one blended material per (color space, layer pair, face), but the main objects keep one material per face and swap its textures, which is simpler and cheaper.
+### v1.5: Engine Cleanup ✓
+- **Three.js:** the installed npm package (r181) replaces the r128 CDN global, imported through one setup module (`src/three-setup.js`). Colors render exactly as before: automatic color management is off and the renderer writes pixels as-is (checked pixel for pixel against r128 screenshots). Golf uses the modern helpers (`removeFromParent`, `applyQuaternion`). Vite puts Three.js in its own cached chunk.
+- **ShaderCache:** deleted. It was meant to cache one blended material per (color space, layer pair, face), but nothing read it: the textures (`TextureCache`) are the expensive part, and Three.js already reuses each compiled shader.
+- Hex labels now round (127.5 → 128) like CSS, instead of truncating as r128 did, so they match the swatch shown.
+
+Version numbers: minor versions keep counting past 9 (v1.9, v1.10, …). v2.0 is kept for the 1-D and 2-D modes, not for whatever comes tenth.
 
 ### v1.6: Accounts and Score Database
-- **Backend:** a hosted service (Supabase or Firebase, to decide), since GitHub Pages is static.
-- **Sign-in** (email link or Google) with a short privacy note; playing without an account still works, with scores kept in the browser.
-- **Stored:** rounds, personal bests per course, daily-hole results and streaks; leaderboards later.
-- **Cheat-proof scores:** the browser submits its list of strokes and the server replays them with the same rules (the game is deterministic), so a submitted score can't be faked.
-- **Sync:** scores saved locally while signed out are uploaded on sign-in.
+- **Backend:** Firebase (Auth, Firestore, Cloud Functions), since GitHub Pages is static. With no config in `src/cloud/config.js` the game runs offline-only, as before.
+- **Sign-in or create account:** Google, email and password (v1.6.1: Create account, Forgot password, 8+ characters), or an emailed sign-in link with no password. The first sign-in asks for a nickname. A short privacy note; playing without an account still works.
+- **Stored:** rounds, personal bests per course, daily-hole results and streaks, and a public daily leaderboard (top 10, nickname only).
+- **Nicknames are unique** (v1.6.2), ignoring case and extra spaces: 2–20 letters, numbers, spaces and `_ - . '`. Only the `setNickname` function can set one, reserving it in `nicknames/` in the same transaction; renaming frees the old name and updates the player's leaderboard entries. Problems show in red under the box ("That nickname is taken.", "You already have this nickname.").
+- **Change password** (v1.6.2) for email accounts: current password, then a new one (8+ characters, different); or a reset link by email.
+- **Cheat-proof scores:** the browser submits the clubs played and the server replays them with the same code (`src/golf/replay.js`), so strokes, penalties and pick-ups can't be faked. Time and the Pro setting are still the browser's word.
+- **Guest and account scores are kept apart:** signed out, the browser keeps the guest's bests and dailies; signed in, the screens show the account's (from the server, cached in the browser); signing out deletes the account's copy and brings back the guest's untouched.
+- **Sync on sign-in:** rounds finished signed out wait in a queue and are sent on sign-in, where the server replays them (better course best wins). Only rounds finished after v1.6 can be sent; older local bests have no recorded clubs, so they stay in the browser. Queued rounds are tagged with who played them, so an account's offline rounds never go to another account.
+- **Daily hole, one try per account per day:** a guest's try sent on sign-in counts as the day's try if the account has none, but never goes on the leaderboard; only a try whose first stroke reached the server while signed in is ranked. Replaying the daily signed out until it goes well and then signing in gains nothing. (Learning the hole in a private window first can't be prevented short of requiring an account for the daily.)
+- **Account-only courses:** courses 1–3 are open to everyone; each later course needs an account and a good round on the course just before it (Pro or not): Cobalt Bay needs −6 or better on Verdant Pines (6 strokes above its perfect 50), Royal Indigo −3 or better on Cobalt Bay (whose perfect round is −6). The server refuses rounds on a course that isn't unlocked. The scores live in `UNLOCK_TO_PAR` in `src/golf/unlocks.js`, to tune after playtesting.
+- **Score card:** a picked-up hole shows grey with a ✕ ("8✕"), so it doesn't rely on color alone; under-par holes stay red and bold.
+- **End-of-round message** by score: perfect round, under par, level par, close to par (+1 to +6), or "Every round teaches the clubs".
+
+### v1.8: Expansion Pack
+3–4 account-only courses, unlocked one after another like courses 4–5: harder, wackier and built around a gimmick each. **Rule for every gimmick:** it may depend only on the current color (or something as small as the stroke number), so the solver still finds par and perfect exactly and the server can replay rounds. Candidates:
+- **Portals:** landing in a region warps the ball to a fixed color elsewhere (a looks-like hazard that can help); shortcuts and traps.
+- **Club bans:** per hole ("Irons only", "no Driver", "wedges only past the turn").
+- **Mirror greens:** inside a region every hue shift is flipped (+120° plays as −120°).
+- **Turning wind:** the wind changes with the stroke number, so it's still known in advance.
+- **Fog:** the map stays hidden until the ball is on the green, or swatches show clubs only.
+- **Survival course** (the last one): make par or better on each hole or the round ends. Its own leaderboard: holes survived, then strokes.
+- Out: moving pins, random bounces and gusts, since true par couldn't be computed.
+- Spec each course here (gimmick, solver impact, generator checks) before building, as was done for hazards.
 
 ### v2.0: 1-D and 2-D Modes
 Developed on the `feature/1d-2d` branch.
@@ -189,13 +218,45 @@ Developed on the `feature/1d-2d` branch.
 - Both work in RGB and HSL, and clicking picks a color.
 - **Shared state across dimensions:** a color picked in one dimension stays highlighted when you switch to another.
 
-### v2.x / v3: More Shapes and Color Spaces
-- **v2.x (reuse the 3-D pipeline):** HSL cylinder, HSV cone / bicone.
-- **v3 (new color model):** perceptual spaces such as OKLCH and LAB.
+### Before v2.0: Housekeeping
+- Run the remaining v1 live checks (first load under 3 s, 10 shape switches).
+- Merge `main` into `feature/1d-2d`, which has drifted far behind.
+- Playtest Expert by hand: its difficulty has only been measured by the solver.
+- Playtest Verdant Pines and Cobalt Bay and tune `UNLOCK_TO_PAR` (v1.6) before the expansion pack builds on it.
 
-### Unscheduled
-- Export of the selected color and its harmonies
-- Mobile / touch input
+### v1.7: Mobile and Accessibility
+- **Touch:** tap a swatch to play a stroke (with a confirm on Expert), pinch to zoom, one-finger drag to rotate.
+- **Colour-blind mode:** name colors ("muted teal") and show the distance to the target as a number, so the game doesn't rely on telling colors apart.
+- **Keyboard play:** move between swatches with the arrow keys, play with Enter.
+
+### v2.1: Golf in 2-D
+- Play holes on the hue wheel (angle = hue, radius = saturation, a slider for lightness) or a square slice. The tee, the flag, both paths and the hazards are all visible at once, which fixes paths seeming to disconnect around the back of the sphere.
+- The 3-D map stays available; the player picks the view.
+
+### v2.2: More 3-D Shapes
+- HSL cylinder and HSV cone / bicone, reusing the texture pipeline and the golf map search.
+
+### v3.0: Perceptual Color Spaces
+- OKLab / OKLCH and CIELAB / LCh as shapes. Color Golf already measures distance in OKLab, so this shows the space it scores in.
+- **Gamut views:** where sRGB sits inside wider spaces such as Display P3.
+
+### v4.0: Palette Studio
+- Build palettes from harmonies and save them.
+- Contrast checks (WCAG 2 and APCA) and colour-blindness simulation.
+- Export as CSS variables, Tailwind config or JSON (replaces the old "export the selected color" idea).
+
+### v5.0: Image Colors
+- Drop in a photo and see its pixels as a point cloud inside the shape.
+- Pull a palette out of the clusters.
+
+### v6.0: Social Golf
+- Course editor with share codes.
+- Head-to-head races, weekly tournaments and friend leaderboards (needs v1.6).
+
+### v7.0: Learn and Explore
+- Guided color-theory lessons that use golf holes as exercises.
+- Installable offline app (PWA).
+- WebXR: walk around inside a color space.
 
 ---
 

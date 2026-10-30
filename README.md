@@ -64,7 +64,7 @@ In HSL, saturation also decreases toward the core, so inner layers converge on g
 ## Tech Stack
 
 - **JavaScript (ES modules)**: no framework
-- **[Three.js](https://threejs.org/)**: 3D rendering (currently loaded as a global from CDN r128 in `index.html`)
+- **[Three.js](https://threejs.org/)**: 3D rendering (npm package, r181, bundled by Vite into its own cached chunk)
 - **WebGL / GLSL**: custom shaders for layer cross-fading, Blinn-Phong lighting, and pick highlights
 - **Web Workers**: off-main-thread pixel generation, with a main-thread fallback
 - **Vite**: dev server and build tool
@@ -151,14 +151,19 @@ See [MVP.md](MVP.md#roadmap-post-v1) for details.
 - [x] **v1.2.1:** Golf map uses HSL during a game
 - [x] **v1.3:** Daily hole, practice by difficulty, Pro setting (no swatch previews)
 - [x] **v1.4:** Golf variety: layer peeling animation, "sand wedge only" on Expert courses, per-course par layouts
-- [ ] **v1.5:** Engine cleanup: Three.js r128 → npm package; remove the unused `ShaderCache`
+- [x] **v1.5:** Engine cleanup: Three.js r128 → npm package; remove the unused `ShaderCache`
 - [ ] **v1.6:** Accounts + score database: cloud bests, daily streaks, leaderboards, server-checked scores
+- [ ] **v1.7:** Mobile and accessibility: tap to play, colour-blind mode, keyboard play
 - [ ] **v2.0:** 1-D mode (single-channel gradient line) and 2-D mode (square/circle planes), with the picked color shared across dimensions
-- [ ] **v2.x / v3:** more shapes (HSL cylinder, HSV cone/bicone) and perceptual color spaces (OKLCH, LAB)
+- [ ] **v2.1:** Color Golf on a 2-D map (hue wheel or square slice)
+- [ ] **v2.2:** More 3-D shapes: HSL cylinder, HSV cone/bicone
+- [ ] **v3.0:** Perceptual color spaces (OKLab/OKLCH, CIELAB/LCh) and gamut views
 
-### Unscheduled
-- [ ] Export selected color + harmonies
-- [ ] Mobile / touch input support
+### Possible Future Updates
+- Palette studio: build palettes from harmonies, contrast and colour-blindness checks, export (CSS, Tailwind, JSON)
+- Image colors: a photo's pixels as a point cloud in the shape, with a palette pulled from it
+- Social golf: course editor with share codes, head-to-head races, tournaments
+- Learn and explore: color-theory lessons through golf holes, an offline app, WebXR
 
 ---
 

@@ -1,6 +1,6 @@
 {
   "name": "rbg-visualizer",
-  "version": "1.4.0",
+  "version": "1.6.2",
   "description": "",
   "main": "index.js",
   "type": "module",
@@ -10,12 +10,17 @@
     "preview": "vite preview",
     "courses": "node resources/generateCourses.mjs",
     "daily": "node resources/generateDaily.mjs",
-    "practice": "node resources/generatePractice.mjs"
+    "practice": "node resources/generatePractice.mjs",
+    "dev:cloud": "VITE_FIREBASE_EMULATORS=1 vite",
+    "emulators": "npm --prefix functions run build && npm run firebase -- emulators:start --project demo-colorverse",
+    "deploy:cloud": "npm run firebase -- deploy --only functions,firestore",
+    "firebase": "npx -y firebase-tools@13.35.1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "firebase": "^13.1.0",
     "three": "^0.181.1"
   },
   "devDependencies": {

@@ -5,7 +5,6 @@
     <meta charset="UTF-8">
     <title>ColorVerse</title>
     <link rel="stylesheet" href="resources/css/index.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" defer></script>
     <script type="module" src="./main.js" defer></script>
 
 </head>
@@ -168,6 +167,60 @@
                     </div>
                     <p class="golf-intro">Get from the tee color to the target in as few strokes as you can.
                         Double-click a harmony swatch to play it; the putter row makes small nudges.</p>
+                    <!-- Account (v1.6): shown only when Firebase is configured (src/cloud/config.js) -->
+                    <div id="golf-account" class="golf-account" hidden>
+                        <div id="golf-account-out" class="golf-account-row">
+                            <span class="golf-sub">Keep your scores on every device and join the daily leaderboard.</span>
+                            <button id="golf-signin-open" class="btn" type="button">Sign in or create account</button>
+                        </div>
+                        <div id="golf-signin" hidden>
+                            <button id="golf-signin-google" class="btn btn-primary" type="button">Continue with Google</button>
+                            <p class="golf-sub">or with your email:</p>
+                            <!-- Email: a password (v1.6.1), or a sign-in link with no password -->
+                            <form id="golf-signin-email" class="golf-signin-form">
+                                <input type="email" id="golf-email" placeholder="you@example.com" aria-label="Email address" autocomplete="email" required>
+                                <input type="password" id="golf-password" placeholder="Password" aria-label="Password" autocomplete="current-password">
+                                <div class="golf-account-row">
+                                    <button class="btn btn-primary" type="submit">Sign in</button>
+                                    <button id="golf-signup" class="btn" type="button">Create account</button>
+                                </div>
+                                <div class="golf-account-row">
+                                    <button id="golf-forgot" class="btn btn-link" type="button">Forgot password?</button>
+                                    <button id="golf-signin-link" class="btn btn-link" type="button">Email me a sign-in link instead</button>
+                                </div>
+                            </form>
+                            <p id="golf-signin-status" class="golf-sub" aria-live="polite"></p>
+                            <p class="golf-sub golf-privacy">We keep your email (to sign you in), a nickname and your scores.
+                                Other players only see your nickname and your daily-hole scores.</p>
+                            <button id="golf-signin-cancel" class="btn btn-link" type="button">Cancel</button>
+                        </div>
+                        <div id="golf-account-in" class="golf-account-row" hidden>
+                            <span class="golf-sub">Signed in as <strong id="golf-account-name"></strong></span>
+                            <span>
+                                <button id="golf-nickname-edit" class="btn btn-link" type="button">Change nickname</button>
+                                <button id="golf-password-edit" class="btn btn-link" type="button" hidden>Change password</button>
+                                <button id="golf-signout" class="btn btn-link" type="button">Sign out</button>
+                            </span>
+                        </div>
+                        <!-- Change password (v1.6.2): accounts that sign in with an email address -->
+                        <form id="golf-password-change" class="golf-signin-form" hidden>
+                            <input type="password" id="golf-password-current" placeholder="Current password" aria-label="Current password" autocomplete="current-password">
+                            <input type="password" id="golf-password-new" placeholder="New password (8+ characters)" aria-label="New password" autocomplete="new-password">
+                            <div class="golf-account-row">
+                                <button id="golf-password-save" class="btn btn-primary" type="submit">Change password</button>
+                                <button id="golf-password-cancel" class="btn btn-link" type="button">Cancel</button>
+                            </div>
+                            <button id="golf-password-forgot" class="btn btn-link" type="button">Don't know your current password? Email me a reset link</button>
+                        </form>
+                        <p id="golf-password-status" class="golf-sub" aria-live="polite" hidden></p>
+                        <form id="golf-nickname" class="golf-account-row" hidden>
+                            <label for="golf-nickname-input" id="golf-nickname-label" class="golf-sub">Welcome! Pick a nickname for the leaderboard (2–20 characters)</label>
+                            <input id="golf-nickname-input" maxlength="20" aria-describedby="golf-nickname-error">
+                            <button id="golf-nickname-save" class="btn btn-primary" type="submit">Save</button>
+                            <p id="golf-nickname-error" class="golf-error" role="alert" hidden></p>
+                        </form>
+                    </div>
+
                     <!-- Pro: Clubs hides the swatch colors (always on for Expert) -->
                     <div id="golf-swatch-mode" class="field">
                         <span class="field-label">Swatches</span>
@@ -188,6 +241,8 @@
                         <span id="golf-daily-info" class="golf-best"></span>
                         <span id="golf-daily-status" class="golf-best"></span>
                         <button id="golf-daily-play" class="btn btn-primary" type="button">Play</button>
+                        <button id="golf-leaderboard-toggle" class="btn btn-link golf-leaderboard-toggle" type="button" aria-expanded="false" hidden>Today's leaderboard</button>
+                        <ol id="golf-leaderboard" class="golf-leaderboard" hidden></ol>
                     </div>
 
                     <!-- Practice: endless random holes, nothing saved -->
@@ -269,6 +324,8 @@
                         <h2 id="golf-round-title">Round complete</h2>
                     </div>
                     <p id="golf-round-info" class="golf-sub"></p>
+                    <p id="golf-round-message" class="golf-round-message" hidden></p>
+                    <p id="golf-round-saved" class="golf-sub" aria-live="polite" hidden></p>
                     <div id="golf-card" class="golf-card-tables"></div>
                     <div class="golf-actions">
                         <button id="golf-again" class="btn" type="button">Choose a course</button>

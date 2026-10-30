@@ -1,0 +1,21 @@
+rules_version = '2';
+
+// ColorVerse (v1.6). Scores are written only by the Cloud Functions (functions/src/index.js), which
+// replay each round first, and nicknames only by setNickname, which keeps them unique; the admin SDK
+// they use isn't bound by these rules. The browser may read its own data and the public leaderboard.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /users/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+
+      match /{collection}/{doc} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+      }
+    }
+
+    match /dailies/{day}/scores/{uid} {
+      allow read: if true;
+    }
+  }
+}

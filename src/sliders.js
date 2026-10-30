@@ -2,6 +2,7 @@
 // HSL / RGB Sliders (color details card)
 // ----------------------------------
 import { selectBaseColor } from "./harmony.js";
+import { THREE } from "./three-setup.js";
 
 const SPACES = {
     HSL: [

@@ -1,4 +1,5 @@
 import { harmonyDict } from "./harmonyMath.js";
+import { THREE } from "./three-setup.js";
 export { harmonyDict, setHue } from "./harmonyMath.js";
 export const harmonySets = {
     "complementary": ["comp1"],

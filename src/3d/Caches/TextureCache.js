@@ -1,5 +1,6 @@
 import { LRULayerCache } from './LRUCache.js';
 import { WorkerCache } from './WorkerCache.js';
+import { THREE } from "../../three-setup.js";
 export class TextureCache extends LRULayerCache {
     /**
      * Texture Cache for 3D object textures.
@@ -38,7 +39,7 @@ export class TextureCache extends LRULayerCache {
 
         const texture = new THREE.DataTexture(pixels, width, height, THREE.RGBAFormat, THREE.UnsignedByteType);
         //const texture = new THREE.CanvasTexture(canvas);
-        texture.colorSpace = THREE.SRGBColorSpace;
+        // Raw sRGB bytes: layerFade.frag converts to linear itself (see three-setup.js)
         texture.flipY = false;
         texture.needsUpdate = true;
 

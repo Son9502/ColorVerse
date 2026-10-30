@@ -1,5 +1,6 @@
 import { computeCubeColor, computeSphereColor, CUBE_FACE_MAPS } from "../color-utils.js";
 import { srgbToOklab, oklabDistance } from "./oklab.js";
+import { THREE } from "../three-setup.js";
 
 // ----------------------------------
 // Color Golf map: where a color sits on the main shape

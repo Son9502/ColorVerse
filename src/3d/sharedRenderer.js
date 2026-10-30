@@ -1,3 +1,5 @@
+import { THREE } from "../three-setup.js";
+
 let renderer = null;
 let camera = null;
 

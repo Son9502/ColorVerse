@@ -1,4 +1,4 @@
-import { strike, PUTTER } from "./clubs.js";
+import { strike, PUTTER, clubId } from "./clubs.js";
 import { hslDistance, IN_THE_HOLE } from "./oklab.js";
 import { hazardMap } from "./hazards.js";
 
@@ -40,7 +40,7 @@ export class GolfRound {
         this.course = course;
         this.now = now;
         this.undos = undos;
-        this.card = []; // finished holes: { par, perfect, strokes, time, pickedUp }
+        this.card = []; // finished holes: { par, perfect, strokes, time, pickedUp, clubs }
         this.holeIndex = -1;
         this.nextHole();
     }
@@ -72,6 +72,7 @@ export class GolfRound {
     play(club) {
         if (this.holeDone || !this.canPlay(club)) return null;
         this.history.push({ current: this.current, strokes: this.strokes, trail: this.trail.length });
+        this.clubs.push(clubId(club));
 
         const landing = strike(this.current, club, this.hole.wind);
         const landed = this.hazards.at(landing);
@@ -96,6 +97,7 @@ export class GolfRound {
         this.current = before.current;
         this.strokes = before.strokes;
         this.trail.length = before.trail;
+        this.clubs.pop();
         this.undosLeft[this.nine]--;
         return true;
     }
@@ -108,6 +110,7 @@ export class GolfRound {
         this.current = { ...this.hole.tee };
         this.trail = []; // colors before each stroke that moved the ball, for the map's trail
         this.history = []; // snapshots before each stroke, for undo
+        this.clubs = []; // club ids played on this hole (undone strokes removed), so the round can be replayed
         this.hazards = hazardMap(this.hole.hazards ?? []);
         this.strokes = 0;
         this.holeStart = this.now();
@@ -115,7 +118,10 @@ export class GolfRound {
     }
 
     _finishHole(pickedUp) {
-        this.card.push({ par: this.hole.par, perfect: this.hole.perfect, strokes: this.strokes, time: this.now() - this.holeStart, pickedUp });
+        this.card.push({
+            par: this.hole.par, perfect: this.hole.perfect, strokes: this.strokes,
+            time: this.now() - this.holeStart, pickedUp, clubs: [...this.clubs],
+        });
     }
 
     // Totals for the round so far, or one nine (0 = front, 1 = back)

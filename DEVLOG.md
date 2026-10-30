@@ -9,6 +9,91 @@ Each entry is tagged with how it was produced:
 
 ---
 
+## Milestone 23 — Unique Nicknames, Change Password & Going Live (v1.6.2) `[ai-assisted]`
+**2026-10-30**
+
+The Firebase project (`colorverse-9efa3`) is set up and deployed, nicknames can't repeat, and email accounts can change their password. Requests by the developer (unique nicknames, red error messages, change password); implementation `[ai-assisted]`.
+
+**Added**
+- `src/cloud/config.js`: the project's web config; `.firebaserc` points the CLI at it
+- `setNickname` Cloud Function: reserves the name in `nicknames/{id}` (id ignores case and extra spaces) in one transaction with releasing the old one; renames update the player's ranked leaderboard entries
+- `src/cloud/nickname.js`: nickname rules shared by the screen and the server (2–20 letters, numbers, spaces, `_ - . '`; at least one letter or number)
+- Change password for email accounts: re-checks the current password, then sets the new one (8+ characters, different); "Email me a reset link" for a forgotten one
+- Red error messages under the nickname box (taken, already yours, length, characters, offline) and for sign-in and password problems; progress messages stay grey
+
+**Modified**
+- `firestore.rules`: the browser can no longer write anything (nicknames go through `setNickname`)
+
+**Verified**
+- Emulators: claim, re-save in other capitals, taken in other capitals, bad names, direct writes refused, renaming frees the old name; password change refused with a wrong current password, old password rejected and new one accepted after
+- Real project: deploy, sign-in, nickname saving (checked by the developer)
+
+---
+
+## Milestone 22 — Email and Password Sign-in (v1.6.1) `[ai-assisted]`
+**2026-10-29**
+
+Email sign-in only sent links; most players expect a password. Decision by the developer; implementation `[ai-assisted]`. Browser only, no server change.
+
+**Added**
+- Sign-in panel: email and password with Sign in / Create account (8+ characters), Forgot password (Firebase sends the reset email; also how a Google or link account gets a password), and "Email me a sign-in link instead"
+- `cloud.js`: `signInWithPassword`, `createAccount`, `sendPasswordReset`
+- Firebase error codes in words (wrong password, email already has an account, weak password, bad address, too many tries, offline)
+
+**Verified**
+- Auth emulator: create, sign in, and each error code the messages map; Forgot password gives the same answer for unknown addresses, so it can't be used to look up accounts
+
+---
+
+## Milestone 21 — Accounts & Score Database (v1.6.0) `[ai-assisted]`
+**2026-10-29**
+
+Optional accounts with server-checked scores, a daily leaderboard and account-only courses, on Firebase. Decisions by the developer (Firebase; guest and account scores kept apart; one daily try per account, guest tries unranked; courses 4–5 unlocked by a good round on the course before; round messages and the picked-up mark); implementation `[ai-assisted]`. Built and tested on the emulators; not deployed yet (no Firebase project).
+
+**Added**
+- `src/cloud/cloud.js` / `config.js`: Firebase Auth (Google or an emailed link; the first sign-in creates the account), Firestore reads, and a queue of finished rounds tagged with who played them (guest or uid), sent on sign-in or when back online. The SDK loads only when Color Golf opens or the browser was signed in before; with no config the game is offline-only, as before
+- `functions/src/index.js`: `startDaily` (a signed-in daily's first stroke is put on record) and `submitRound` (replays the clubs played, then saves bests, rounds, daily results and the leaderboard)
+- `src/golf/replay.js`: replays a recorded round with `GolfRound`; `GolfRound` records each stroke's club (`clubId` / `clubById` in `clubs.js`)
+- `src/golf/unlocks.js`: courses 1–3 open to all; Cobalt Bay needs an account and −6 or better on Verdant Pines, Royal Indigo −3 or better on Cobalt Bay. Shared by the courses screen and the server, which refuses rounds on locked courses
+- `firestore.rules` (the browser reads its own data and the leaderboard, writes only its nickname), `firestore.indexes.json`, `firebase.json` (emulators: Auth, Functions, Firestore)
+- Screen: account panel ("Sign in or create account", nickname, privacy note), today's leaderboard, "saved to your account" note, lock lines on courses 4–5, a message after each course round, picked-up holes shown grey with a ✕
+- Scripts: `npm run emulators`, `npm run dev:cloud`, `npm run deploy:cloud`, `npm run firebase -- <command>` (Firebase CLI pinned to 13.35.1 through npx; newer versions' Firestore emulator needs Java 21)
+
+**Modified**
+- Golf bests and daily results are kept per owner: the guest's under the existing keys, a signed-in account's in its own copy, which signing out deletes
+- Daily rule on the server: one try per account per day; only a try started signed in is ranked; a guest's try sent on sign-in counts as the day's try but never reaches the leaderboard
+
+**Verified**
+- Emulators, real rounds played by the solver: guest daily scored but unranked and off the leaderboard; a second try refused; a guest try can't replace one started signed in; a started try ranked and listed; a try whose start never arrived saved unranked; Cobalt Bay refused until Verdant Pines −6 (Prism Point doesn't count), Royal Indigo refused until Cobalt Bay −3, both accepted after
+- Production build and functions bundle build; no new lint errors
+
+---
+
+## Milestone 20 — Engine Cleanup (v1.5.0) `[ai-assisted]`
+**2026-10-29**
+
+Three.js moves from the r128 CDN global to the npm package (r181), and the unused ShaderCache goes. Decision by the developer (roadmap v1.5; confirmed ShaderCache has no use); implementation `[ai-assisted]`.
+
+**Added**
+- `src/three-setup.js`: imports Three.js once, switches off automatic color management, and re-exports `THREE`; all 17 modules that use Three.js import it from here
+- `src/3d/Mini/miniMaterials.js`: the mini objects' shader materials, moved out of `color-utils.js` so the texture worker (which imports `color-utils.js`) stays free of Three.js (worker still 3.4 kB)
+- `vite.config.js`: Three.js in its own chunk (516 kB, 133 kB gzipped; app code 114 kB)
+
+**Modified**
+- Renderer writes pixels as-is (`outputColorSpace` linear) and layer textures are no longer flagged sRGB, matching r128's behavior (the shaders convert colors themselves)
+- `mapView.js` / `MainBase.js`: `removeFromParent()` and `BufferGeometry.applyQuaternion()` replace the r128 workarounds
+- `TextureRegistry.getTextureCache(type)` replaces `getCaches(type)`
+
+**Removed**
+- `ShaderCache.js` (never read) and the r128 `<script>` tag in `index.html`
+
+**Verified**
+- Pixel comparison of r128 vs r181 screenshots (sphere RGB / HSL, cube, golf map on the cube): every pixel within 1/255, apart from a mid-fade frame of the mini sphere
+- Hex labels now round like CSS (#808080 for 50% gray; r128 truncated to #7F7F7F)
+- Real built app: peel on sphere and cube, Expert practice with a named-wedge bunker, daily hole with replay; no console errors
+
+---
+
 ## Milestone 19 — Golf Variety (v1.4.0) `[ai-assisted]`
 **2026-10-29**
 

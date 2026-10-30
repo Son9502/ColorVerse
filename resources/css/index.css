@@ -1170,6 +1170,77 @@ body.golf .square:hover {
     gap: 6px;
 }
 
+/* Account (v1.6): sign-in, nickname */
+.golf-account,
+#golf-signin {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.golf-account-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px 10px;
+}
+
+.golf-account input {
+    flex: 1 1 160px;
+    font: inherit;
+    font-size: 0.85rem;
+    padding: 6px 8px;
+    border: 1px solid #bbb;
+    border-radius: 8px;
+}
+
+.golf-privacy {
+    font-size: 0.75rem;
+}
+
+/* Problems with a nickname or signing in: red text, and a red edge on the field at fault */
+.golf-error {
+    flex-basis: 100%;
+    margin: 0;
+    color: #c0392b;
+    font-size: 0.8rem;
+}
+
+.golf-account input[aria-invalid="true"] {
+    border-color: #c0392b;
+}
+
+.golf-signin-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.golf-signin-form input {
+    flex: none;
+}
+
+/* Daily leaderboard, under the daily card */
+.golf-course .golf-leaderboard-toggle,
+.golf-leaderboard {
+    grid-column: 1 / -1;
+    grid-row: auto;
+    justify-self: start;
+}
+
+.golf-leaderboard {
+    width: 100%;
+    margin: 0;
+    padding-left: 1.4em;
+    font-size: 0.8rem;
+    line-height: 1.6;
+}
+
+.golf-leaderboard .me {
+    font-weight: 700;
+}
+
 /* Colors [toggle] Clubs, styled like the RGB / HSL switch */
 #golf-swatch-mode:not(:has(#golf-pro:checked)) .mode-colors,
 #golf-swatch-mode:has(#golf-pro:checked) .mode-clubs {
@@ -1475,4 +1546,22 @@ body.golf .golf-blocked {
 .golf-card .under {
     color: #c0392b;
     font-weight: 700;
+}
+
+/* Picked up at double par: grey with a ✕, so it doesn't rely on color alone */
+.golf-card .picked-up {
+    color: #888;
+}
+
+.golf-round-message {
+    margin: 4px 0;
+    font-weight: 600;
+}
+
+.golf-course.locked .golf-hues {
+    opacity: 0.4;
+}
+
+.golf-course.locked .btn {
+    grid-row: 1 / span 4;
 }

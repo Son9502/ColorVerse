@@ -19,3 +19,9 @@ Thumbs.distribution
 
 # Optional: textures / big assets (if you want to track seperately)
 /textures/
+# Firebase: the functions bundle is built on deploy (npm --prefix functions run build)
+functions/lib/
+.firebase/
+
+# Emulator logs
+*-debug.log

@@ -30,6 +30,10 @@ export const CLUBS = [
     ...PUTTER.map((_, index) => ({ row: "putter", index })),
 ];
 
+// A club as one small number (its place in CLUBS) and back, for recorded rounds (v1.6)
+export const clubId = ({ row, index }) => CLUBS.findIndex(club => club.row === row && club.index === index);
+export const clubById = (id) => CLUBS[id] ?? null;
+
 export function roundHSL({ h, s, l }) {
     return {
         h: ((Math.round(h) % 360) + 360) % 360,
