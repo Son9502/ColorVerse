@@ -2,12 +2,14 @@ import courses from "./courses.json";
 import { GolfRound, scoreName, compareRounds } from "./game.js";
 import { PUTTER, strike } from "./clubs.js";
 import { IN_THE_HOLE, hslDistance } from "./oklab.js";
-import { harmonySets, selectBaseColor, clearBaseColor } from "../harmony.js";
+import { harmonySets, selectBaseColor, clearBaseColor, addNameLabel } from "../harmony.js";
+import { describeColor } from "../color-names.js";
 import { setMapState } from "./mapState.js";
 import { WEEK, dateKey, daysBetween, dayLabel, weekday, streak } from "./daily.js";
 import { poolKey, PARS } from "./practice.js";
 import { courseLock, unlockToPar } from "./unlocks.js";
 import * as cloud from "../cloud/cloud.js";
+import { lastPointerType } from "../pointer.js";
 
 // ----------------------------------
 // Color Golf screen
@@ -280,6 +282,7 @@ export function setupGolf() {
     }
     const putterBoxes = PUTTER.map((_, index) => $(`putt${index + 1}`));
     putterBoxes.forEach((box, index) => clubs.set(box, { row: "putter", index }));
+    const putterNames = putterBoxes.map(addNameLabel);
     // Pro rounds show these under the swatches instead of the colors (index.css)
     for (const [box, club] of clubs) box.closest(".square-wrapper")?.setAttribute("data-club", proLabel(club));
     // In a game each row heading starts with its club type (hidden while exploring)
@@ -691,6 +694,7 @@ export function setupGolf() {
         $("golf-wind-badge").hidden = !wind;
         $("golf-wind-badge").textContent = wind ? `🌬 ${wind}` : "";
         $("golf-target").style.backgroundColor = css(hole.target);
+        $("golf-target-name").textContent = describeColor(hole.target);
         holeEnd.hidden = true;
         pathList.replaceChildren();
         renderPosition(null);
@@ -700,11 +704,19 @@ export function setupGolf() {
     // Current color, swatches (harmonies + putter), strokes, undo and the meter
     const renderPosition = (lie) => {
         const { current } = round;
+        aim(null);
         $("golf-you").style.backgroundColor = css(current);
         selectBaseColor(css(current), "", "golf", current);
         putterBoxes.forEach((box, index) => {
-            box.style.backgroundColor = css(strike(current, { row: "putter", index }));
+            const landing = strike(current, { row: "putter", index });
+            box.style.backgroundColor = css(landing);
+            box.dataset.name = putterNames[index].textContent = describeColor(landing);
         });
+        $("golf-you-name").textContent = describeColor(current);
+        // Screen readers hear the club, and its color unless Pro hides the colors
+        for (const [box, club] of clubs) {
+            box.setAttribute("aria-label", round.pro ? clubName(club) : `${clubName(club)}, ${box.dataset.name}`);
+        }
 
         $("golf-strokes").textContent = round.strokes;
         const undosLeft = round.undosLeft[round.nine];
@@ -961,12 +973,40 @@ export function setupGolf() {
         timer = null;
     }
 
-    // ---- Strokes: double-click a swatch ----
-    // Capture phase, so harmony.js's explore-mode double-click never sees it
-    $("ui-container").addEventListener("dblclick", (event) => {
-        if (!document.body.classList.contains("golf")) return;
+    // ---- Strokes: double-click a swatch (mouse), tap it (touch), or Enter / Space (keyboard) ----
+    // Listeners use the capture phase, so harmony.js's explore-mode choosing never sees them.
+    // Touch on Expert: the first tap aims (the swatch is outlined), a second tap on it plays, since
+    // Expert swatches are blank and a stray tap would cost a stroke.
+    let aimed = null; // square aimed at with a first tap
+    const aim = (square) => {
+        aimed?.closest(".square-wrapper")?.classList.remove("golf-aimed");
+        aimed = square;
+        aimed?.closest(".square-wrapper")?.classList.add("golf-aimed");
+    };
+    const ui = $("ui-container");
+    const inGame = () => document.body.classList.contains("golf");
+    ui.addEventListener("dblclick", (event) => {
+        if (!inGame()) return;
         event.stopPropagation();
-        const club = clubs.get(event.target.closest(".square"));
+        if (lastPointerType() !== "touch") playSwatch(event.target.closest(".square"));
+    }, { capture: true });
+    ui.addEventListener("click", (event) => {
+        const square = event.target.closest(".square");
+        if (!inGame() || !clubs.has(square) || lastPointerType() !== "touch") return;
+        event.stopPropagation();
+        if (round?.expert && aimed !== square) aim(square);
+        else playSwatch(square);
+    }, { capture: true });
+    ui.addEventListener("keydown", (event) => {
+        const square = event.target.closest?.(".square");
+        if (!inGame() || !clubs.has(square) || (event.key !== "Enter" && event.key !== " ")) return;
+        event.preventDefault();
+        event.stopPropagation();
+        playSwatch(square);
+    }, { capture: true });
+
+    function playSwatch(square) {
+        const club = clubs.get(square);
         if (!round || !club || round.holeDone) return;
 
         const lie = round.play(club);
@@ -980,7 +1020,7 @@ export function setupGolf() {
         }
         renderPosition(lie);
         if (round.holeDone) endHole();
-    }, { capture: true });
+    }
 
     undoButton.addEventListener("click", () => {
         if (!round?.undo()) return;

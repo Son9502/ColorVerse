@@ -56,7 +56,7 @@ Someone can open ColorVerse, explore RGB and HSL as an interactive **3-D** color
 | **v1.4** | Golf variety: peeling, named-wedge bunkers on Expert, themed par layouts ✅ (v1.4.0) | Makes courses and layer changes feel distinct |
 | **v1.5** | Engine cleanup: Three.js r128 → npm package; delete ShaderCache ✅ (v1.5.0) | Ends the r128 API gaps before v2.0's new renderers |
 | **v1.6** | Accounts + score database, daily leaderboard, account-only courses 4–5 ✅ (v1.6.0–v1.6.2; Firebase project `colorverse-9efa3`) | Gives the daily hole real stakes; the only backend work, best done before the codebase grows |
-| **v1.7** | Mobile and accessibility | Golf needs double-clicks, drags and color vision today; fix that before adding more views |
+| **v1.7** | Mobile and accessibility ✅ (v1.7.0) | Golf needs double-clicks, drags and color vision today; fix that before adding more views |
 | **v1.8** | Expansion pack: 3–4 account-only courses with gimmicks, ending in a survival course | Reuses accounts, unlocks and the generator; new rules stay solver-exact |
 | **v2.0** | 1-D and 2-D modes + shared color across dimensions | Delivers the "multi-dimensional" promise; new renderers and shared state |
 | **v2.1** | Golf in 2-D | A flat map shows a whole hole at once (no far side of a sphere) |
@@ -224,10 +224,12 @@ Developed on the `feature/1d-2d` branch.
 - Playtest Expert by hand: its difficulty has only been measured by the solver.
 - Playtest Verdant Pines and Cobalt Bay and tune `UNLOCK_TO_PAR` (v1.6) before the expansion pack builds on it.
 
-### v1.7: Mobile and Accessibility
-- **Touch:** tap a swatch to play a stroke (with a confirm on Expert), pinch to zoom, one-finger drag to rotate.
-- **Colour-blind mode:** name colors ("muted teal") and show the distance to the target as a number, so the game doesn't rely on telling colors apart.
-- **Keyboard play:** move between swatches with the arrow keys, play with Enter.
+### v1.7: Mobile and Accessibility ✓
+- **Phone layout:** under 760 px wide the page is one column: title, then the 3-D view (42% of the screen, staying at the top while the rest scrolls), then the controls or golf panel, then the harmonies. Bigger swatches (40 px). The viewport meta tag is in place, so phones no longer show the desktop page shrunk.
+- **Touch:** one finger drags to rotate, two fingers pinch to zoom (same limits as the wheel). A drag that ends over the shape no longer picks a color, on any device. Tap a swatch to choose it (explore) or play it (golf); on Expert the first tap aims (outlined, "Tap again") and a second tap on the same swatch plays, since its swatches are blank. Mice keep double-click; the double-click phones send after two taps is ignored.
+- **Keyboard play:** every swatch is reachable with Tab; arrow keys move along a row and to the row above or below (collapsed rows skipped; the 3-D view ignores arrows while a swatch has focus); Enter or Space chooses or plays it.
+- **Color names:** a "Color names" switch (explore controls and golf setup, one setting kept in the browser) describes colors in words ("dark muted teal", "pale blue") under every swatch, under the selected color, and under You / Target in golf. Pro and Expert still hide the swatches' names along with their colors. Distance as a number was already shown (yards to the pin; Expert keeps hiding it until the green, for everyone).
+- **Screen readers:** swatches are buttons labeled with their hex and name; in golf, with the club ("Triadic +120°, vivid red"), or the club alone in Pro.
 
 ### v2.1: Golf in 2-D
 - Play holes on the hue wheel (angle = hue, radius = saturation, a slider for lightness) or a square slice. The tee, the flag, both paths and the hazards are all visible at once, which fixes paths seeming to disconnect around the back of the sphere.

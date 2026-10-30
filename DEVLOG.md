@@ -9,6 +9,28 @@ Each entry is tagged with how it was produced:
 
 ---
 
+## Milestone 24 — Mobile & Accessibility (v1.7.0) `[ai-assisted]`
+**2026-10-30**
+
+ColorVerse and Color Golf work on phones, from the keyboard and without telling colors apart. Scope from the roadmap (touch, colour-blind mode, keyboard play), with Expert's tap-to-aim from the spec; implementation `[ai-assisted]`.
+
+**Added**
+- Phone layout (`index.css`, under 760 px): one column with the 3-D view sticky at the top; viewport meta tag; 40 px swatches
+- `src/pointer.js`: the last pointer type, so a tap chooses or plays a swatch on touch screens while mice keep double-click
+- Pinch to zoom (`3d-mode.js`); a drag that ends over the shape no longer picks a color
+- Keyboard: swatches are focusable buttons; `swatchNeighbour` (harmony.js) moves with the arrow keys; Enter / Space chooses or plays
+- `src/color-names.js`: `describeColor` (shade + tone + hue family, with brown / olive / teal for dark oranges, yellows and cyans) and the "Color names" switch (explore and golf setup); names under swatches, the selected color and You / Target
+- Golf: tap to play, Expert tap to aim then tap again; swatch labels for screen readers (club, plus color name outside Pro)
+
+**Modified**
+- `MainBase.js`: pointer events instead of mouse events (one pointer drags; a second finger hands over to pinch); arrow keys ignored while a swatch has focus
+- Help, golf "How to play" and the tour mention taps, pinch and the keyboard
+
+**Verified**
+- Headless Chrome at 390×844 with touch: layout; taps play strokes; Expert's first tap aims, a tap elsewhere moves the aim, a second tap plays; pinch zooms; → moves focus between swatches and Enter plays; a tap in explore mode selects the swatch; names under swatches and You / Target, labels for screen readers; desktop layout unchanged; no console errors
+
+---
+
 ## Milestone 23 — Unique Nicknames, Change Password & Going Live (v1.6.2) `[ai-assisted]`
 **2026-10-30**
 

@@ -3,6 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>ColorVerse</title>
     <link rel="stylesheet" href="resources/css/index.css">
     <script type="module" src="./main.js" defer></script>
@@ -44,6 +45,18 @@
                                 <span class="slider"></span>
                             </label>
                             <span class="space-hsl">HSL</span>
+                        </div>
+                    </div>
+                    <!-- Color names (v1.7): describes colors in words; the same setting as in Color Golf -->
+                    <div class="field">
+                        <span class="field-label">Color names</span>
+                        <div class="space-toggle">
+                            <span>Off</span>
+                            <label class="switch">
+                                <input type="checkbox" class="color-names-switch" aria-label="Show color names">
+                                <span class="slider"></span>
+                            </label>
+                            <span>On</span>
                         </div>
                     </div>
                     <!-- One-Dimension Content-->
@@ -107,6 +120,7 @@
                         <div id="base-info">
                             <h2 id="hex">#xxxxxx</h2>
                             <h3 id="color-name">Color Name</h3>
+                            <p id="color-description" class="color-names-only"></p>
                             <h4 id="rgb">RGB(xxx,xxx,xxx)</h4>
                             <h4 id="hsl">HSL(xxx,xxx,xxx)</h4>
                         </div>
@@ -132,7 +146,9 @@
                         <button class="btn btn-link golf-help-toggle" type="button">Close</button>
                     </div>
                     <p>Make <strong>You</strong> match the <strong>Target</strong> in as few strokes as you can.
-                        A stroke is a double-click on any swatch below; each row is a club:</p>
+                        A stroke is a double-click on any swatch below (a tap on a touch screen, or <kbd>Enter</kbd> on a
+                        swatch reached with <kbd>Tab</kbd> and the arrow keys). On Expert, tap once to aim and again to play.
+                        Each row is a club:</p>
                     <dl>
                         <dt>Driver</dt><dd>Complementary: the longest hue jump, straight across the wheel</dd>
                         <dt>Wood</dt><dd>Split-comp.: long jumps, just either side of the driver</dd>
@@ -166,7 +182,7 @@
                         </div>
                     </div>
                     <p class="golf-intro">Get from the tee color to the target in as few strokes as you can.
-                        Double-click a harmony swatch to play it; the putter row makes small nudges.</p>
+                        Double-click (or tap) a harmony swatch to play it; the putter row makes small nudges.</p>
                     <!-- Account (v1.6): shown only when Firebase is configured (src/cloud/config.js) -->
                     <div id="golf-account" class="golf-account" hidden>
                         <div id="golf-account-out" class="golf-account-row">
@@ -222,6 +238,20 @@
                     </div>
 
                     <!-- Pro: Clubs hides the swatch colors (always on for Expert) -->
+                    <!-- Color names (v1.7): the same setting as on the explore screen -->
+                    <div class="field">
+                        <span class="field-label">Color names</span>
+                        <div class="space-toggle">
+                            <span>Off</span>
+                            <label class="switch">
+                                <input type="checkbox" class="color-names-switch" aria-label="Show color names">
+                                <span class="slider"></span>
+                            </label>
+                            <span>On</span>
+                        </div>
+                        <span class="golf-sub">Names every color in words ("dark muted teal"), for anyone who finds colors hard to tell apart. Pro still hides the swatches' colors.</span>
+                    </div>
+
                     <div id="golf-swatch-mode" class="field">
                         <span class="field-label">Swatches</span>
                         <div class="space-toggle">
@@ -283,8 +313,8 @@
                     <p id="golf-hole-info" class="golf-sub"></p>
                     <p id="golf-wind" hidden></p>
                     <div class="golf-swatches">
-                        <figure><div id="golf-you" class="golf-swatch"></div><figcaption>You</figcaption></figure>
-                        <figure><div id="golf-target" class="golf-swatch"></div><figcaption>Target</figcaption></figure>
+                        <figure><div id="golf-you" class="golf-swatch"></div><figcaption>You<span id="golf-you-name" class="color-names-only"></span></figcaption></figure>
+                        <figure><div id="golf-target" class="golf-swatch"></div><figcaption>Target<span id="golf-target-name" class="color-names-only"></span></figcaption></figure>
                     </div>
                     <div class="golf-meter" aria-live="polite">
                         <div class="golf-meter-track"><div id="golf-meter-fill"></div></div>
@@ -665,14 +695,14 @@
                     <h3>3-D controls</h3>
                     <dl>
                         <dt>Drag or <kbd>←</kbd><kbd>↑</kbd><kbd>→</kbd><kbd>↓</kbd></dt>
-                        <dd>Rotate the object</dd>
-                        <dt>Scroll</dt>
+                        <dd>Rotate the object (one finger on a touch screen)</dd>
+                        <dt>Scroll or pinch</dt>
                         <dd>Zoom in / out</dd>
                         <dt><kbd>[</kbd> <kbd>]</kbd></dt>
                         <dd>Previous / next layer</dd>
                         <dt><kbd>1</kbd>–<kbd>6</kbd></dt>
                         <dd>Snap to a face / axis</dd>
-                        <dt>Click</dt>
+                        <dt>Click or tap</dt>
                         <dd>Pick the color under the cursor</dd>
                         <dt>Double-click</dt>
                         <dd>Reset rotation and zoom</dd>
@@ -704,7 +734,8 @@
                             off. Each track previews what that slider will do</dd>
                         <dt>Harmonies</dt>
                         <dd>Complementary, triadic, analogous, tints, shades, tones, saturate and more. Double-click a swatch
-                            to make it the selected color; click ▾ to collapse a row</dd>
+                            (tap on a touch screen) to make it the selected color, or reach it with <kbd>Tab</kbd> and
+                            the arrow keys and press <kbd>Enter</kbd>; click ▾ to collapse a row</dd>
                         <dt>Mini shape</dt>
                         <dd>Bottom-right; shows the current orientation and where the picked color sits</dd>
                     </dl>

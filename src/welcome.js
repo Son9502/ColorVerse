@@ -7,7 +7,7 @@ const STEPS = [
     {
         target: "#ui-canvas",
         title: "The color space, in 3-D",
-        text: "Drag or use the arrow keys to rotate, scroll to zoom, and double-click to reset the view.",
+        text: "Drag or use the arrow keys to rotate, scroll or pinch to zoom, and double-click to reset the view.",
     },
     {
         target: "#info3D",
@@ -32,7 +32,7 @@ const STEPS = [
     {
         target: "#ui-container",
         title: "Explore its harmonies",
-        text: "Every pick fills these rows. Double-click any swatch to make it the new color, and use the sliders to fine-tune it.",
+        text: "Every pick fills these rows. Double-click (or tap) any swatch to make it the new color, and use the sliders to fine-tune it.",
     },
     {
         target: "#help-button",

@@ -187,12 +187,41 @@ export const create3DEnvironment = async (objectType = "cube") => {
         }
     }, { signal });
 
+    const zoomTo = (z) => { camera.position.z = Math.max(1, Math.min(20, z)); };
     container.addEventListener("wheel", (event) => {
         event.preventDefault();
         const zoomSpeed = 0.3;
-        camera.position.z += (event.deltaY > 0 ? 1 : -1) * zoomSpeed;
-        camera.position.z = Math.max(1, Math.min(20, camera.position.z));
+        zoomTo(camera.position.z + (event.deltaY > 0 ? 1 : -1) * zoomSpeed);
     }, { signal });
+
+    // Pinch (two fingers): the camera distance follows how far apart the fingers are
+    const touches = new Map(); // pointerId → { x, y }
+    let pinch = null; // { spread, z } when the second finger went down
+    const spread = () => {
+        const [a, b] = [...touches.values()];
+        return Math.hypot(a.x - b.x, a.y - b.y) || 1;
+    };
+    container.addEventListener("pointerdown", (event) => {
+        if (event.pointerType !== "touch") return;
+        touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+        if (touches.size === 2) pinch = { spread: spread(), z: camera.position.z };
+    }, { signal });
+    container.addEventListener("pointermove", (event) => {
+        if (!touches.has(event.pointerId)) return;
+        touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+        if (pinch && touches.size === 2) zoomTo(pinch.z * (pinch.spread / spread()));
+    }, { signal });
+    const lift = (event) => {
+        touches.delete(event.pointerId);
+        if (touches.size < 2) pinch = null;
+    };
+    window.addEventListener("pointerup", lift, { signal });
+    window.addEventListener("pointercancel", lift, { signal });
+
+    // A drag (or pinch) that ends over the shape isn't a click: only a still press picks a color
+    let pressAt = null;
+    container.addEventListener("pointerdown", (event) => { pressAt = { x: event.clientX, y: event.clientY }; }, { signal });
+    const wasDrag = (event) => pressAt && Math.hypot(event.clientX - pressAt.x, event.clientY - pressAt.y) > 6;
 
     // --- Raycasting for color picker ---
     const raycaster = new THREE.Raycaster();
@@ -207,7 +236,7 @@ export const create3DEnvironment = async (objectType = "cube") => {
 
     container.addEventListener("click", (event) => {
         // Color Golf: the shape is a map, not a picker (picking would solve any hole)
-        if (document.body.classList.contains("golf")) return;
+        if (document.body.classList.contains("golf") || wasDrag(event)) return;
         const rect = renderer.domElement.getBoundingClientRect();
         mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
         mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;

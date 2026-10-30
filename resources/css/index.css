@@ -1565,3 +1565,136 @@ body.golf .golf-blocked {
 .golf-course.locked .btn {
     grid-row: 1 / span 4;
 }
+
+/* -----------------------------------------------
+   Touch, keyboard and phones (v1.7)
+----------------------------------------------- */
+/* The canvas takes drags and pinches itself (MainBase.js, 3d-mode.js) instead of scrolling the page */
+#ui-canvas {
+    touch-action: none;
+}
+
+/* Swatches can be reached with Tab and moved between with the arrow keys (harmony.js) */
+.square:focus-visible {
+    outline: 3px solid #2d6cdf;
+    outline-offset: 3px;
+}
+
+/* Expert on a touch screen: the first tap aims, a second tap plays (golf-ui.js) */
+.golf-aimed .square {
+    outline: 3px solid #f1c40f;
+    outline-offset: 3px;
+}
+
+.golf-aimed::before {
+    content: "Tap again";
+    font-size: 0.6rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+/* Color names (color-names.js): only with the switch on, and never on Pro's blank swatches */
+.square-name,
+.color-names-only {
+    display: none;
+}
+
+body.color-names .square-name,
+body.color-names .color-names-only {
+    display: block;
+}
+
+body.golf-pro .square-name {
+    display: none;
+}
+
+/* Names wrap to different heights: keep the swatches themselves in line */
+body.color-names .swatch-row {
+    align-items: start;
+}
+
+.square-name {
+    max-width: 9ch;
+    margin-top: 2px;
+    font-size: 0.65rem;
+    line-height: 1.2;
+    text-align: center;
+    color: #555;
+}
+
+#color-description {
+    font-size: 0.85rem;
+    color: #555;
+}
+
+.golf-swatches figcaption .color-names-only {
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+/* Phones and narrow windows: one column. The 3-D view stays at the top while the controls,
+   the golf panel and the harmonies scroll under it (#ui-info's parts join #ui's column). */
+@media (max-width: 760px) {
+    html,
+    body {
+        height: auto;
+    }
+
+    body {
+        display: block;
+    }
+
+    #ui {
+        flex-direction: column;
+        height: auto;
+        min-height: 100svh;
+    }
+
+    #ui-info {
+        display: contents;
+    }
+
+    #ui-title {
+        order: 0;
+        padding: 0.6rem 1rem;
+    }
+
+    #ui-title h1 {
+        font-size: 1.4rem;
+    }
+
+    #ui-canvas {
+        order: 1;
+        flex: none;
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        height: 42svh;
+        border-bottom: 0.7vh solid #000;
+    }
+
+    #ui-combo {
+        order: 2;
+    }
+
+    #golf-panel {
+        order: 3;
+    }
+
+    #ui-container {
+        order: 4;
+        overflow: visible;
+        border-top: none;
+    }
+
+    /* Bigger swatches: easier to tap */
+    .square {
+        width: 40px;
+        height: 40px;
+    }
+
+    .swatch-row {
+        grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+    }
+}
