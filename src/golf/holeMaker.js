@@ -208,28 +208,30 @@ export function placeHazards(rand, hole, plan, band, layup) {
     return null;
 }
 
-// Portals (v1.8) for a hole built one stroke longer than wanted (its perfect is `wanted` + 1):
-// a shortcut portal on one of the tee's landing spots exits two strokes along the hole's best
-// route, so taking it is what makes `wanted` possible. With `trap`, a second portal on the obvious
-// line (a first shot that still finishes in `wanted` + 1, the hole's own length) throws the ball
-// far from the hole instead, so the natural route is the risky one.
+// Portals (v1.8) for a hole built `skip` strokes longer than wanted (its perfect is `wanted` + `skip`):
+// a shortcut portal on one of the tee's landing spots exits `skip` strokes along the hole's best
+// route, so taking it is what makes `wanted` possible. With `skip` 2 on a par 3 or 4, par itself
+// needs the portal. With `trap`, a second portal on the obvious line (a first shot that still
+// finishes in the hole's own length) throws the ball far from the hole instead, so the natural
+// route is the risky one. A `tutorial` portal (the course's first hole) is bigger, so more swatches
+// lead into it, and never has a trap.
 // Returns { hazards, perfect: wanted }, or null if no placement passes the checks.
-export function placePortals(rand, hole, wanted, band, { trap = false } = {}) {
+export function placePortals(rand, hole, wanted, band, { trap = false, skip = 1, tutorial = false } = {}) {
     const { tee, target, par } = hole;
     const base = searchFrom(tee, hole.perfect);
     const route = pathTo(base, parFor(base, target).end);
     const shots = allStrikes(tee);
     const pick = (list) => list[Math.floor(rand() * list.length)];
-    const radius = () => Math.round(20 + rand() * 12);
+    const radius = () => Math.round(tutorial ? 36 + rand() * 6 : 20 + rand() * 12);
     const clear = (spot, portals) => portals.every(p => yardsBetween(spot, p.center) >= p.radius + 10);
 
     for (let attempt = 0; attempt < 40; attempt++) {
-        const shortcut = { type: "portal", center: pick(shots), radius: radius(), exit: route[1].hsl };
+        const shortcut = { type: "portal", center: pick(shots), radius: radius(), exit: route[skip].hsl };
         const portals = [shortcut];
-        if (trap) {
+        if (trap && !tutorial) {
             const map = hazardMap(portals);
             const lines = shots.filter(shot => shot !== shortcut.center && clear(shot, portals)
-                && reachesWithin(map.land(shot), target, wanted, map));
+                && reachesWithin(map.land(shot), target, hole.perfect - 1, map));
             // The trap's exit: any clear color at least 250 yds from the hole
             let far = null;
             for (let tries = 0; tries < 30 && !far; tries++) {
@@ -251,18 +253,56 @@ export function placePortals(rand, hole, wanted, band, { trap = false } = {}) {
     return null;
 }
 
+// Black holes (v1.8) for a portal hole: `count` of them on the way to the pin without a portal
+// (each on a landing of the best portal-free route, `length` strokes long), so the long way round is
+// dangerous as well as long. The portal route is re-checked: perfect unchanged, par reachable, the
+// birdie line in range. Returns the black holes, or null if no placement passes the checks.
+export function placeBlackHoles(rand, hole, band, count, length) {
+    const { tee, target, par, hazards: portals } = hole;
+    const pick = (list) => list[Math.floor(rand() * list.length)];
+    const fixed = [tee, target, ...portals.map(p => p.exit)];
+
+    for (let attempt = 0; attempt < 20; attempt++) {
+        const blackHoles = [];
+        for (let n = 0; n < count; n++) {
+            const search = searchFrom(tee, length, hazardMap([...portals, ...blackHoles]), { avoidPortals: true });
+            const end = parFor(search, target)?.end;
+            if (end === undefined) break;
+            const radius = Math.round(30 + rand() * 15);
+            const spots = pathTo(search, end).slice(0, -1).map(stroke => stroke.hsl).filter(spot =>
+                fixed.every(p => yardsBetween(spot, p) >= radius + 10)
+                && portals.every(p => yardsBetween(spot, p.center) >= p.radius + radius + 5));
+            if (!spots.length) break;
+            blackHoles.push({ type: "blackhole", center: pick(spots), radius });
+        }
+        if (!blackHoles.length) continue;
+
+        const map = hazardMap([...portals, ...blackHoles]);
+        if (parFor(searchFrom(tee, hole.perfect, map), target)?.par !== hole.perfect) continue;
+        if ((parFor(searchFrom(tee, par, map), target)?.par ?? Infinity) > par) continue;
+        const line = birdieLineCount(hole, hole.perfect, map);
+        if (line < band[0] || line > band[1]) continue;
+        return blackHoles;
+    }
+    return null;
+}
+
 // One hole: { tee, target, par, perfect, hazards?, wind? }. `rands` are { rand, hazardRand, windRand }
 // (separate sequences, so adding hazards or wind never changes which tee and target are chosen).
 // `plan` is { water, greenside, route } counts or null; `windPlan` is { hue: [min, max], light: [min, max] }
 // or null. `layup` makes a par 5 whose birdie lines are all under water. `log` reports a hole left clear.
 export function buildHole({ rand, hazardRand, windRand }, { par, perfect, hues, difficulty, plan = null, windPlan = null, layup = false, portals = null, log = () => {} }) {
-    // Portals (v1.8): build the hole a stroke longer, then the portal makes the perfect score possible
+    // Portals (v1.8): build the hole `skip` strokes longer, then the portal makes the perfect score
+    // possible; `blackHoles` adds that many on the long way round
     let hole;
     for (let attempt = 0; portals && attempt < 10; attempt++) {
-        hole = makeHole(rand, par, perfect + 1, hues, SELECT_LINE[difficulty]);
+        const length = perfect + (portals.skip ?? 1);
+        hole = makeHole(rand, par, length, hues, SELECT_LINE[difficulty]);
         const placed = placePortals(hazardRand, hole, perfect, BIRDIE_LINE[difficulty], portals);
-        if (placed) {
-            Object.assign(hole, placed);
+        if (placed) Object.assign(hole, placed);
+        const blackHoles = placed && portals.blackHoles ? placeBlackHoles(hazardRand, hole, BIRDIE_LINE[difficulty], portals.blackHoles, length) : [];
+        if (placed && blackHoles) {
+            hole.hazards.push(...blackHoles);
             hole.lines = birdieLineCount(hole, hole.perfect, hazardMap(hole.hazards));
             return hole;
         }

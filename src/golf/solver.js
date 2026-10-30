@@ -12,7 +12,9 @@ import { isWedge } from "./hazards.js";
 // strokes are skipped; from sand only wedges are tried (only the named one in an Expert bunker). `avoidHazards` treats sand as blocked too,
 // for the "finishable within par without touching a hazard" check. `wind` drifts every full shot
 // (see clubs.js); it's fixed per hole, so the search stays exact. A landing in a portal (v1.8) is the
-// portal's exit, which depends only on the landing, so that stays exact too.
+// portal's exit, which depends only on the landing, so that stays exact too. A black hole (v1.8)
+// is skipped like water (back to the tee is never worth it). `avoidPortals` treats portals as
+// blocked, for the "can't make par without a portal" check on black-hole holes.
 
 const UNSEEN = 255;
 
@@ -22,7 +24,7 @@ const CLUB_ROW = CLUBS.map(club => club.row);
 const sandAllows = (i, wedge) => (wedge ? CLUB_ROW[i] === wedge : WEDGE_CLUB[i]);
 
 // Strokes from `tee` to every state reachable within `maxDepth`, plus how each was first reached
-export function searchFrom(tee, maxDepth = 7, hazards = null, { avoidHazards = false, wind = null } = {}) {
+export function searchFrom(tee, maxDepth = 7, hazards = null, { avoidHazards = false, avoidPortals = false, wind = null } = {}) {
     const blocked = hazards && !hazards.empty;
     const dist = new Uint8Array(STATE_COUNT).fill(UNSEEN);
     const parent = new Int32Array(STATE_COUNT).fill(-1);
@@ -41,12 +43,13 @@ export function searchFrom(tee, maxDepth = 7, hazards = null, { avoidHazards = f
             const wedge = inSand ? hazards.wedgeAt(from, code) : null;
             allStrikes(from, wind).forEach((landing, clubIndex) => {
                 if (inSand && !sandAllows(clubIndex, wedge)) return;
+                if (avoidPortals && blocked && hazards.portalAt(landing)) return;
                 const hsl = blocked ? hazards.land(landing) : landing; // through a portal, if it's in one
                 const to = encode(hsl);
                 if (dist[to] !== UNSEEN) return;
                 if (blocked) {
                     const hazard = hazards.at(hsl, to);
-                    if (hazard === "water" || (hazard === "sand" && avoidHazards)) return;
+                    if (hazard === "water" || hazard === "blackhole" || (hazard === "sand" && avoidHazards)) return;
                 }
                 dist[to] = depth;
                 parent[to] = code;
@@ -112,7 +115,7 @@ export function reachesWithin(from, target, maxDepth, hazards = null, { avoidHaz
                     if (seen[to]) continue;
                     if (blocked) {
                         const hazard = hazards.at(hsl, to);
-                        if (hazard === "water" || (hazard === "sand" && avoidHazards)) continue;
+                        if (hazard === "water" || hazard === "blackhole" || (hazard === "sand" && avoidHazards)) continue;
                     }
                     if (inHole(hsl)) return true;
                     seen[to] = 1;

@@ -71,18 +71,24 @@ const COURSES = [
         wind: { hue: [8, 12], light: [4, 6] }, // strong
     },
     // Expansion pack (v1.8): account-only courses, each built around one gimmick (`gimmick` is the
-    // line shown on its card)
+    // line shown on its card). Hole 1 teaches it: `tutorial` is shown there, and the hole is built
+    // so the gimmick is the way to par.
     {
-        id: "vortex", name: "Violet Vortex", seed: 6, hues: [250, 300], difficulty: "Expansion",
-        gimmick: "Portals: land in one and the ball warps to its exit color.",
-        portals: (i, par, perfect) => (perfect > 1 ? { trap: i % 3 === 0 } : null), // every hole but the ace; a trap on every third
+        id: "vortex", name: "Violet Vortex", seed: 6, rev: 2, hues: [250, 300], difficulty: "Expansion",
+        gimmick: "Portals warp the ball to their exit color; black holes send it back to the tee.",
+        tutorial: "Hole 1 teaches portals. A swatch outlined in violet lands in a portal, and its label says how far from the pin the ball comes out. This hole is too long to make par without one, so find an outlined swatch and play it. Later holes add trap portals, which throw the ball far away, and black holes (black patches on the map), which cost a stroke and send the ball back to the tee.",
+        // Every hole but the ace has a portal. On par 3s and 4s, par needs it (the hole is two strokes
+        // too long without); traps on every third hole, black holes on every third from hole 3
+        portals: (i, par, perfect) => (perfect === 1 ? null : i === 0
+            ? { skip: 2, tutorial: true }
+            : { skip: par < 5 ? 2 : 1, trap: i % 3 === 0, blackHoles: i % 3 === 2 ? 1 + (i % 2) : 0 }),
     },
 ];
 
 const only = process.argv.slice(2); // optional: course ids to generate (others are kept from the current file)
 const existing = only.length ? JSON.parse(readFileSync(new URL("../src/golf/courses.json", import.meta.url))) : [];
 
-const courses = COURSES.map(({ id, name, seed, rev, hues, difficulty, gimmick, layout = [FRONT, BACK], hazards: planFor, layup, wind: windPlan, portals: portalsFor }) => {
+const courses = COURSES.map(({ id, name, seed, rev, hues, difficulty, gimmick, tutorial, layout = [FRONT, BACK], hazards: planFor, layup, wind: windPlan, portals: portalsFor }) => {
     if (only.length && !only.includes(id)) return existing.find(course => course.id === id);
     const rand = rng(seed);
     const hazardRand = rng(seed * 7919); // separate sequence: hazards don't change which holes are chosen
@@ -97,7 +103,7 @@ const courses = COURSES.map(({ id, name, seed, rev, hues, difficulty, gimmick, l
         console.log(`${name} hole ${i + 1}: par ${par}, perfect ${hole.perfect}, ${Math.round(yardsBetween(hole.tee, hole.target))} yds, ${summary}`);
         return hole;
     });
-    return { id, name, ...(rev && { rev }), hues, difficulty, ...(gimmick && { gimmick }), holes };
+    return { id, name, ...(rev && { rev }), hues, difficulty, ...(gimmick && { gimmick }), ...(tutorial && { tutorial }), holes };
 }).filter(Boolean);
 
 const out = new URL("../src/golf/courses.json", import.meta.url);

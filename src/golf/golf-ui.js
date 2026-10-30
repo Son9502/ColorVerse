@@ -129,7 +129,7 @@ function windText(wind) {
 function hazardSummary(hazards = []) {
     const count = (type) => hazards.filter(h => h.type === type).length;
     const part = (n, one, many) => (n ? `${n} ${n === 1 ? one : many}` : "");
-    return [part(count("sand"), "bunker", "bunkers"), part(count("water"), "lake", "lakes"), part(count("portal"), "portal", "portals")]
+    return [part(count("sand"), "bunker", "bunkers"), part(count("water"), "lake", "lakes"), part(count("portal"), "portal", "portals"), part(count("blackhole"), "black hole", "black holes")]
         .filter(Boolean).join(", ");
 }
 
@@ -301,6 +301,7 @@ export function setupGolf() {
     }
 
     if (TEST_UNLOCKED) $("golf-test-mode").hidden = false;
+    $("golf-tutorial-close").addEventListener("click", () => { $("golf-tutorial").hidden = true; });
 
     // ---- Account (v1.6): only when Firebase is configured ----
     if (cloud.cloudAvailable) {
@@ -697,6 +698,10 @@ export function setupGolf() {
         }
         $("golf-hole-title").textContent = title;
         $("golf-hole-info").textContent = info.filter(Boolean).join(" · ");
+        // A gimmick course's first hole teaches its gimmick (v1.8)
+        const tutorial = mode === "course" && holeIndex === 0 ? round.course.tutorial : null;
+        $("golf-tutorial").hidden = !tutorial;
+        $("golf-tutorial-text").textContent = tutorial ?? "";
         // Wind: drifts every full shot (the swatches show the calm landing, so aim off)
         const wind = windText(hole.wind);
         $("golf-wind").hidden = !wind;
@@ -723,9 +728,17 @@ export function setupGolf() {
             box.dataset.name = putterNames[index].textContent = describeColor(landing);
         });
         $("golf-you-name").textContent = describeColor(current);
-        // Screen readers hear the club, and its color unless Pro hides the colors
+        // Screen readers hear the club, and its color unless Pro hides the colors.
+        // A swatch that lands in a portal (v1.8) is outlined, labeled with how far from the pin the
+        // ball comes out (just "Portal" on Expert, which has no yardage), so taking one is a choice.
         for (const [box, club] of clubs) {
-            box.setAttribute("aria-label", round.pro ? clubName(club) : `${clubName(club)}, ${box.dataset.name}`);
+            const portal = round.holeDone ? null : round.hazards.portalAt(strike(current, club, round.hole.wind));
+            const exit = portal && (round.expert ? "Portal" : `→ ${yards(portal.exit, round.hole.target)} yds`);
+            const wrapper = box.closest(".square-wrapper");
+            wrapper?.classList.toggle("golf-portal", !!portal);
+            if (portal) wrapper?.setAttribute("data-portal", exit);
+            const warps = portal ? (round.expert ? ", lands in a portal" : `, lands in a portal: comes out ${yards(portal.exit, round.hole.target)} yds from the pin`) : "";
+            box.setAttribute("aria-label", (round.pro ? clubName(club) : `${clubName(club)}, ${box.dataset.name}`) + warps);
         }
 
         $("golf-strokes").textContent = round.strokes;
@@ -772,22 +785,23 @@ export function setupGolf() {
         note.hidden = false;
         if (lie?.landed === "water") note.textContent = "Water! +1 stroke, playing again from your last spot.";
         else if (lie?.landed === "portal") note.textContent = "Portal! The ball warped to its exit.";
+        else if (lie?.landed === "blackhole") note.textContent = "Black hole! +1 stroke, back to the tee.";
         else if (round.inSand && !round.holeDone) {
             note.textContent = round.sandWedge
                 ? `In the bunker: ${ROW_NAMES[round.sandWedge]} only.`
                 : "In the bunker: wedges only (Tints, Shades, Tones, Saturate).";
         }
         else note.hidden = true;
-        note.className = lie?.landed === "water" || lie?.landed === "portal" ? lie.landed : "sand";
+        note.className = ["water", "portal", "blackhole"].includes(lie?.landed) ? lie.landed : "sand";
 
         $("golf-hazards").replaceChildren(...hazards.map(hazard => {
             const item = document.createElement("li");
             item.className = hazard.type;
             const bunker = hazard.wedge ? `Bunker (${ROW_NAMES[hazard.wedge]} only)` : "Bunker";
-            const name = { water: "Water", portal: "Portal", sand: bunker }[hazard.type];
+            const name = { water: "Water", portal: "Portal", blackhole: "Black hole", sand: bunker }[hazard.type];
             if (round.expert) item.textContent = name; // no yardage on Expert
             else if (hazard.type === "water") item.textContent = `Water: ${yards(round.current, hazard.center) + hazard.radius} yds to carry`;
-            else if (hazard.type === "portal") item.textContent = `Portal: ${Math.max(0, yards(round.current, hazard.center) - hazard.radius)} yds from you`;
+            else if (hazard.type === "portal" || hazard.type === "blackhole") item.textContent = `${name}: ${Math.max(0, yards(round.current, hazard.center) - hazard.radius)} yds from you`;
             else item.textContent = `${bunker}: ${Math.max(0, yards(round.hole.target, hazard.center) - hazard.radius)} yds from the pin`;
             return item;
         }));
@@ -934,9 +948,10 @@ export function setupGolf() {
                 const sand = (hole.hazards ?? []).filter(h => h.type === "sand").length;
                 const water = (hole.hazards ?? []).filter(h => h.type === "water").length;
                 const portal = (hole.hazards ?? []).filter(h => h.type === "portal").length;
+                const blackHole = (hole.hazards ?? []).filter(h => h.type === "blackhole").length;
                 return {
                     label: index + 1, par: hole.par, current,
-                    hazards: `<span class="sand">${"●".repeat(sand)}</span><span class="water">${"●".repeat(water)}</span><span class="portal">${"●".repeat(portal)}</span>`,
+                    hazards: `<span class="sand">${"●".repeat(sand)}</span><span class="water">${"●".repeat(water)}</span><span class="portal">${"●".repeat(portal)}</span><span class="blackhole">${"●".repeat(blackHole)}</span>`,
                     perfect: played ? played.perfect : "–",
                     strokes: played ? played.strokes : current ? round.strokes : "–",
                     parPlayed: played ? hole.par : null,

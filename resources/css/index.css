@@ -576,7 +576,7 @@ Color Categories + Squares
 #saturate,
 #putter {
     display: flex;
-    align-items: center;
+    align-items: flex-start; /* a name or portal label makes a swatch taller: keep the squares in line */
     gap: clamp(6px, 1vw, 18px);
 }
 
@@ -1483,6 +1483,33 @@ body.golf-pro .square-wrapper::after {
     color: #6a2bc2;
 }
 
+.golf-card .blackhole,
+#golf-hazards .blackhole::before {
+    color: #111;
+}
+
+/* A gimmick course's first hole (v1.8) */
+.golf-tutorial {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 8px 10px;
+    border-left: 4px solid #6a2bc2;
+    border-radius: 6px;
+    background: #f3ecfc;
+    color: #2e1257;
+    font-size: 0.82rem;
+}
+
+.golf-tutorial[hidden] {
+    display: none;
+}
+
+.golf-tutorial p {
+    margin: 0;
+    flex: 1;
+}
+
 /* `npm run dev:unlocked` only */
 .golf-test-mode {
     padding: 6px 10px;
@@ -1540,6 +1567,11 @@ body.golf-pro .square-wrapper::after {
 #golf-hazard-note.portal {
     background: #ece0fb;
     color: #4b1a8a;
+}
+
+#golf-hazard-note.blackhole {
+    background: #222;
+    color: #ffb27a;
 }
 
 #golf-hazard-note.sand {
@@ -1603,6 +1635,23 @@ body.golf .golf-blocked {
 .square:focus-visible {
     outline: 3px solid #2d6cdf;
     outline-offset: 3px;
+}
+
+/* Lands in a portal (v1.8): a dashed violet outline, with where the ball comes out below it */
+body.golf .golf-portal .square {
+    outline: 3px dashed #8b4fe0;
+    outline-offset: 3px;
+}
+
+/* Under the swatch's label (flex order), so the swatches in a row stay lined up */
+body.golf .golf-portal::before {
+    order: 3;
+    margin-top: 2px;
+    content: attr(data-portal);
+    color: #6a2bc2;
+    font-size: 0.6rem;
+    font-weight: 700;
+    white-space: nowrap;
 }
 
 /* Expert on a touch screen: the first tap aims, a second tap plays (golf-ui.js) */

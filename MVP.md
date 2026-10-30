@@ -221,7 +221,7 @@ Seven account-only courses after Royal Indigo, each built around one gimmick, th
 **Difficulty:** Standard par rules (par above perfect), with the birdie line of Standard to Expert courses (1–4 of 41 first shots). No Expert hiding (yardage and the meter stay), since the gimmicks are the challenge.
 
 **How it's built:**
-- **Regions are hazards:** portals (v1.8.0) are a hazard type (`hazards.js`: `portalAt`, `land`), so the round, the solver, the generator, the map and the server replay reuse the hazard code. Mirror greens will be one too.
+- **Regions are hazards:** portals and black holes (v1.8.0) are hazard types (`hazards.js`: `portalAt`, `land`), so the round, the solver, the generator, the map and the server replay reuse the hazard code. Mirror greens will be one too.
 - **Hole rules in one place:** gimmicks that aren't regions (bans, the wind cycle, roulette shifts) go in a `hole.rules` object read by one function the game, the solver, the generator and the server share, starting with v1.8.2.
 - **New clubs at the end:** Roulette (4) and Flip (5) are appended to the club list after the putter, so recorded rounds from v1.6–v1.7 still replay. They appear only on holes that have them (like the putter row, which shows only in golf).
 - **Solver:** Portals, mirrors, bans, roulette and flip depend only on the color, so the search is unchanged in kind. Turning wind adds "which shot in the cycle" to the state: memory × the cycle length (2–3), so the search stays exact.
@@ -230,7 +230,9 @@ Seven account-only courses after Royal Indigo, each built around one gimmick, th
 - **Survival on the server:** a round may end early (the first hole over par); bests compare holes survived first. A `survival/{uid}` best per player feeds the top 10.
 - **Help:** each course's card says its gimmick in a line, and "How to play" gains a section per gimmick.
 
-**Done:** v1.8.0 Violet Vortex: 17 portal holes (5 with a trap as well) and the ace; every portal hole is a stroke longer without its portal, so the perfect route always warps. Par 72, perfect 51.
+**Done:** v1.8.0 Violet Vortex: 17 portal holes and the ace. Par 72, perfect 51; the perfect route always warps.
+- After the first play-test (portals felt like a lucky guess): swatches that land in a portal are outlined in dashed violet and labeled with how far from the pin the ball comes out; every par 3 and 4 is two strokes too long without its portal, so **par needs the portal** (par 5s: only the birdie does); traps on holes 4, 7, 10, 13; **black holes** (a new hazard: +1 stroke and back to the tee) on the portal-free route of holes 3, 6, 9, 12, 15, 18.
+- **Tutorial hole:** each gimmick course's hole 1 teaches its gimmick (the course's `tutorial` text, shown on hole 1, and a hole built so the gimmick is the way to par; Violet Vortex's has a bigger portal and no trap). Later expansion courses do the same.
 
 **Order:** one course per release, each playable and committed before the next: v1.8.0 hole rules + Portals (Violet Vortex), v1.8.1 Mirror greens (Silverglass Greens), v1.8.2 Club bans (Caddie Strike), v1.8.3 Turning wind (Saffron Whirlwind), v1.8.4 Roulette (Scarlet Roulette), v1.8.5 Flip (Hexflip Hollow), v1.8.6 Survival (The Obsidian Gauntlet).
 

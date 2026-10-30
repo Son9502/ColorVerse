@@ -27,6 +27,15 @@ The first expansion course. Spec agreed with the developer (7 gimmick courses, n
 - `replayRound` of a perfect Violet Vortex round: 51 strokes (−21), so the score server accepts it
 - Headless Chrome: hole 1 played on its perfect route (warp note, jump on the map, birdie); no console errors
 
+**After the first play-test** (the developer: portals felt like a lucky guess; outline the swatches that reach one, add black holes that make portals necessary, and make hole 1 a tutorial)
+- Swatches whose landing is in a portal get a dashed violet outline and a "→ N yds" label (where the ball comes out, from the pin; just "Portal" on Expert), also read out in the swatch's aria-label
+- Black holes (`hazards.js`): +1 stroke and back to the tee; the solver skips them like water; drawn as a dark swirl with an orange rim; note, list, summary and score-card dots
+- `placePortals` takes `skip` (how many strokes the shortcut saves) and `tutorial` (bigger portal, no trap); `placeBlackHoles` puts 1–2 on the portal-free route; `searchFrom` gains `avoidPortals`
+- Violet Vortex regenerated (rev 2): par 3s and 4s are built two strokes long, so par needs the portal; traps on 4, 7, 10, 13; black holes on 3, 6, 9, 12, 15, 18. Blocking every portal-free route with black holes instead was tried and dropped: 8 black holes still left a way round
+- Course `tutorial` text, shown on hole 1 of a course round with a Got it button
+- Swatch rows line up by their tops (a label makes one swatch taller)
+- Verified: perfect matches the solver on every hole; without portals each par 3 and 4 takes par + 1 or more; perfect replay 51 strokes, 17 warps; a black-hole landing costs 2 and returns to the tee, and undo restores it; headless Chrome: tutorial and outlines on hole 1, black hole on hole 3, no console errors
+
 ---
 
 ## Milestone 24 — Mobile & Accessibility (v1.7.0) `[ai-assisted]`

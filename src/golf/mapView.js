@@ -38,9 +38,11 @@ function drawBall(hsl, rim = "#fff") {
     return canvas;
 }
 
-// Footprint textures: sand speckle, water stripes that drift, or a portal's violet rings that turn (see tick)
+// Footprint textures: sand speckle, water stripes that drift, a portal's violet rings or a black
+// hole's orange swirl that turn (see tick)
 const textures = {};
-const RING_COLORS = { water: 0x0b3a8c, sand: 0x6b4f16, portal: 0x5b1f9e };
+const RING_COLORS = { water: 0x0b3a8c, sand: 0x6b4f16, portal: 0x5b1f9e, blackhole: 0xff7a1a };
+const TEXTURED = new Set(["water", "portal", "blackhole"]); // the rest use sand's
 function hazardTexture(type) {
     if (textures[type]) return textures[type];
     const canvas = document.createElement("canvas");
@@ -57,6 +59,19 @@ function hazardTexture(type) {
             ctx.lineTo(64 + Math.cos(a) * r, 64 + Math.sin(a) * r);
         }
         ctx.stroke();
+    } else if (type === "blackhole") {
+        ctx.fillStyle = "#07060b";
+        ctx.fillRect(0, 0, 128, 128);
+        ctx.strokeStyle = "rgba(255, 140, 60, 0.45)";
+        ctx.lineWidth = 2;
+        for (let arm = 0; arm < 3; arm++) { // three arms spiralling in
+            ctx.beginPath();
+            for (let a = 0; a < Math.PI * 3; a += 0.1) {
+                const r = 60 - a * 6;
+                ctx.lineTo(64 + Math.cos(a + arm * 2.09) * r, 64 + Math.sin(a + arm * 2.09) * r);
+            }
+            ctx.stroke();
+        }
     } else if (type === "water") {
         ctx.fillStyle = "#2a63d4";
         ctx.fillRect(0, 0, 128, 128);
@@ -127,12 +142,18 @@ function drawHazardIcon(type, wedge) {
     const ctx = canvas.getContext("2d");
     ctx.beginPath();
     ctx.arc(32, 32, 28, 0, Math.PI * 2);
-    ctx.fillStyle = type === "portal" ? "#6a2bc2" : type === "water" ? "#1f5fd6" : "#e8cf96";
+    ctx.fillStyle = { portal: "#6a2bc2", water: "#1f5fd6", blackhole: "#07060b" }[type] ?? "#e8cf96";
     ctx.fill();
     ctx.lineWidth = 3;
     ctx.strokeStyle = "#111";
     ctx.stroke();
-    if (type === "portal") { // a spiral
+    if (type === "blackhole") { // a glowing rim round the dark
+        ctx.strokeStyle = "#ff7a1a";
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.arc(32, 32, 18, 0, Math.PI * 2);
+        ctx.stroke();
+    } else if (type === "portal") { // a spiral
         ctx.strokeStyle = "#fff";
         ctx.lineWidth = 3.5;
         ctx.beginPath();
@@ -213,6 +234,7 @@ export class GolfMapView {
         }
         if (textures.water) textures.water.offset.x = (now / 8000) % 1; // shared by every lake
         if (textures.portal) textures.portal.rotation = -(now / 2500) % (Math.PI * 2); // and every portal
+        if (textures.blackhole) textures.blackhole.rotation = (now / 4000) % (Math.PI * 2); // and black hole
         this.decals.forEach(({ ring, ringColor }, i) => {
             ring.forEach(mesh => mesh.material.color.copy(ringColor).lerp(WHITE, this.flash?.index === i ? flash : 0));
         });
@@ -258,7 +280,7 @@ export class GolfMapView {
         fillGeometry.setIndex(edge.flatMap((_, k) => [0, k + 1, ((k + 1) % edge.length) + 1]));
         fillGeometry.setAttribute("uv", new THREE.Float32BufferAttribute([center, ...edge].flatMap(p => [(p.x + p.z) * 4, p.y * 4]), 2));
         const fill = new THREE.Mesh(fillGeometry, new THREE.MeshBasicMaterial({
-            map: hazardTexture(type === "portal" || type === "water" ? type : "sand"), transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide,
+            map: hazardTexture(TEXTURED.has(type) ? type : "sand"), transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide,
         }));
 
         // Edge ring: a thin tube around the outline
