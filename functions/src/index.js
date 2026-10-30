@@ -7,6 +7,7 @@ import { replayRound } from "../../src/golf/replay.js";
 import { compareRounds } from "../../src/golf/game.js";
 import { WEEK, daysBetween, weekday } from "../../src/golf/daily.js";
 import { courseLock } from "../../src/golf/unlocks.js";
+import { cleanNickname, nicknameId, nicknameProblem } from "../../src/cloud/nickname.js";
 
 // ----------------------------------
 // ColorVerse score server (v1.6)
@@ -20,6 +21,7 @@ import { courseLock } from "../../src/golf/unlocks.js";
 //   users/{uid}/rounds/{id}        every course round: { courseId, rev, pro, strokes, toPar, time, at }
 //   users/{uid}/daily/{day}        the day's scored try: { par, perfect, strokes, time, pickedUp, pro, final, ranked }
 //   dailies/{day}/scores/{uid}     the public leaderboard: { nickname, strokes, toPar, time, pro, at }
+//   nicknames/{id}                 who holds a nickname: { uid } (id from nicknameId, so it ignores case)
 //
 // Trust: strokes, penalties, pick-ups and holes come from the replay. The time taken, the Pro setting
 // (outside Expert, which is always Pro) and the undo limit are the browser's word.
@@ -67,6 +69,30 @@ export const startDaily = onCall(async (request) => {
         });
     });
     return { ok: true };
+});
+
+// Nickname: unique ignoring case (src/cloud/nickname.js). Reserving the new one and releasing the old
+// happen in one transaction, so two players can't take the same name at once. Ranked daily scores
+// already on a leaderboard take the new name too.
+export const setNickname = onCall(async (request) => {
+    const uid = signedIn(request);
+    const nickname = cleanNickname(request.data?.nickname);
+    const problem = nicknameProblem(nickname);
+    if (problem) throw bad(problem);
+    const userRef = db.doc(`users/${uid}`);
+    const claimRef = db.doc(`nicknames/${nicknameId(nickname)}`);
+    await db.runTransaction(async (tx) => {
+        const [claim, user] = await Promise.all([tx.get(claimRef), tx.get(userRef)]);
+        if (claim.exists && claim.get("uid") !== uid) throw new HttpsError("already-exists", "That nickname is taken.");
+        const old = user.get("nickname");
+        if (old && nicknameId(old) !== claimRef.id) tx.delete(db.doc(`nicknames/${nicknameId(old)}`));
+        tx.set(claimRef, { uid });
+        tx.set(userRef, { nickname }, { merge: true });
+    });
+    const ranked = await db.collection(`users/${uid}/daily`).where("ranked", "==", true).get();
+    await Promise.all(ranked.docs.map(day =>
+        db.doc(`dailies/${day.id}/scores/${uid}`).update({ nickname }).catch(() => {}))); // picked up: not listed
+    return { nickname };
 });
 
 // A finished course round or daily hole: { kind: "course", courseId, rev, pro, holes } or

@@ -55,7 +55,7 @@ Someone can open ColorVerse, explore RGB and HSL as an interactive **3-D** color
 | **v1.3** | Daily hole, practice, Pro, Expert you can feel ✅ (v1.3.0) | Reuses the generator and par solver |
 | **v1.4** | Golf variety: peeling, named-wedge bunkers on Expert, themed par layouts ✅ (v1.4.0) | Makes courses and layer changes feel distinct |
 | **v1.5** | Engine cleanup: Three.js r128 → npm package; delete ShaderCache ✅ (v1.5.0) | Ends the r128 API gaps before v2.0's new renderers |
-| **v1.6** | Accounts + score database, daily leaderboard, account-only courses 4–5: built (v1.6.0), live once the Firebase project is set up | Gives the daily hole real stakes; the only backend work, best done before the codebase grows |
+| **v1.6** | Accounts + score database, daily leaderboard, account-only courses 4–5 ✅ (v1.6.0–v1.6.2; Firebase project `colorverse-9efa3`) | Gives the daily hole real stakes; the only backend work, best done before the codebase grows |
 | **v1.7** | Mobile and accessibility | Golf needs double-clicks, drags and color vision today; fix that before adding more views |
 | **v1.8** | Expansion pack: 3–4 account-only courses with gimmicks, ending in a survival course | Reuses accounts, unlocks and the generator; new rules stay solver-exact |
 | **v2.0** | 1-D and 2-D modes + shared color across dimensions | Delivers the "multi-dimensional" promise; new renderers and shared state |
@@ -189,6 +189,8 @@ Version numbers: minor versions keep counting past 9 (v1.9, v1.10, …). v2.0 is
 - **Backend:** Firebase (Auth, Firestore, Cloud Functions), since GitHub Pages is static. With no config in `src/cloud/config.js` the game runs offline-only, as before.
 - **Sign-in or create account:** Google, email and password (v1.6.1: Create account, Forgot password, 8+ characters), or an emailed sign-in link with no password. The first sign-in asks for a nickname. A short privacy note; playing without an account still works.
 - **Stored:** rounds, personal bests per course, daily-hole results and streaks, and a public daily leaderboard (top 10, nickname only).
+- **Nicknames are unique** (v1.6.2), ignoring case and extra spaces: 2–20 letters, numbers, spaces and `_ - . '`. Only the `setNickname` function can set one, reserving it in `nicknames/` in the same transaction; renaming frees the old name and updates the player's leaderboard entries. Problems show in red under the box ("That nickname is taken.", "You already have this nickname.").
+- **Change password** (v1.6.2) for email accounts: current password, then a new one (8+ characters, different); or a reset link by email.
 - **Cheat-proof scores:** the browser submits the clubs played and the server replays them with the same code (`src/golf/replay.js`), so strokes, penalties and pick-ups can't be faked. Time and the Pro setting are still the browser's word.
 - **Guest and account scores are kept apart:** signed out, the browser keeps the guest's bests and dailies; signed in, the screens show the account's (from the server, cached in the browser); signing out deletes the account's copy and brings back the guest's untouched.
 - **Sync on sign-in:** rounds finished signed out wait in a queue and are sent on sign-in, where the server replays them (better course best wins). Only rounds finished after v1.6 can be sent; older local bests have no recorded clubs, so they stay in the browser. Queued rounds are tagged with who played them, so an account's offline rounds never go to another account.

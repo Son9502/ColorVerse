@@ -9,6 +9,27 @@ Each entry is tagged with how it was produced:
 
 ---
 
+## Milestone 23 — Unique Nicknames, Change Password & Going Live (v1.6.2) `[ai-assisted]`
+**2026-10-30**
+
+The Firebase project (`colorverse-9efa3`) is set up and deployed, nicknames can't repeat, and email accounts can change their password. Requests by the developer (unique nicknames, red error messages, change password); implementation `[ai-assisted]`.
+
+**Added**
+- `src/cloud/config.js`: the project's web config; `.firebaserc` points the CLI at it
+- `setNickname` Cloud Function: reserves the name in `nicknames/{id}` (id ignores case and extra spaces) in one transaction with releasing the old one; renames update the player's ranked leaderboard entries
+- `src/cloud/nickname.js`: nickname rules shared by the screen and the server (2–20 letters, numbers, spaces, `_ - . '`; at least one letter or number)
+- Change password for email accounts: re-checks the current password, then sets the new one (8+ characters, different); "Email me a reset link" for a forgotten one
+- Red error messages under the nickname box (taken, already yours, length, characters, offline) and for sign-in and password problems; progress messages stay grey
+
+**Modified**
+- `firestore.rules`: the browser can no longer write anything (nicknames go through `setNickname`)
+
+**Verified**
+- Emulators: claim, re-save in other capitals, taken in other capitals, bad names, direct writes refused, renaming frees the old name; password change refused with a wrong current password, old password rejected and new one accepted after
+- Real project: deploy, sign-in, nickname saving (checked by the developer)
+
+---
+
 ## Milestone 22 — Email and Password Sign-in (v1.6.1) `[ai-assisted]`
 **2026-10-29**
 

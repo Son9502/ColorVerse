@@ -1,4 +1,5 @@
 import { activeConfig, useEmulators } from "./config.js";
+import { cleanNickname, nicknameProblem } from "./nickname.js";
 
 // ----------------------------------
 // Accounts and scores in the cloud (v1.6)
@@ -94,7 +95,9 @@ export function loadCloud() {
             try {
                 nickname = (await store_.getDoc(store_.doc(db, "users", account.uid))).get("nickname") ?? null;
             } catch { /* offline: no nickname yet */ }
-            user = { uid: account.uid, email: account.email, nickname };
+            // hasPassword: signs in with an email address (a password, or a link that hasn't set one yet)
+            const hasPassword = account.providerData.some(provider => provider.providerId === "password");
+            user = { uid: account.uid, email: account.email, nickname, hasPassword };
             notify();
             flushQueue();
         });
@@ -126,6 +129,15 @@ export async function sendPasswordReset(email) {
     await sdk.auth.sendPasswordResetEmail(auth, email);
 }
 
+// Signed in: check the current password again (Firebase wants a recent sign-in), then set the new one
+export async function changePassword(current, next) {
+    const { auth, sdk } = await loadCloud();
+    const account = auth.currentUser;
+    if (!account?.email) throw new Error("Sign in first.");
+    await sdk.auth.reauthenticateWithCredential(account, sdk.auth.EmailAuthProvider.credential(account.email, current));
+    await sdk.auth.updatePassword(account, next);
+}
+
 export async function sendSignInLink(email) {
     const { auth, sdk } = await loadCloud();
     const url = location.origin + location.pathname;
@@ -138,14 +150,23 @@ export async function signOutAccount() {
     await sdk.auth.signOut(auth);
 }
 
-// 2–20 characters; it's the only thing other players see (on the daily leaderboard)
+// The only thing other players see (on the daily leaderboard). The server checks it's free
+// (nickname.js); a taken one throws "That nickname is taken."
 export async function setNickname(nickname) {
-    const { db, sdk } = await loadCloud();
     if (!user) throw new Error("Sign in first.");
-    const name = nickname.trim();
-    if (name.length < 2 || name.length > 20) throw new Error("A nickname needs 2–20 characters.");
-    await sdk.store.setDoc(sdk.store.doc(db, "users", user.uid), { nickname: name }, { merge: true });
-    user = { ...user, nickname: name };
+    const problem = nicknameProblem(nickname);
+    if (problem) throw new Error(problem);
+    if (cleanNickname(nickname) === user.nickname) throw new Error("You already have this nickname.");
+    try {
+        const saved = await call("setNickname", { nickname: cleanNickname(nickname) });
+        user = { ...user, nickname: saved.nickname };
+    } catch (error) {
+        // The server's own answers (taken, too short…) are written for players; anything else isn't
+        const answered = ["functions/already-exists", "functions/invalid-argument"].includes(error.code);
+        throw new Error(answered
+            ? error.message.replace(/\s*\[\d+\]$/, "") // the SDK appends the HTTP status: "… [409]"
+            : "Couldn't save that nickname. Check your connection and try again.");
+    }
     notify();
 }
 

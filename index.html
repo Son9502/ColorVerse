@@ -198,13 +198,26 @@
                             <span class="golf-sub">Signed in as <strong id="golf-account-name"></strong></span>
                             <span>
                                 <button id="golf-nickname-edit" class="btn btn-link" type="button">Change nickname</button>
+                                <button id="golf-password-edit" class="btn btn-link" type="button" hidden>Change password</button>
                                 <button id="golf-signout" class="btn btn-link" type="button">Sign out</button>
                             </span>
                         </div>
+                        <!-- Change password (v1.6.2): accounts that sign in with an email address -->
+                        <form id="golf-password-change" class="golf-signin-form" hidden>
+                            <input type="password" id="golf-password-current" placeholder="Current password" aria-label="Current password" autocomplete="current-password">
+                            <input type="password" id="golf-password-new" placeholder="New password (8+ characters)" aria-label="New password" autocomplete="new-password">
+                            <div class="golf-account-row">
+                                <button id="golf-password-save" class="btn btn-primary" type="submit">Change password</button>
+                                <button id="golf-password-cancel" class="btn btn-link" type="button">Cancel</button>
+                            </div>
+                            <button id="golf-password-forgot" class="btn btn-link" type="button">Don't know your current password? Email me a reset link</button>
+                        </form>
+                        <p id="golf-password-status" class="golf-sub" aria-live="polite" hidden></p>
                         <form id="golf-nickname" class="golf-account-row" hidden>
                             <label for="golf-nickname-input" id="golf-nickname-label" class="golf-sub">Welcome! Pick a nickname for the leaderboard (2–20 characters)</label>
-                            <input id="golf-nickname-input" minlength="2" maxlength="20" required>
-                            <button class="btn btn-primary" type="submit">Save</button>
+                            <input id="golf-nickname-input" maxlength="20" aria-describedby="golf-nickname-error">
+                            <button id="golf-nickname-save" class="btn btn-primary" type="submit">Save</button>
+                            <p id="golf-nickname-error" class="golf-error" role="alert" hidden></p>
                         </form>
                     </div>
 

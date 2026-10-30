@@ -303,8 +303,12 @@ export function setupGolf() {
         $("golf-account-out").hidden = open || !!cloud.currentAccount();
         $("golf-signin-status").textContent = "";
     };
-    const status = (text) => { $("golf-signin-status").textContent = text; };
-    const signInError = (error) => status(error.code === "auth/popup-closed-by-user" ? "" : AUTH_ERRORS[error.code] ?? "Couldn't sign in. Please try again.");
+    // Status line under the sign-in buttons: grey for progress, red for a problem
+    const status = (text, problem = false) => {
+        $("golf-signin-status").textContent = text;
+        $("golf-signin-status").classList.toggle("golf-error", problem);
+    };
+    const signInError = (error) => status(error.code === "auth/popup-closed-by-user" ? "" : AUTH_ERRORS[error.code] ?? "Couldn't sign in. Please try again.", true);
     $("golf-signin-open").addEventListener("click", () => showSignIn(true));
     $("golf-signin-cancel").addEventListener("click", () => showSignIn(false));
     $("golf-signin-google").addEventListener("click", () => cloud.signInWithGoogle().catch(signInError));
@@ -315,7 +319,7 @@ export function setupGolf() {
     const withEmail = async (needsPassword, working, action) => {
         if (!emailInput.reportValidity()) return;
         if (needsPassword && !passwordInput.value) {
-            status("Enter your password (or use a sign-in link instead).");
+            status("Enter your password (or use a sign-in link instead).", true);
             passwordInput.focus();
             return;
         }
@@ -332,7 +336,7 @@ export function setupGolf() {
     });
     $("golf-signup").addEventListener("click", () => {
         if (passwordInput.value && passwordInput.value.length < MIN_PASSWORD) {
-            status(AUTH_ERRORS["auth/weak-password"]);
+            status(AUTH_ERRORS["auth/weak-password"], true);
             return;
         }
         withEmail(true, "Creating your account…", (email, password) => cloud.createAccount(email, password));
@@ -349,23 +353,87 @@ export function setupGolf() {
         status(`Check ${email} for a sign-in link (it opens this page).`);
     }));
     $("golf-signout").addEventListener("click", () => cloud.signOutAccount());
+    // Nickname: a problem (taken, too short, characters) shows in red under the box until it's edited
+    const nicknameInput = $("golf-nickname-input");
+    const nicknameError = (text) => {
+        $("golf-nickname-error").textContent = text ?? "";
+        $("golf-nickname-error").hidden = !text;
+        nicknameInput.setAttribute("aria-invalid", String(!!text));
+    };
+    nicknameInput.addEventListener("input", () => nicknameError(null));
     $("golf-nickname-edit").addEventListener("click", () => {
+        nicknameError(null);
         $("golf-nickname").hidden = false;
         $("golf-nickname-label").textContent = "New nickname for the leaderboard (2–20 characters)";
-        $("golf-nickname-input").value = cloud.currentAccount()?.nickname ?? "";
-        $("golf-nickname-input").focus();
+        nicknameInput.value = cloud.currentAccount()?.nickname ?? "";
+        nicknameInput.focus();
     });
     $("golf-nickname").addEventListener("submit", async (event) => {
         event.preventDefault();
+        const save = $("golf-nickname-save");
+        save.disabled = true;
+        save.textContent = "Saving…";
         try {
-            await cloud.setNickname($("golf-nickname-input").value);
+            await cloud.setNickname(nicknameInput.value);
+            nicknameError(null);
             $("golf-nickname").hidden = true;
         } catch (error) {
-            $("golf-nickname-input").setCustomValidity(error.message || "Couldn't save that nickname.");
-            $("golf-nickname-input").reportValidity();
-            $("golf-nickname-input").setCustomValidity("");
+            nicknameError(error.message || "Couldn't save that nickname.");
+            nicknameInput.focus();
+        } finally {
+            save.disabled = false;
+            save.textContent = "Save";
         }
     });
+    // Change password: the current one first (wrong → red), then 8+ characters that differ from it
+    const passwordForm = $("golf-password-change");
+    const currentInput = $("golf-password-current");
+    const newInput = $("golf-password-new");
+    const passwordStatus = (text, problem = false) => {
+        $("golf-password-status").textContent = text;
+        $("golf-password-status").hidden = !text;
+        $("golf-password-status").classList.toggle("golf-error", problem);
+    };
+    const showPasswordForm = (open) => {
+        passwordForm.hidden = !open;
+        currentInput.value = "";
+        newInput.value = "";
+        passwordStatus("");
+        if (open) currentInput.focus();
+    };
+    $("golf-password-edit").addEventListener("click", () => showPasswordForm(passwordForm.hidden));
+    $("golf-password-cancel").addEventListener("click", () => showPasswordForm(false));
+    passwordForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (!currentInput.value) return passwordStatus("Enter your current password.", true);
+        if (newInput.value.length < MIN_PASSWORD) return passwordStatus(AUTH_ERRORS["auth/weak-password"], true);
+        if (newInput.value === currentInput.value) return passwordStatus("Pick a new password that's different from your current one.", true);
+        const save = $("golf-password-save");
+        save.disabled = true;
+        passwordStatus("Changing your password…");
+        try {
+            await cloud.changePassword(currentInput.value, newInput.value);
+            showPasswordForm(false);
+            passwordStatus("Password changed.");
+        } catch (error) {
+            const wrong = ["auth/invalid-credential", "auth/wrong-password"].includes(error.code);
+            passwordStatus(wrong ? "Your current password isn't right." : AUTH_ERRORS[error.code] ?? "Couldn't change your password. Please try again.", true);
+        } finally {
+            save.disabled = false;
+        }
+    });
+    $("golf-password-forgot").addEventListener("click", async () => {
+        const email = cloud.currentAccount()?.email;
+        if (!email) return;
+        try {
+            await cloud.sendPasswordReset(email);
+            showPasswordForm(false);
+            passwordStatus(`We've emailed ${email} a link to set a new password.`);
+        } catch (error) {
+            passwordStatus(AUTH_ERRORS[error.code] ?? "Couldn't send the email. Please try again.", true);
+        }
+    });
+
     cloud.onAccount(async (account) => {
         if (!cloud.cloudAvailable) return;
         const uid = account?.uid ?? null;
@@ -373,6 +441,8 @@ export function setupGolf() {
         owner = uid;
         $("golf-account-out").hidden = !!account || !$("golf-signin").hidden;
         $("golf-account-in").hidden = !account;
+        $("golf-password-edit").hidden = !account?.hasPassword;
+        if (!account) showPasswordForm(false);
         if (account) {
             $("golf-signin").hidden = true;
             passwordInput.value = "";

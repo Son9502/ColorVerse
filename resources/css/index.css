@@ -1199,6 +1199,18 @@ body.golf .square:hover {
     font-size: 0.75rem;
 }
 
+/* Problems with a nickname or signing in: red text, and a red edge on the field at fault */
+.golf-error {
+    flex-basis: 100%;
+    margin: 0;
+    color: #c0392b;
+    font-size: 0.8rem;
+}
+
+.golf-account input[aria-invalid="true"] {
+    border-color: #c0392b;
+}
+
 .golf-signin-form {
     display: flex;
     flex-direction: column;
