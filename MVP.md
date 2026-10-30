@@ -187,7 +187,7 @@ Version numbers: minor versions keep counting past 9 (v1.9, v1.10, …). v2.0 is
 
 ### v1.6: Accounts and Score Database
 - **Backend:** Firebase (Auth, Firestore, Cloud Functions), since GitHub Pages is static. With no config in `src/cloud/config.js` the game runs offline-only, as before.
-- **Sign-in or create account** (Google or an emailed link; signing in the first time creates the account, then asks for a nickname) with a short privacy note. Playing without an account still works.
+- **Sign-in or create account:** Google, email and password (v1.6.1: Create account, Forgot password, 8+ characters), or an emailed sign-in link with no password. The first sign-in asks for a nickname. A short privacy note; playing without an account still works.
 - **Stored:** rounds, personal bests per course, daily-hole results and streaks, and a public daily leaderboard (top 10, nickname only).
 - **Cheat-proof scores:** the browser submits the clubs played and the server replays them with the same code (`src/golf/replay.js`), so strokes, penalties and pick-ups can't be faked. Time and the Pro setting are still the browser's word.
 - **Guest and account scores are kept apart:** signed out, the browser keeps the guest's bests and dailies; signed in, the screens show the account's (from the server, cached in the browser); signing out deletes the account's copy and brings back the guest's untouched.

@@ -9,6 +9,21 @@ Each entry is tagged with how it was produced:
 
 ---
 
+## Milestone 22 — Email and Password Sign-in (v1.6.1) `[ai-assisted]`
+**2026-10-29**
+
+Email sign-in only sent links; most players expect a password. Decision by the developer; implementation `[ai-assisted]`. Browser only, no server change.
+
+**Added**
+- Sign-in panel: email and password with Sign in / Create account (8+ characters), Forgot password (Firebase sends the reset email; also how a Google or link account gets a password), and "Email me a sign-in link instead"
+- `cloud.js`: `signInWithPassword`, `createAccount`, `sendPasswordReset`
+- Firebase error codes in words (wrong password, email already has an account, weak password, bad address, too many tries, offline)
+
+**Verified**
+- Auth emulator: create, sign in, and each error code the messages map; Forgot password gives the same answer for unknown addresses, so it can't be used to look up accounts
+
+---
+
 ## Milestone 21 — Accounts & Score Database (v1.6.0) `[ai-assisted]`
 **2026-10-29**
 

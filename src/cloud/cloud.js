@@ -3,7 +3,7 @@ import { activeConfig, useEmulators } from "./config.js";
 // ----------------------------------
 // Accounts and scores in the cloud (v1.6)
 // ----------------------------------
-// Firebase Auth (Google or an emailed link), Firestore for reading your data and the daily
+// Firebase Auth (Google, email and password, or an emailed link), Firestore for reading your data and the daily
 // leaderboard, and two Cloud Functions that replay rounds before saving them (functions/src).
 // The SDK loads only when it's needed: when Color Golf opens, when this browser has signed in before,
 // or when the page is opened from a sign-in link, so visitors who only explore never download it.
@@ -107,6 +107,23 @@ export function loadCloud() {
 export async function signInWithGoogle() {
     const { auth, sdk } = await loadCloud();
     await sdk.auth.signInWithPopup(auth, new sdk.auth.GoogleAuthProvider());
+}
+
+// Email and password (v1.6.1). Firebase stores the password; it needs 6+ characters, the screen asks for 8
+export async function signInWithPassword(email, password) {
+    const { auth, sdk } = await loadCloud();
+    await sdk.auth.signInWithEmailAndPassword(auth, email, password);
+}
+
+export async function createAccount(email, password) {
+    const { auth, sdk } = await loadCloud();
+    await sdk.auth.createUserWithEmailAndPassword(auth, email, password);
+}
+
+// Also how an account made with Google or a sign-in link gets a password
+export async function sendPasswordReset(email) {
+    const { auth, sdk } = await loadCloud();
+    await sdk.auth.sendPasswordResetEmail(auth, email);
 }
 
 export async function sendSignInLink(email) {

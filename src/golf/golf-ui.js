@@ -224,6 +224,20 @@ async function starterHole({ difficulty, par, hazards }) {
 
 const isExpert = (difficulty) => difficulty === "Expert";
 
+// Sign-in problems in words (Firebase error codes); anything else gets a general "try again"
+const MIN_PASSWORD = 8;
+const NO_MATCH = "That email and password don't match. Try again, or use Forgot password.";
+const AUTH_ERRORS = {
+    "auth/invalid-credential": NO_MATCH,
+    "auth/wrong-password": NO_MATCH,
+    "auth/user-not-found": NO_MATCH,
+    "auth/email-already-in-use": "That email already has an account. Sign in, or use Forgot password to set a password for it.",
+    "auth/weak-password": `Pick a password of at least ${MIN_PASSWORD} characters.`,
+    "auth/invalid-email": "That doesn't look like an email address.",
+    "auth/too-many-requests": "Too many tries. Wait a minute, then try again.",
+    "auth/network-request-failed": "Couldn't reach the server. Check your connection and try again.",
+};
+
 // Closeness meter wording; only updated after a stroke
 function lieLabel({ distance, holed, onGreen }) {
     if (holed) return "In the hole!";
@@ -289,23 +303,51 @@ export function setupGolf() {
         $("golf-account-out").hidden = open || !!cloud.currentAccount();
         $("golf-signin-status").textContent = "";
     };
-    const signInError = (error) => {
-        $("golf-signin-status").textContent = error.code === "auth/popup-closed-by-user" ? "" : "Couldn't sign in. Please try again.";
-    };
+    const status = (text) => { $("golf-signin-status").textContent = text; };
+    const signInError = (error) => status(error.code === "auth/popup-closed-by-user" ? "" : AUTH_ERRORS[error.code] ?? "Couldn't sign in. Please try again.");
     $("golf-signin-open").addEventListener("click", () => showSignIn(true));
     $("golf-signin-cancel").addEventListener("click", () => showSignIn(false));
     $("golf-signin-google").addEventListener("click", () => cloud.signInWithGoogle().catch(signInError));
-    $("golf-signin-email").addEventListener("submit", async (event) => {
-        event.preventDefault();
-        const email = $("golf-email").value.trim();
-        $("golf-signin-status").textContent = "Sending…";
+
+    // Email: the address is checked by the browser; the password only where one is needed
+    const emailInput = $("golf-email");
+    const passwordInput = $("golf-password");
+    const withEmail = async (needsPassword, working, action) => {
+        if (!emailInput.reportValidity()) return;
+        if (needsPassword && !passwordInput.value) {
+            status("Enter your password (or use a sign-in link instead).");
+            passwordInput.focus();
+            return;
+        }
+        status(working);
         try {
-            await cloud.sendSignInLink(email);
-            $("golf-signin-status").textContent = `Check ${email} for a sign-in link (it opens this page).`;
+            await action(emailInput.value.trim(), passwordInput.value);
         } catch (error) {
             signInError(error);
         }
+    };
+    $("golf-signin-email").addEventListener("submit", (event) => {
+        event.preventDefault();
+        withEmail(true, "Signing in…", (email, password) => cloud.signInWithPassword(email, password));
     });
+    $("golf-signup").addEventListener("click", () => {
+        if (passwordInput.value && passwordInput.value.length < MIN_PASSWORD) {
+            status(AUTH_ERRORS["auth/weak-password"]);
+            return;
+        }
+        withEmail(true, "Creating your account…", (email, password) => cloud.createAccount(email, password));
+    });
+    $("golf-forgot").addEventListener("click", () => withEmail(false, "Sending…", async (email) => {
+        // The same answer whether or not the account exists, so the form can't be used to look up emails
+        await cloud.sendPasswordReset(email).catch(error => {
+            if (error.code !== "auth/user-not-found") throw error;
+        });
+        status(`If there's an account for ${email}, it has an email with a link to set a new password.`);
+    }));
+    $("golf-signin-link").addEventListener("click", () => withEmail(false, "Sending…", async (email) => {
+        await cloud.sendSignInLink(email);
+        status(`Check ${email} for a sign-in link (it opens this page).`);
+    }));
     $("golf-signout").addEventListener("click", () => cloud.signOutAccount());
     $("golf-nickname-edit").addEventListener("click", () => {
         $("golf-nickname").hidden = false;
@@ -331,7 +373,10 @@ export function setupGolf() {
         owner = uid;
         $("golf-account-out").hidden = !!account || !$("golf-signin").hidden;
         $("golf-account-in").hidden = !account;
-        if (account) $("golf-signin").hidden = true;
+        if (account) {
+            $("golf-signin").hidden = true;
+            passwordInput.value = "";
+        }
         $("golf-account-name").textContent = account?.nickname ?? account?.email ?? "";
         $("golf-nickname").hidden = !account || !!account.nickname; // first sign-in: pick a nickname
         $("golf-nickname-label").textContent = "Welcome! Pick a nickname for the leaderboard (2–20 characters)";

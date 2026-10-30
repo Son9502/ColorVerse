@@ -170,15 +170,24 @@
                     <!-- Account (v1.6): shown only when Firebase is configured (src/cloud/config.js) -->
                     <div id="golf-account" class="golf-account" hidden>
                         <div id="golf-account-out" class="golf-account-row">
-                            <span class="golf-sub">Sign in to keep your scores on every device and join the daily leaderboard.
-                                New here? Signing in creates your account.</span>
+                            <span class="golf-sub">Keep your scores on every device and join the daily leaderboard.</span>
                             <button id="golf-signin-open" class="btn" type="button">Sign in or create account</button>
                         </div>
                         <div id="golf-signin" hidden>
                             <button id="golf-signin-google" class="btn btn-primary" type="button">Continue with Google</button>
-                            <form id="golf-signin-email" class="golf-account-row">
-                                <input type="email" id="golf-email" placeholder="you@example.com" aria-label="Email address" required>
-                                <button class="btn" type="submit">Email me a link</button>
+                            <p class="golf-sub">or with your email:</p>
+                            <!-- Email: a password (v1.6.1), or a sign-in link with no password -->
+                            <form id="golf-signin-email" class="golf-signin-form">
+                                <input type="email" id="golf-email" placeholder="you@example.com" aria-label="Email address" autocomplete="email" required>
+                                <input type="password" id="golf-password" placeholder="Password" aria-label="Password" autocomplete="current-password">
+                                <div class="golf-account-row">
+                                    <button class="btn btn-primary" type="submit">Sign in</button>
+                                    <button id="golf-signup" class="btn" type="button">Create account</button>
+                                </div>
+                                <div class="golf-account-row">
+                                    <button id="golf-forgot" class="btn btn-link" type="button">Forgot password?</button>
+                                    <button id="golf-signin-link" class="btn btn-link" type="button">Email me a sign-in link instead</button>
+                                </div>
                             </form>
                             <p id="golf-signin-status" class="golf-sub" aria-live="polite"></p>
                             <p class="golf-sub golf-privacy">We keep your email (to sign you in), a nickname and your scores.

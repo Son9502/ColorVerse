@@ -1199,6 +1199,16 @@ body.golf .square:hover {
     font-size: 0.75rem;
 }
 
+.golf-signin-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.golf-signin-form input {
+    flex: none;
+}
+
 /* Daily leaderboard, under the daily card */
 .golf-course .golf-leaderboard-toggle,
 .golf-leaderboard {
