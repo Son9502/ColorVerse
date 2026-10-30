@@ -1483,6 +1483,17 @@ body.golf-pro .square-wrapper::after {
     color: #6a2bc2;
 }
 
+/* `npm run dev:unlocked` only */
+.golf-test-mode {
+    padding: 6px 10px;
+    border: 1px dashed #b07a00;
+    border-radius: 8px;
+    background: #fff6dc;
+    color: #6b4a00;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
 /* An expansion course's gimmick, on its card */
 .golf-course .golf-gimmick {
     color: #5b1f9e;

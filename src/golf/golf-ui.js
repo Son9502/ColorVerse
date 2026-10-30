@@ -227,6 +227,10 @@ async function starterHole({ difficulty, par, hazards }) {
 
 const isExpert = (difficulty) => difficulty === "Expert";
 
+// Test mode (`npm run dev:unlocked`): every course open, and rounds stay out of the account.
+// Never on in a normal build; the score server keeps its own locks either way.
+const TEST_UNLOCKED = import.meta.env.VITE_UNLOCK_ALL === "1";
+
 // Sign-in problems in words (Firebase error codes); anything else gets a general "try again"
 const MIN_PASSWORD = 8;
 const NO_MATCH = "That email and password don't match. Try again, or use Forgot password.";
@@ -295,6 +299,8 @@ export function setupGolf() {
         type.textContent = CLUB_TYPES[row];
         heading.prepend(type);
     }
+
+    if (TEST_UNLOCKED) $("golf-test-mode").hidden = false;
 
     // ---- Account (v1.6): only when Firebase is configured ----
     if (cloud.cloudAvailable) {
@@ -535,7 +541,7 @@ export function setupGolf() {
     // Courses after the first few need an account and a good round on the one before (unlocks.js).
     // Without a Firebase config there are no accounts, so nothing is locked.
     const lockText = (index) => {
-        if (!cloud.cloudAvailable) return null;
+        if (!cloud.cloudAvailable || TEST_UNLOCKED) return null;
         const lock = courseLock(courses, index, { signedIn: !!owner, bests: load(scoped(BEST_KEY), {}) });
         if (lock === "account") return "Sign in to unlock";
         if (lock === "score") return `Score ${formatToPar(unlockToPar(courses[index]))} or better on ${courses[index - 1].name} to unlock`;
@@ -885,6 +891,10 @@ export function setupGolf() {
         const note = $("golf-round-saved");
         note.hidden = !cloud.cloudAvailable;
         if (!cloud.cloudAvailable) return;
+        if (TEST_UNLOCKED) {
+            note.textContent = "Test mode: rounds aren't sent to your account.";
+            return;
+        }
         note.textContent = cloud.currentAccount() ? "Saving to your account…" : "Sign in to save this round to your account (it'll be sent when you do).";
         try {
             const answer = await cloud.submitRound(payload);
