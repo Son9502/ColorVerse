@@ -55,8 +55,9 @@ Someone can open ColorVerse, explore RGB and HSL as an interactive **3-D** color
 | **v1.3** | Daily hole, practice, Pro, Expert you can feel ✅ (v1.3.0) | Reuses the generator and par solver |
 | **v1.4** | Golf variety: peeling, named-wedge bunkers on Expert, themed par layouts ✅ (v1.4.0) | Makes courses and layer changes feel distinct |
 | **v1.5** | Engine cleanup: Three.js r128 → npm package; delete ShaderCache ✅ (v1.5.0) | Ends the r128 API gaps before v2.0's new renderers |
-| **v1.6** | Accounts + score database | Gives the daily hole real stakes; the only backend work, best done before the codebase grows |
+| **v1.6** | Accounts + score database, daily leaderboard, account-only courses 4–5: built (v1.6.0), live once the Firebase project is set up | Gives the daily hole real stakes; the only backend work, best done before the codebase grows |
 | **v1.7** | Mobile and accessibility | Golf needs double-clicks, drags and color vision today; fix that before adding more views |
+| **v1.8** | Expansion pack: 3–4 account-only courses with gimmicks, ending in a survival course | Reuses accounts, unlocks and the generator; new rules stay solver-exact |
 | **v2.0** | 1-D and 2-D modes + shared color across dimensions | Delivers the "multi-dimensional" promise; new renderers and shared state |
 | **v2.1** | Golf in 2-D | A flat map shows a whole hole at once (no far side of a sphere) |
 | **v2.2** | More 3-D shapes: HSL cylinder, HSV cone / bicone | Reuses the 3-D pipeline |
@@ -182,12 +183,30 @@ Club types (v1.3) are ranked by average shot length over tee-like colors, and sh
 - **ShaderCache:** deleted. It was meant to cache one blended material per (color space, layer pair, face), but nothing read it: the textures (`TextureCache`) are the expensive part, and Three.js already reuses each compiled shader.
 - Hex labels now round (127.5 → 128) like CSS, instead of truncating as r128 did, so they match the swatch shown.
 
+Version numbers: minor versions keep counting past 9 (v1.9, v1.10, …). v2.0 is kept for the 1-D and 2-D modes, not for whatever comes tenth.
+
 ### v1.6: Accounts and Score Database
-- **Backend:** a hosted service (Supabase or Firebase, to decide), since GitHub Pages is static.
-- **Sign-in** (email link or Google) with a short privacy note; playing without an account still works, with scores kept in the browser.
-- **Stored:** rounds, personal bests per course, daily-hole results and streaks; leaderboards later.
-- **Cheat-proof scores:** the browser submits its list of strokes and the server replays them with the same rules (the game is deterministic), so a submitted score can't be faked.
-- **Sync:** scores saved locally while signed out are uploaded on sign-in.
+- **Backend:** Firebase (Auth, Firestore, Cloud Functions), since GitHub Pages is static. With no config in `src/cloud/config.js` the game runs offline-only, as before.
+- **Sign-in or create account** (Google or an emailed link; signing in the first time creates the account, then asks for a nickname) with a short privacy note. Playing without an account still works.
+- **Stored:** rounds, personal bests per course, daily-hole results and streaks, and a public daily leaderboard (top 10, nickname only).
+- **Cheat-proof scores:** the browser submits the clubs played and the server replays them with the same code (`src/golf/replay.js`), so strokes, penalties and pick-ups can't be faked. Time and the Pro setting are still the browser's word.
+- **Guest and account scores are kept apart:** signed out, the browser keeps the guest's bests and dailies; signed in, the screens show the account's (from the server, cached in the browser); signing out deletes the account's copy and brings back the guest's untouched.
+- **Sync on sign-in:** rounds finished signed out wait in a queue and are sent on sign-in, where the server replays them (better course best wins). Only rounds finished after v1.6 can be sent; older local bests have no recorded clubs, so they stay in the browser. Queued rounds are tagged with who played them, so an account's offline rounds never go to another account.
+- **Daily hole, one try per account per day:** a guest's try sent on sign-in counts as the day's try if the account has none, but never goes on the leaderboard; only a try whose first stroke reached the server while signed in is ranked. Replaying the daily signed out until it goes well and then signing in gains nothing. (Learning the hole in a private window first can't be prevented short of requiring an account for the daily.)
+- **Account-only courses:** courses 1–3 are open to everyone; each later course needs an account and a good round on the course just before it (Pro or not): Cobalt Bay needs −6 or better on Verdant Pines (6 strokes above its perfect 50), Royal Indigo −3 or better on Cobalt Bay (whose perfect round is −6). The server refuses rounds on a course that isn't unlocked. The scores live in `UNLOCK_TO_PAR` in `src/golf/unlocks.js`, to tune after playtesting.
+- **Score card:** a picked-up hole shows grey with a ✕ ("8✕"), so it doesn't rely on color alone; under-par holes stay red and bold.
+- **End-of-round message** by score: perfect round, under par, level par, close to par (+1 to +6), or "Every round teaches the clubs".
+
+### v1.8: Expansion Pack
+3–4 account-only courses, unlocked one after another like courses 4–5: harder, wackier and built around a gimmick each. **Rule for every gimmick:** it may depend only on the current color (or something as small as the stroke number), so the solver still finds par and perfect exactly and the server can replay rounds. Candidates:
+- **Portals:** landing in a region warps the ball to a fixed color elsewhere (a looks-like hazard that can help); shortcuts and traps.
+- **Club bans:** per hole ("Irons only", "no Driver", "wedges only past the turn").
+- **Mirror greens:** inside a region every hue shift is flipped (+120° plays as −120°).
+- **Turning wind:** the wind changes with the stroke number, so it's still known in advance.
+- **Fog:** the map stays hidden until the ball is on the green, or swatches show clubs only.
+- **Survival course** (the last one): make par or better on each hole or the round ends. Its own leaderboard: holes survived, then strokes.
+- Out: moving pins, random bounces and gusts, since true par couldn't be computed.
+- Spec each course here (gimmick, solver impact, generator checks) before building, as was done for hazards.
 
 ### v2.0: 1-D and 2-D Modes
 Developed on the `feature/1d-2d` branch.
@@ -201,6 +220,7 @@ Developed on the `feature/1d-2d` branch.
 - Run the remaining v1 live checks (first load under 3 s, 10 shape switches).
 - Merge `main` into `feature/1d-2d`, which has drifted far behind.
 - Playtest Expert by hand: its difficulty has only been measured by the solver.
+- Playtest Verdant Pines and Cobalt Bay and tune `UNLOCK_TO_PAR` (v1.6) before the expansion pack builds on it.
 
 ### v1.7: Mobile and Accessibility
 - **Touch:** tap a swatch to play a stroke (with a confirm on Expert), pinch to zoom, one-finger drag to rotate.
