@@ -1,5 +1,5 @@
 import { searchFrom, parFor, pathTo, reachesWithin } from "./solver.js";
-import { allStrikes, roundHSL, encode } from "./clubs.js";
+import { CLUBS, allStrikes, roundHSL, encode } from "./clubs.js";
 import { hazardMap, isWedge, WEDGES } from "./hazards.js";
 import { hslDistance, IN_THE_HOLE, ON_THE_GREEN } from "./oklab.js";
 
@@ -253,27 +253,45 @@ export function placePortals(rand, hole, wanted, band, { trap = false, skip = 1,
     return null;
 }
 
-// Black holes (v1.8) for a portal hole: `count` of them on the way to the pin without a portal
-// (each on a landing of the best portal-free route, `length` strokes long), so the long way round is
-// dangerous as well as long. The portal route is re-checked: perfect unchanged, par reachable, the
-// birdie line in range. Returns the black holes, or null if no placement passes the checks.
+// A seeded color anywhere on the wheel whose distance from `spot` (yds) is in [min, max), or null
+function colorAround(rand, spot, min, max = Infinity) {
+    for (let tries = 0; tries < 60; tries++) {
+        const color = randomColor(rand, [0, 360]);
+        const yds = yardsBetween(color, spot);
+        if (yds >= min && yds < max) return color;
+    }
+    return null;
+}
+
+// Whether a new region (center, radius) stays clear of `regions` and of the `spots` (tee, pin, exits)
+const roomFor = (center, radius, regions, spots) =>
+    regions.every(r => yardsBetween(center, r.center) >= r.radius + radius + 5)
+    && spots.every(spot => yardsBetween(center, spot) >= radius + 10);
+
+// Black holes (v1.8) for a portal hole: `count` of them, big (35–55 yds), each either on a tee
+// shot (one that doesn't go into a portal) or on a landing of the best portal-free route (`length`
+// strokes long), alternating, so they're both easy to hit and in the way of the long way round.
+// The portal route is re-checked: perfect unchanged, par reachable, the birdie line in range.
+// Returns the black holes, or null if no placement passes the checks.
 export function placeBlackHoles(rand, hole, band, count, length) {
     const { tee, target, par, hazards: portals } = hole;
     const pick = (list) => list[Math.floor(rand() * list.length)];
     const fixed = [tee, target, ...portals.map(p => p.exit)];
+    const portalMap = hazardMap(portals);
+    const teeShots = allStrikes(tee).filter(shot => !portalMap.portalAt(shot));
 
     for (let attempt = 0; attempt < 20; attempt++) {
         const blackHoles = [];
         for (let n = 0; n < count; n++) {
-            const search = searchFrom(tee, length, hazardMap([...portals, ...blackHoles]), { avoidPortals: true });
-            const end = parFor(search, target)?.end;
-            if (end === undefined) break;
-            const radius = Math.round(30 + rand() * 15);
-            const spots = pathTo(search, end).slice(0, -1).map(stroke => stroke.hsl).filter(spot =>
-                fixed.every(p => yardsBetween(spot, p) >= radius + 10)
-                && portals.every(p => yardsBetween(spot, p.center) >= p.radius + radius + 5));
-            if (!spots.length) break;
-            blackHoles.push({ type: "blackhole", center: pick(spots), radius });
+            const radius = Math.round(35 + rand() * 20);
+            let spots = teeShots;
+            if (n % 2 === 1) {
+                const search = searchFrom(tee, length, hazardMap([...portals, ...blackHoles]), { avoidPortals: true });
+                const end = parFor(search, target)?.end;
+                spots = end === undefined ? [] : pathTo(search, end).slice(0, -1).map(stroke => stroke.hsl);
+            }
+            spots = spots.filter(spot => roomFor(spot, radius, [...portals, ...blackHoles], fixed));
+            if (spots.length) blackHoles.push({ type: "blackhole", center: pick(spots), radius });
         }
         if (!blackHoles.length) continue;
 
@@ -283,6 +301,85 @@ export function placeBlackHoles(rand, hole, band, count, length) {
         const line = birdieLineCount(hole, hole.perfect, map);
         if (line < band[0] || line > band[1]) continue;
         return blackHoles;
+    }
+    return null;
+}
+
+// A portal chain (v1.8): `wanted` − 1 portals in a row. One from the tee exits somewhere else on the
+// wheel, where a swatch goes into the next, and so on; the last exits one stroke from the hole
+// (on the hole's best route), so the chain then a finishing shot is the perfect score.
+// Returns { hazards, perfect: wanted }, or null if no placement passes the checks.
+export function placeChain(rand, hole, wanted, band) {
+    const { tee, target, par } = hole;
+    const base = searchFrom(tee, hole.perfect);
+    const route = pathTo(base, parFor(base, target).end);
+    const pick = (list) => list[Math.floor(rand() * list.length)];
+    const count = wanted - 1;
+
+    for (let attempt = 0; attempt < 60; attempt++) {
+        const portals = [];
+        let from = tee;
+        for (let n = 0; n < count; n++) {
+            const exit = n === count - 1 ? route.at(-2).hsl : colorAround(rand, target, 150);
+            const center = pick(allStrikes(from));
+            const radius = Math.round(20 + rand() * 10);
+            if (!exit || !roomFor(center, radius, portals, [tee, target, from])) break;
+            portals.push({ type: "portal", center, radius, exit });
+            from = exit;
+        }
+        if (portals.length < count) continue;
+        if (!portals.every(p => roomFor(p.exit, 0, portals, []))) continue; // every exit clear of every portal
+
+        const map = hazardMap(portals);
+        if (parFor(searchFrom(tee, wanted, map), target)?.par !== wanted) continue;
+        if ((parFor(searchFrom(tee, par, map), target)?.par ?? Infinity) > par) continue;
+        const line = birdieLineCount(hole, wanted, map);
+        if (line < band[0] || line > band[1]) continue;
+        return { hazards: portals, perfect: wanted };
+    }
+    return null;
+}
+
+// A portal maze (v1.8): most of the tee's full shots (at least `share` of the 35 swatches that
+// aren't putts; putts and other short shots stay too near the tee for a portal) go into a portal.
+// One is the shortcut (it exits `skip` strokes along the hole's best route, like placePortals);
+// the rest are decoys whose exits look close (40–160 yds from the pin) but can't make the perfect
+// score, so the yardage alone doesn't give the answer.
+// Returns { hazards, perfect: wanted }, or null if no placement passes the checks.
+export function placeMaze(rand, hole, wanted, band, { skip = 1, share = 0.5 } = {}) {
+    const { tee, target, par } = hole;
+    const base = searchFrom(tee, hole.perfect);
+    const route = pathTo(base, parFor(base, target).end);
+    const shots = allStrikes(tee).filter((_, i) => CLUBS[i].row !== "putter");
+    const radius = () => Math.round(25 + rand() * 13);
+
+    for (let attempt = 0; attempt < 30; attempt++) {
+        const order = [...shots].sort(() => rand() - 0.5);
+        const portals = [{ type: "portal", center: order[0], radius: radius(), exit: route[skip].hsl }];
+        const fixed = [tee, target, route[skip].hsl];
+        const covered = () => { const map = hazardMap(portals); return shots.filter(shot => map.portalAt(shot)).length; };
+        for (const spot of order.slice(1)) {
+            if (portals.length >= 16 || covered() >= shots.length * share) break;
+            const r = radius();
+            if (!roomFor(spot, r, portals, fixed)) continue;
+            let exit = null;
+            for (let tries = 0; tries < 10 && !exit; tries++) {
+                const color = colorAround(rand, target, 40, 160);
+                if (color && !reachesWithin(color, target, wanted - 1, hazardMap(portals))) exit = color;
+            }
+            if (!exit) continue;
+            portals.push({ type: "portal", center: spot, radius: r, exit });
+            fixed.push(exit);
+        }
+        if (covered() < shots.length * share) continue;
+        if (![tee, target, ...portals.map(p => p.exit)].every(spot => roomFor(spot, 0, portals, []))) continue;
+
+        const map = hazardMap(portals);
+        if (parFor(searchFrom(tee, wanted, map), target)?.par !== wanted) continue;
+        if ((parFor(searchFrom(tee, par, map), target)?.par ?? Infinity) > par) continue;
+        const line = birdieLineCount(hole, wanted, map);
+        if (line < band[0] || line > band[1]) continue;
+        return { hazards: portals, perfect: wanted };
     }
     return null;
 }
@@ -298,7 +395,8 @@ export function buildHole({ rand, hazardRand, windRand }, { par, perfect, hues, 
     for (let attempt = 0; portals && attempt < 10; attempt++) {
         const length = perfect + (portals.skip ?? 1);
         hole = makeHole(rand, par, length, hues, SELECT_LINE[difficulty]);
-        const placed = placePortals(hazardRand, hole, perfect, BIRDIE_LINE[difficulty], portals);
+        const place = portals.chain ? placeChain : portals.maze ? placeMaze : placePortals;
+        const placed = place(hazardRand, hole, perfect, BIRDIE_LINE[difficulty], portals);
         if (placed) Object.assign(hole, placed);
         const blackHoles = placed && portals.blackHoles ? placeBlackHoles(hazardRand, hole, BIRDIE_LINE[difficulty], portals.blackHoles, length) : [];
         if (placed && blackHoles) {

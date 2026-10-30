@@ -1,7 +1,7 @@
 import courses from "./courses.json";
 import { GolfRound, scoreName, compareRounds } from "./game.js";
 import { PUTTER, strike } from "./clubs.js";
-import { IN_THE_HOLE, hslDistance } from "./oklab.js";
+import { IN_THE_HOLE, hslDistance, hslToHex } from "./oklab.js";
 import { harmonySets, selectBaseColor, clearBaseColor, addNameLabel } from "../harmony.js";
 import { describeColor } from "../color-names.js";
 import { setMapState } from "./mapState.js";
@@ -730,14 +730,23 @@ export function setupGolf() {
         $("golf-you-name").textContent = describeColor(current);
         // Screen readers hear the club, and its color unless Pro hides the colors.
         // A swatch that lands in a portal (v1.8) is outlined, labeled with how far from the pin the
-        // ball comes out (just "Portal" on Expert, which has no yardage), so taking one is a choice.
+        // ball comes out (just "Portal" on Expert, which has no yardage) next to a chip of the exit
+        // color (not in Pro, which hides colors), so taking one is a choice. The hex is in the tooltip.
         for (const [box, club] of clubs) {
             const portal = round.holeDone ? null : round.hazards.portalAt(strike(current, club, round.hole.wind));
-            const exit = portal && (round.expert ? "Portal" : `→ ${yards(portal.exit, round.hole.target)} yds`);
             const wrapper = box.closest(".square-wrapper");
             wrapper?.classList.toggle("golf-portal", !!portal);
-            if (portal) wrapper?.setAttribute("data-portal", exit);
-            const warps = portal ? (round.expert ? ", lands in a portal" : `, lands in a portal: comes out ${yards(portal.exit, round.hole.target)} yds from the pin`) : "";
+            let warps = "";
+            if (portal) {
+                const out = yards(portal.exit, round.hole.target);
+                const hex = round.pro ? "" : ` at ${hslToHex(portal.exit)}`;
+                warps = round.expert ? `, lands in a portal${hex}` : `, lands in a portal: comes out${hex}, ${out} yds from the pin`;
+                wrapper.dataset.portal = round.expert ? "Portal" : `→ ${out} yds`;
+                wrapper.style.setProperty("--exit", round.pro ? "transparent" : css(portal.exit));
+                wrapper.title = warps.slice(2);
+            } else if (wrapper?.title) {
+                wrapper.title = "";
+            }
             box.setAttribute("aria-label", (round.pro ? clubName(club) : `${clubName(club)}, ${box.dataset.name}`) + warps);
         }
 
@@ -794,7 +803,16 @@ export function setupGolf() {
         else note.hidden = true;
         note.className = ["water", "portal", "blackhole"].includes(lie?.landed) ? lie.landed : "sand";
 
-        $("golf-hazards").replaceChildren(...hazards.map(hazard => {
+        // A portal maze (v1.8) gets one line for its portals instead of a dozen
+        const portals = hazards.filter(h => h.type === "portal");
+        const listed = portals.length > 3 ? hazards.filter(h => h.type !== "portal") : hazards;
+        const mazeLine = portals.length > 3 && document.createElement("li");
+        if (mazeLine) {
+            mazeLine.className = "portal";
+            const nearest = Math.min(...portals.map(p => Math.max(0, yards(round.current, p.center) - p.radius)));
+            mazeLine.textContent = round.expert ? `${portals.length} portals` : `${portals.length} portals: nearest ${nearest} yds from you`;
+        }
+        $("golf-hazards").replaceChildren(...(mazeLine ? [mazeLine] : []), ...listed.map(hazard => {
             const item = document.createElement("li");
             item.className = hazard.type;
             const bunker = hazard.wedge ? `Bunker (${ROW_NAMES[hazard.wedge]} only)` : "Bunker";

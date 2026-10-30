@@ -37,6 +37,25 @@ const FRONT_35 = [[4, 3], [3, 2], [4, 3], [5, 4], [4, 3], [3, 2], [4, 3], [4, 3]
 const EMBER_FRONT = [[4, 3], [5, 4], [3, 2], [4, 3], [5, 3], [4, 3], [3, 2], [4, 3], [5, 4]]; // 37
 const VERDANT_BACK = [[4, 3], [3, 2], [4, 3], [4, 3], [3, 1], [4, 3], [5, 3], [3, 2], [5, 4]]; // 35 → par 70 with FRONT_35
 
+// Violet Vortex (v1.8): what each hole is. Every hole is built `skip` strokes longer than its
+// perfect score (2 where it fits in 5 strokes, so par 3s and 4s need a portal for par) and a
+// portal is the way back: a shortcut (`trap`: plus a portal on the obvious line exiting far
+// away), a `chain` of portals from the tee to beside the pin, or a `maze` where most tee swatches
+// are portals and only one exit leads on. `blackHoles`: that many, on tee shots and the long way round.
+const VORTEX_HOLES = [
+    "tutorial", "trap", "blackHoles", "chain", "maze", "blackHoles", "trap", "maze", "blackHoles",
+    "trap", "chain", "blackHoles", "maze", "chain", "blackHoles", "ace", "trap", "blackHoles",
+];
+const skipFor = (perfect) => Math.min(2, 5 - perfect);
+const VORTEX_PLAN = {
+    tutorial: (perfect) => ({ skip: skipFor(perfect), tutorial: true }),
+    trap: (perfect) => ({ skip: skipFor(perfect), trap: true }),
+    chain: (perfect) => ({ skip: skipFor(perfect), chain: true }),
+    maze: (perfect) => ({ skip: skipFor(perfect), maze: true }),
+    blackHoles: (perfect) => ({ skip: skipFor(perfect), blackHoles: 3 }),
+    ace: () => null,
+};
+
 // Each course keeps its tees and targets inside a hue range [from, to) in degrees (wrapping past 360),
 // so the name says how it plays. Routes may still pass through other hues.
 // `hazards(i, par, perfect)` says what hole i gets: { water, greenside, route } counts (or null for none).
@@ -74,14 +93,10 @@ const COURSES = [
     // line shown on its card). Hole 1 teaches it: `tutorial` is shown there, and the hole is built
     // so the gimmick is the way to par.
     {
-        id: "vortex", name: "Violet Vortex", seed: 6, rev: 2, hues: [250, 300], difficulty: "Expansion",
+        id: "vortex", name: "Violet Vortex", seed: 6, rev: 3, hues: [250, 300], difficulty: "Expansion",
         gimmick: "Portals warp the ball to their exit color; black holes send it back to the tee.",
-        tutorial: "Hole 1 teaches portals. A swatch outlined in violet lands in a portal, and its label says how far from the pin the ball comes out. This hole is too long to make par without one, so find an outlined swatch and play it. Later holes add trap portals, which throw the ball far away, and black holes (black patches on the map), which cost a stroke and send the ball back to the tee.",
-        // Every hole but the ace has a portal. On par 3s and 4s, par needs it (the hole is two strokes
-        // too long without); traps on every third hole, black holes on every third from hole 3
-        portals: (i, par, perfect) => (perfect === 1 ? null : i === 0
-            ? { skip: 2, tutorial: true }
-            : { skip: par < 5 ? 2 : 1, trap: i % 3 === 0, blackHoles: i % 3 === 2 ? 1 + (i % 2) : 0 }),
+        tutorial: "A swatch with a dotted outline lands in a portal; its label shows where the ball comes out (yds from the pin). You need one to make par here.",
+        portals: (i, par, perfect) => VORTEX_PLAN[VORTEX_HOLES[i]]?.(perfect) ?? null,
     },
 ];
 

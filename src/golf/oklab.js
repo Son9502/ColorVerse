@@ -18,6 +18,9 @@ function hslToSRGB({ h, s, l }) {
     return [f(0), f(8), f(4)];
 }
 
+// "#RRGGBB" for an HSL color, as the swatch labels show it
+export const hslToHex = (hsl) => "#" + hslToSRGB(hsl).map(c => Math.round(c * 255).toString(16).padStart(2, "0")).join("").toUpperCase();
+
 const toLinear = (c) => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
 
 // sRGB 0–1 -> OKLab [L, a, b] (Björn Ottosson's matrices)

@@ -36,6 +36,13 @@ The first expansion course. Spec agreed with the developer (7 gimmick courses, n
 - Swatch rows line up by their tops (a label makes one swatch taller)
 - Verified: perfect matches the solver on every hole; without portals each par 3 and 4 takes par + 1 or more; perfect replay 51 strokes, 17 warps; a black-hole landing costs 2 and returns to the tee, and undo restores it; headless Chrome: tutorial and outlines on hole 1, black hole on hole 3, no console errors
 
+**Second play-test** (the developer: shorter tutorial, a dotted outline that doesn't cover the yardage, more menacing black holes, holes with several portals in a row or mostly portals; asked how exits are chosen and about showing the exit's hex)
+- Outline: 2 px dotted purple with room below it; the label gets a chip of the exit color (not in Pro); hex in the tooltip and aria-label (`hslToHex` in `oklab.js`). A full hex beside the yardage doesn't fit under a 40–60 px swatch
+- `placeChain`: `wanted` − 1 portals in a row, the last exiting one stroke from the pin; `placeMaze`: a shortcut plus decoys until half the 35 full shots go into a portal (the 6 putts and other short shots are too near the tee for a portal; 55% of all 41 couldn't be covered with 12 portals); decoy exits 40–160 yds from the pin that can't make the perfect score
+- `placeBlackHoles`: 35–55 yds, alternately on a tee shot and on the portal-free route
+- Violet Vortex rev 3 (hole plan `VORTEX_HOLES` in `generateCourses.mjs`); more than 3 portals list as one line ("13 portals: nearest 24 yds from you")
+- Verified: perfect matches the solver on every hole; chain holes' perfect routes take every portal in the chain; mazes: 18–19 of 41 tee swatches into portals; black-hole holes: 2–7 tee swatches into black holes; perfect replay 51; courses 1–5 unchanged; headless Chrome at desktop and 390 px: labels clear of the outline, no overlap, no console errors
+
 ---
 
 ## Milestone 24 — Mobile & Accessibility (v1.7.0) `[ai-assisted]`

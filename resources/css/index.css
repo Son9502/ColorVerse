@@ -1637,16 +1637,20 @@ body.golf .golf-blocked {
     outline-offset: 3px;
 }
 
-/* Lands in a portal (v1.8): a dashed violet outline, with where the ball comes out below it */
+/* Lands in a portal (v1.8): a dotted purple outline, with where the ball comes out below it
+   (a chip of the exit color, --exit from golf-ui.js, then the yardage) */
 body.golf .golf-portal .square {
-    outline: 3px dashed #8b4fe0;
-    outline-offset: 3px;
+    outline: 2px dotted #8b4fe0;
+    outline-offset: 2px;
+    margin-bottom: 4px;
 }
 
 /* Under the swatch's label (flex order), so the swatches in a row stay lined up */
 body.golf .golf-portal::before {
     order: 3;
     margin-top: 2px;
+    padding-left: 11px;
+    background: linear-gradient(var(--exit), var(--exit)) no-repeat left center / 8px 8px;
     content: attr(data-portal);
     color: #6a2bc2;
     font-size: 0.6rem;
