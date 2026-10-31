@@ -41,6 +41,7 @@ The first expansion course. Spec agreed with the developer (7 gimmick courses, n
 - `placeChain`: `wanted` − 1 portals in a row, the last exiting one stroke from the pin; `placeMaze`: a shortcut plus decoys until half the 35 full shots go into a portal (the 6 putts and other short shots are too near the tee for a portal; 55% of all 41 couldn't be covered with 12 portals); decoy exits 40–160 yds from the pin that can't make the perfect score
 - `placeBlackHoles`: 35–55 yds, alternately on a tee shot and on the portal-free route
 - Violet Vortex rev 3 (hole plan `VORTEX_HOLES` in `generateCourses.mjs`); more than 3 portals list as one line ("13 portals: nearest 24 yds from you")
+- Portal and black-hole footprints are plain fills (no turning spiral or swirl), so a maze hole stays calm to look at
 - Verified: perfect matches the solver on every hole; chain holes' perfect routes take every portal in the chain; mazes: 18–19 of 41 tee swatches into portals; black-hole holes: 2–7 tee swatches into black holes; perfect replay 51; courses 1–5 unchanged; headless Chrome at desktop and 390 px: labels clear of the outline, no overlap, no console errors
 
 ---

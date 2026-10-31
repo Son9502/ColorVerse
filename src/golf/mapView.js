@@ -38,41 +38,17 @@ function drawBall(hsl, rim = "#fff") {
     return canvas;
 }
 
-// Footprint textures: sand speckle, water stripes that drift, a portal's violet rings or a black
-// hole's orange swirl that turn (see tick)
+// Footprint textures: sand speckle or water stripes that drift (see tick). Portals and black
+// holes (v1.8) are plain fills, so a course full of them stays calm to look at.
 const textures = {};
 const RING_COLORS = { water: 0x0b3a8c, sand: 0x6b4f16, portal: 0x5b1f9e, blackhole: 0xff7a1a };
-const TEXTURED = new Set(["water", "portal", "blackhole"]); // the rest use sand's
+const SOLID = { portal: 0x6a2bc2, blackhole: 0x07060b };
 function hazardTexture(type) {
     if (textures[type]) return textures[type];
     const canvas = document.createElement("canvas");
     canvas.width = canvas.height = 128;
     const ctx = canvas.getContext("2d");
-    if (type === "portal") {
-        ctx.fillStyle = "#4b1a8a";
-        ctx.fillRect(0, 0, 128, 128);
-        ctx.strokeStyle = "rgba(220, 190, 255, 0.75)";
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        for (let a = 0; a < Math.PI * 10; a += 0.1) { // a spiral out from the middle
-            const r = a * 2;
-            ctx.lineTo(64 + Math.cos(a) * r, 64 + Math.sin(a) * r);
-        }
-        ctx.stroke();
-    } else if (type === "blackhole") {
-        ctx.fillStyle = "#07060b";
-        ctx.fillRect(0, 0, 128, 128);
-        ctx.strokeStyle = "rgba(255, 140, 60, 0.45)";
-        ctx.lineWidth = 2;
-        for (let arm = 0; arm < 3; arm++) { // three arms spiralling in
-            ctx.beginPath();
-            for (let a = 0; a < Math.PI * 3; a += 0.1) {
-                const r = 60 - a * 6;
-                ctx.lineTo(64 + Math.cos(a + arm * 2.09) * r, 64 + Math.sin(a + arm * 2.09) * r);
-            }
-            ctx.stroke();
-        }
-    } else if (type === "water") {
+    if (type === "water") {
         ctx.fillStyle = "#2a63d4";
         ctx.fillRect(0, 0, 128, 128);
         ctx.strokeStyle = "rgba(170, 205, 255, 0.7)";
@@ -93,7 +69,6 @@ function hazardTexture(type) {
     const texture = new THREE.CanvasTexture(canvas);
     texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
     texture.repeat.set(3, 3);
-    texture.center.set(0.5, 0.5); // a portal's spiral turns about its middle
     textures[type] = texture;
     return texture;
 }
@@ -233,8 +208,6 @@ export class GolfMapView {
             else flash = (1 - t) * (0.5 + 0.5 * Math.cos(t * Math.PI * 6));
         }
         if (textures.water) textures.water.offset.x = (now / 8000) % 1; // shared by every lake
-        if (textures.portal) textures.portal.rotation = -(now / 2500) % (Math.PI * 2); // and every portal
-        if (textures.blackhole) textures.blackhole.rotation = (now / 4000) % (Math.PI * 2); // and black hole
         this.decals.forEach(({ ring, ringColor }, i) => {
             ring.forEach(mesh => mesh.material.color.copy(ringColor).lerp(WHITE, this.flash?.index === i ? flash : 0));
         });
@@ -280,7 +253,7 @@ export class GolfMapView {
         fillGeometry.setIndex(edge.flatMap((_, k) => [0, k + 1, ((k + 1) % edge.length) + 1]));
         fillGeometry.setAttribute("uv", new THREE.Float32BufferAttribute([center, ...edge].flatMap(p => [(p.x + p.z) * 4, p.y * 4]), 2));
         const fill = new THREE.Mesh(fillGeometry, new THREE.MeshBasicMaterial({
-            map: hazardTexture(TEXTURED.has(type) ? type : "sand"), transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide,
+            ...(SOLID[type] !== undefined ? { color: SOLID[type] } : { map: hazardTexture(type === "water" ? type : "sand") }), transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide,
         }));
 
         // Edge ring: a thin tube around the outline
