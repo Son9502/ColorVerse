@@ -1,5 +1,5 @@
 import { searchFrom, parFor, pathTo, reachesWithin } from "./solver.js";
-import { CLUBS, allStrikes, roundHSL, encode } from "./clubs.js";
+import { CLUBS, allStrikes, strike, roundHSL, encode } from "./clubs.js";
 import { hazardMap, isWedge, WEDGES } from "./hazards.js";
 import { hslDistance, IN_THE_HOLE, ON_THE_GREEN } from "./oklab.js";
 
@@ -36,11 +36,13 @@ const LENGTH = { 3: [0, 250], 4: [250, 400], 5: [350, Infinity] };
 export const hueSpan = ([from, to]) => ((to - from + 359) % 360) + 1;
 export const inHues = (h, hues) => (h - hues[0] + 360) % 360 < hueSpan(hues);
 
-// Tees and targets stay clearly colored (no near-grays, near-blacks or near-whites) and in the course's hues
-const inRange = ({ h, s, l }, hues) => inHues(h, hues) && s >= 30 && s <= 95 && l >= 22 && l <= 78;
-const randomColor = (rand, hues) => ({
+// Tees and targets stay clearly colored (no near-grays, near-blacks or near-whites) and in the course's hues.
+// `sats` narrows saturation for a course (Silverglass Greens, v1.8.1: muted colors).
+const SATS = [30, 95];
+const inRange = ({ h, s, l }, hues, sats = SATS) => inHues(h, hues) && s >= sats[0] && s <= sats[1] && l >= 22 && l <= 78;
+const randomColor = (rand, hues, sats = SATS) => ({
     h: (hues[0] + Math.floor(rand() * hueSpan(hues))) % 360,
-    s: 30 + Math.floor(rand() * 66),
+    s: sats[0] + Math.floor(rand() * (sats[1] - sats[0] + 1)),
     l: 22 + Math.floor(rand() * 57),
 });
 
@@ -66,8 +68,8 @@ const lipOuts = (tee, target) => allStrikes(tee).filter(hsl => {
 
 // Candidate target for a hole. Par 3s are built next to a tee swatch so there's a lip-out
 // (and, on the ace hole, a swatch inside the hole); longer holes use any color.
-function candidateTarget(rand, tee, par, perfect, hues) {
-    if (par !== 3) return randomColor(rand, hues);
+function candidateTarget(rand, tee, par, perfect, hues, sats) {
+    if (par !== 3) return randomColor(rand, hues, sats);
     const swatches = allStrikes(tee);
     const base = swatches[Math.floor(rand() * swatches.length)];
     return perfect === 1
@@ -75,14 +77,14 @@ function candidateTarget(rand, tee, par, perfect, hues) {
         : nudge(rand, base, IN_THE_HOLE, ON_THE_GREEN); // that swatch lips out
 }
 
-export function makeHole(rand, par, perfect, hues, birdieLine) {
+export function makeHole(rand, par, perfect, hues, birdieLine, sats = SATS) {
     for (;;) {
-        const tee = randomColor(rand, hues);
+        const tee = randomColor(rand, hues, sats);
         const search = searchFrom(tee, perfect);
         let firstShots = null; // searches from each first shot, built once per tee when needed
         for (let tries = 0; tries < 300; tries++) {
-            const target = candidateTarget(rand, tee, par, perfect, hues);
-            if (!target || !inRange(target, hues)) continue;
+            const target = candidateTarget(rand, tee, par, perfect, hues, sats);
+            if (!target || !inRange(target, hues, sats)) continue;
             if (hslDistance(tee, target) < ON_THE_GREEN * 2) continue; // tee can't start on the green
             const yards = hslDistance(tee, target) * 1000;
             if (yards < LENGTH[par][0] || yards > LENGTH[par][1]) continue;
@@ -100,7 +102,7 @@ export function makeHole(rand, par, perfect, hues, birdieLine) {
 // First shots from the tee that keep `perfect` reachable (with hazards, if given)
 function birdieLines(hole, perfect, map = null) {
     const seen = new Set();
-    return allStrikes(hole.tee).filter(shot => {
+    return allStrikes(hole.tee, null, !!map?.mirrored(hole.tee)).filter(shot => {
         const code = encode(shot);
         if (seen.has(code)) return false; // several clubs can land on the same color
         seen.add(code);
@@ -110,7 +112,7 @@ function birdieLines(hole, perfect, map = null) {
 }
 const birdieLineCount = (hole, perfect, map, wind = null) => {
     let count = 0;
-    for (const landing of allStrikes(hole.tee, wind)) { // counts clubs, like the selection check
+    for (const landing of allStrikes(hole.tee, wind, map.mirrored(hole.tee))) { // counts clubs, like the selection check
         const shot = map.land(landing); // through a portal (v1.8)
         if (map.at(shot) === "water") continue;
         if (reachesWithin(shot, hole.target, perfect - 1, map, { wind })) count++;
@@ -384,11 +386,130 @@ export function placeMaze(rand, hole, wanted, band, { skip = 1, share = 0.5 } = 
     return null;
 }
 
+// Clubs whose landing a mirror (v1.8.1) changes: hue moves other than straight across (±180°)
+const FLIPS = new Set(["split-complementary", "triadic", "tetradic", "double-complementary", "analogous"]);
+const flips = (club) => (FLIPS.has(club.row) && !(["tetradic", "double-complementary"].includes(club.row) && club.index === 1))
+    || (club.row === "putter" && club.index < 2);
+
+// Mirrors (v1.8.1) for a chosen hole. `tee`: one round the tee, so the first shot is hit from it;
+// `route`: one on each first-shot landing that keeps the perfect score with a hue move next (1–3
+// mirrors); `green`: one round the pin, so putts flip. Mirrors only change which swatch goes where,
+// so they can always be played round (a wedge out first, the hue move later); what's checked is that
+// the hole's natural route goes through them: its perfect route plays a hue move from inside one,
+// with a different swatch from the one showing where it goes (not checked on a green-only hole). With `trap`,
+// a lake sits where a shot out of a mirror *looks* like it goes (where the swatch showing the
+// route's next color really lands), so a player who forgets the flip finds water. A `tutorial`
+// mirror (the course's first hole) is bigger and has no trap.
+// Returns { hazards }, or null if no placement passes the checks.
+export function placeMirrors(rand, hole, band, { tee: onTee = false, route: onRoute = false, green = false, trap = false, tutorial = false } = {}) {
+    const { tee, target, par, perfect } = hole;
+    const pick = (list) => list[Math.floor(rand() * list.length)];
+    const radius = (min, max) => Math.round(min + rand() * (max - min));
+
+    // The routes the mirrors are for: from the tee, or through each landing that keeps the perfect score
+    let routes;
+    if (onTee) {
+        const search = searchFrom(tee, perfect);
+        routes = [pathTo(search, parFor(search, target).end)];
+        if (!flips(routes[0][0].club)) return null;
+    } else if (onRoute) {
+        routes = turningRoutes(hole);
+        if (!routes) return null;
+    }
+
+    for (let attempt = 0; attempt < 30; attempt++) {
+        const mirrors = [];
+        const fixed = [tee, target];
+        if (onTee) mirrors.push({ type: "mirror", center: tee, radius: tutorial ? radius(36, 42) : radius(22, 32) });
+        if (onRoute) {
+            // Each landing gets a mirror unless an earlier one already covers it
+            for (const [{ hsl: spot }] of [...routes].sort(() => rand() - 0.5)) {
+                if (mirrors.some(m => yardsBetween(spot, m.center) < m.radius - 5)) continue;
+                const r = radius(24, 36);
+                if (mirrors.length < 3 && roomFor(spot, r, mirrors, fixed)) mirrors.push({ type: "mirror", center: spot, radius: r });
+            }
+            if (!routes.every(([{ hsl }]) => mirrors.some(m => yardsBetween(hsl, m.center) < m.radius - 5))) continue;
+        }
+        if (green) {
+            const r = radius(40, 55);
+            const center = nudge(rand, target, 0, 0.012) ?? target; // the pin a little off center
+            if (!roomFor(center, r, mirrors, [tee])) continue;
+            mirrors.push({ type: "mirror", center, radius: r });
+        }
+        let map = hazardMap(mirrors);
+        if (parFor(searchFrom(tee, perfect, map), target)?.par !== perfect) continue;
+
+        // Replay each route with the mirrors: from inside one, some swatch must still reach each
+        // landing. `flipped`: the shots where that isn't the swatch showing the landing, and where
+        // the one showing it really goes.
+        const flipped = [];
+        const playable = (routes ?? []).every(route => {
+            let from = tee;
+            return route.every(({ club, hsl }) => {
+                const mirrored = map.mirrored(from);
+                const reaches = CLUBS.some(other => encode(strike(from, other, null, mirrored)) === encode(hsl));
+                if (mirrored && encode(strike(from, club, null, true)) !== encode(hsl)) flipped.push({ landing: hsl, naive: strike(from, club, null, true) });
+                from = hsl;
+                return reaches;
+            });
+        });
+        if (!playable || (routes && !flipped.length)) continue;
+
+        const hazards = [...mirrors];
+        if (trap && !tutorial) {
+            const { landing, naive } = pick(flipped);
+            const r = radius(20, 30);
+            if (!roomFor(naive, r, mirrors, [tee, target, landing])) continue;
+            hazards.push({ type: "water", center: naive, radius: r });
+            map = hazardMap(hazards);
+            if (parFor(searchFrom(tee, perfect, map), target)?.par !== perfect) continue;
+        }
+        if ((parFor(searchFrom(tee, par, map), target)?.par ?? Infinity) > par) continue;
+        const line = birdieLineCount(hole, perfect, map);
+        if (perfect > 1 && (line < band[0] || line > band[1])) continue;
+        return { hazards };
+    }
+    return null;
+}
+
+// For a route mirror: a perfect route through each first-shot landing that keeps the perfect score
+// and can go on with a hue move a mirror flips, as [{ club, hsl }, …] from the tee; null if none can
+function turningRoutes(hole) {
+    const { tee, target, perfect } = hole;
+    if (perfect < 2) return null;
+    const routes = [];
+    const seen = new Set();
+    const shots = allStrikes(tee);
+    for (const [i, first] of CLUBS.entries()) {
+        const spot = shots[i];
+        if (seen.has(encode(spot))) continue;
+        seen.add(encode(spot));
+        if (!reachesWithin(spot, target, perfect - 1)) continue;
+        const club = CLUBS.find(other => flips(other) && reachesWithin(strike(spot, other), target, perfect - 2));
+        if (!club) continue;
+        const next = strike(spot, club);
+        const search = searchFrom(next, perfect - 2);
+        routes.push([{ club: first, hsl: spot }, { club, hsl: next }, ...pathTo(search, parFor(search, target).end)]);
+    }
+    return routes.length ? routes : null;
+}
+
 // One hole: { tee, target, par, perfect, hazards?, wind? }. `rands` are { rand, hazardRand, windRand }
 // (separate sequences, so adding hazards or wind never changes which tee and target are chosen).
 // `plan` is { water, greenside, route } counts or null; `windPlan` is { hue: [min, max], light: [min, max] }
 // or null. `layup` makes a par 5 whose birdie lines are all under water. `log` reports a hole left clear.
-export function buildHole({ rand, hazardRand, windRand }, { par, perfect, hues, difficulty, plan = null, windPlan = null, layup = false, portals = null, log = () => {} }) {
+export function buildHole({ rand, hazardRand, windRand }, { par, perfect, hues, sats, difficulty, plan = null, windPlan = null, layup = false, portals = null, mirrors = null, log = () => {} }) {
+    // Mirrors (v1.8.1): pick holes until one takes its mirrors
+    for (let attempt = 0; mirrors && attempt < 20; attempt++) {
+        const hole = makeHole(rand, par, perfect, hues, BIRDIE_LINE[difficulty], sats);
+        const placed = placeMirrors(hazardRand, hole, BIRDIE_LINE[difficulty], mirrors);
+        if (placed) {
+            Object.assign(hole, placed);
+            hole.lines = birdieLineCount(hole, hole.perfect, hazardMap(hole.hazards));
+            return hole;
+        }
+        if (attempt === 19) log("no mirror placement passed the checks; built without mirrors");
+    }
     // Portals (v1.8): build the hole `skip` strokes longer, then the portal makes the perfect score
     // possible; `blackHoles` adds that many on the long way round
     let hole;
@@ -410,7 +531,7 @@ export function buildHole({ rand, hazardRand, windRand }, { par, perfect, hues, 
     for (let attempt = 0; attempt < 10; attempt++) {
         // With hazards coming, pick holes with extra birdie lines for them to take away
         const line = layup ? LAYUP_LINE : plan ? SELECT_LINE[difficulty] : BIRDIE_LINE[difficulty];
-        hole = makeHole(rand, par, perfect, hues, line);
+        hole = makeHole(rand, par, perfect, hues, line, sats);
         if (!plan && !layup) break;
         const placed = placeHazards(hazardRand, hole, { ...plan, wedgeOnly: difficulty === "Expert" }, BIRDIE_LINE[difficulty], layup);
         if (placed) {

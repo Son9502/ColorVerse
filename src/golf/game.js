@@ -22,14 +22,16 @@ const NO_HAZARDS = hazardMap();
 
 // Fewest putts (0–2) from `hsl` into the hole, or null if it takes more than 2.
 // No putting out of sand, and a putt that would land in a hazard doesn't count.
+// A mirror (v1.8.1) isn't a hazard here: putts from one just flip.
 export function puttsToHole(hsl, target, hazards = NO_HAZARDS) {
-    if (hazards.at(hsl)) return null;
+    const rough = (c) => { const type = hazards.at(c); return type !== null && type !== "mirror"; };
+    if (rough(hsl)) return null;
     let frontier = [hsl];
     for (let putts = 0; putts <= 2; putts++) {
         if (frontier.some(c => hslDistance(c, target) < IN_THE_HOLE)) return putts;
         frontier = frontier
-            .flatMap(c => PUTTER.map((_, index) => strike(c, { row: "putter", index })))
-            .filter(c => !hazards.at(c));
+            .flatMap(c => PUTTER.map((_, index) => strike(c, { row: "putter", index }, null, hazards.mirrored(c))))
+            .filter(c => !rough(c));
     }
     return null;
 }
@@ -51,6 +53,7 @@ export class GolfRound {
     get finished() { return this.card.length === this.course.holes.length; }
     get holeDone() { return this.card.length > this.holeIndex; }
     get inSand() { return this.hazards.at(this.current) === "sand"; }
+    get inMirror() { return this.hazards.mirrored(this.current); }
     get canUndo() { return !this.holeDone && this.history.length > 0 && this.undosLeft[this.nine] > 0; }
 
     // Clubs allowed from here: wedges only in a bunker (just one, in an Expert bunker that names it)
@@ -67,17 +70,17 @@ export class GolfRound {
     }
 
     // One stroke with a club ({ row, index }); returns the new lie plus `landed`
-    // ("water" / "sand" / "portal" / "blackhole" / null) and `landedIn` (that hazard), or null if the club can't be played.
+    // ("water" / "sand" / "portal" / "blackhole" / "mirror" / null) and `landedIn` (that hazard), or null if the club can't be played.
     // Water: +1 penalty stroke and the ball stays where it was hit from.
     // Portal (v1.8): the ball warps to the portal's exit; the trail keeps the landing, marked `warp`,
     // so the map can show the jump instead of a shot. Black hole (v1.8): +1 penalty stroke and the
-    // ball goes back to the tee, drawn the same way.
+    // ball goes back to the tee, drawn the same way. From inside a mirror (v1.8.1) hue moves flip.
     play(club) {
         if (this.holeDone || !this.canPlay(club)) return null;
         this.history.push({ current: this.current, strokes: this.strokes, trail: this.trail.length });
         this.clubs.push(clubId(club));
 
-        const landing = strike(this.current, club, this.hole.wind);
+        const landing = strike(this.current, club, this.hole.wind, this.inMirror);
         const landed = this.hazards.at(landing);
         const landedIn = landed ? this.hazards.which(landing) : null;
         if (landed === "water") {

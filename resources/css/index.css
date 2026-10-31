@@ -1488,6 +1488,11 @@ body.golf-pro .square-wrapper::after {
     color: #111;
 }
 
+.golf-card .mirror,
+#golf-hazards .mirror::before {
+    color: #8c96a3;
+}
+
 /* A gimmick course's first hole (v1.8) */
 .golf-tutorial {
     display: flex;
@@ -1574,6 +1579,11 @@ body.golf-pro .square-wrapper::after {
     color: #ffb27a;
 }
 
+#golf-hazard-note.mirror {
+    background: #e9edf2;
+    color: #3b4552;
+}
+
 #golf-hazard-note.sand {
     background: #f6ecd2;
     color: #6b4f16;
@@ -1656,6 +1666,30 @@ body.golf .golf-portal::before {
     font-size: 0.6rem;
     font-weight: 700;
     white-space: nowrap;
+}
+
+/* Flipped by a mirror (v1.8.1): the swatch shows the unflipped color, so a dashed silver outline
+   and a ⇄ badge say it goes the other way */
+body.golf .golf-flipped .square {
+    position: relative;
+    outline: 2px dashed #8c96a3;
+    outline-offset: 2px;
+}
+
+body.golf .golf-flipped .square::after {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: #5d6773;
+    color: #fff;
+    content: "⇄";
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 15px;
+    text-align: center;
 }
 
 /* Expert on a touch screen: the first tap aims, a second tap plays (golf-ui.js) */

@@ -56,8 +56,26 @@ const VORTEX_PLAN = {
     ace: () => null,
 };
 
+// Silverglass Greens (v1.8.1): where each hole's mirrors go (see placeMirrors): round the tee, on a
+// landing of the best route, round the pin, or route and pin (`double`); `trap` adds a lake where
+// the shot out of the mirror looks like it goes. The ace's mirror is on the tee.
+const MIRROR_HOLES = [
+    "tutorial", "tee", "green", "routeTrap", "teeTrap", "route", "green", "double", "routeTrap",
+    "teeTrap", "route", "green", "double", "routeTrap", "tee", "ace", "teeTrap", "double",
+];
+const MIRROR_PLAN = {
+    tutorial: { tee: true, tutorial: true },
+    tee: { tee: true },
+    teeTrap: { tee: true, trap: true },
+    route: { route: true },
+    routeTrap: { route: true, trap: true },
+    green: { green: true },
+    double: { route: true, green: true },
+    ace: { tee: true },
+};
+
 // Each course keeps its tees and targets inside a hue range [from, to) in degrees (wrapping past 360),
-// so the name says how it plays. Routes may still pass through other hues.
+// and optionally a saturation range `sats` [min, max], so the name says how it plays. Routes may still pass through other hues.
 // `hazards(i, par, perfect)` says what hole i gets: { water, greenside, route } counts (or null for none).
 // `layup` is a par 5 / perfect 3 hole whose birdie lines are all covered by water (perfect becomes 4).
 // Expert courses (v1.3) use Expert par: perfect = par on par 3s and 4s, 4 on par 5s (the ace and
@@ -98,12 +116,18 @@ const COURSES = [
         tutorial: "A swatch with a dotted outline lands in a portal; its label shows where the ball comes out (yds from the pin). You need one to make par here.",
         portals: (i, par, perfect) => VORTEX_PLAN[VORTEX_HOLES[i]]?.(perfect) ?? null,
     },
+    {
+        id: "silverglass", name: "Silverglass Greens", seed: 7, hues: [0, 360], sats: [12, 45], difficulty: "Expansion", // muted colors
+        gimmick: "Mirrors flip every hue move hit from inside them; the swatches don't show the flip.",
+        tutorial: "You're on a mirror (silver on the map). From a mirror, hue moves flip: +120° plays as −120°. The swatches show the unflipped colors, so aim with the opposite one.",
+        mirrors: (i) => MIRROR_PLAN[MIRROR_HOLES[i]],
+    },
 ];
 
 const only = process.argv.slice(2); // optional: course ids to generate (others are kept from the current file)
 const existing = only.length ? JSON.parse(readFileSync(new URL("../src/golf/courses.json", import.meta.url))) : [];
 
-const courses = COURSES.map(({ id, name, seed, rev, hues, difficulty, gimmick, tutorial, layout = [FRONT, BACK], hazards: planFor, layup, wind: windPlan, portals: portalsFor }) => {
+const courses = COURSES.map(({ id, name, seed, rev, hues, sats, difficulty, gimmick, tutorial, layout = [FRONT, BACK], hazards: planFor, layup, wind: windPlan, portals: portalsFor, mirrors: mirrorsFor }) => {
     if (only.length && !only.includes(id)) return existing.find(course => course.id === id);
     const rand = rng(seed);
     const hazardRand = rng(seed * 7919); // separate sequence: hazards don't change which holes are chosen
@@ -111,7 +135,7 @@ const courses = COURSES.map(({ id, name, seed, rev, hues, difficulty, gimmick, t
     const holes = layout.flat().map(([par, layoutPerfect], i) => {
         const perfect = difficulty === "Expert" && layoutPerfect > 1 && layup !== i ? expertPerfect(par) : layoutPerfect;
         const hole = buildHole({ rand, hazardRand, windRand }, {
-            par, perfect, hues, difficulty, plan: planFor?.(i, par, perfect), windPlan, layup: layup === i, portals: portalsFor?.(i, par, perfect),
+            par, perfect, hues, sats, difficulty, plan: planFor?.(i, par, perfect), windPlan, layup: layup === i, portals: portalsFor?.(i, par, perfect), mirrors: mirrorsFor?.(i),
             log: (message) => console.log(`  (hole ${i + 1}: ${message})`),
         });
         const summary = [(hole.hazards ?? []).map(h => h.type).join(", ") || "clear", hole.wind ? `wind ${JSON.stringify(hole.wind)}` : "calm"].join("; ");

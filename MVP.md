@@ -235,6 +235,11 @@ Seven account-only courses after Royal Indigo, each built around one gimmick, th
 - After the second: shorter tutorial; bigger black holes (35–55 yds, 3 per hole), some on tee shots (2–7 of the tee's swatches fall in); two new hole types: **chains** (holes 4, 11, 14: two or three portals in a row from the tee to beside the pin) and **mazes** (holes 5, 8, 13: about half the full shots go into one of 12–13 portals; one exit leads on, the decoys look closer but can't make the perfect score). Holes: tutorial 1; traps 2, 7, 10, 17; black holes 3, 6, 9, 12, 15, 18. A shortcut portal's exit is on the hole's best route; a trap's or decoy's is a seeded random color (250+ yds from the pin for a trap, 40–160 for a decoy).
 - **Tutorial hole:** each gimmick course's hole 1 teaches its gimmick (the course's `tutorial` text, shown on hole 1, and a hole built so the gimmick is the way to par; Violet Vortex's has a bigger portal and no trap). Later expansion courses do the same.
 
+**Done:** v1.8.1 Silverglass Greens: 18 mirror holes (saturation 12–45%, any hue), par 72, perfect 51.
+- A stroke from inside a mirror flips every hue move about the ball's hue; ±180° jumps and wedges don't change. Swatches show the unflipped color as the spec says, but the ones the flip changes are marked (dashed silver outline, ⇄ badge), so reading the mirror is a puzzle, not a guess.
+- Mirrors go round the tee, on the first landings of perfect routes that go on with a hue move, or round the pin (putts flip); trap holes put a lake where the shot out of the mirror looks like it goes.
+- Mirrors can't be made unavoidable: they only reshuffle which swatch goes where, so a wedge first and the hue move later always gets round one. They sit on the natural route instead, and playing out with a wedge is a fair answer.
+
 **Order:** one course per release, each playable and committed before the next: v1.8.0 hole rules + Portals (Violet Vortex), v1.8.1 Mirror greens (Silverglass Greens), v1.8.2 Club bans (Caddie Strike), v1.8.3 Turning wind (Saffron Whirlwind), v1.8.4 Roulette (Scarlet Roulette), v1.8.5 Flip (Hexflip Hollow), v1.8.6 Survival (The Obsidian Gauntlet).
 
 ### v2.0: 1-D and 2-D Modes

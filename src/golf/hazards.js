@@ -2,9 +2,9 @@ import { STATE_COUNT, encode } from "./clubs.js";
 import { hslToOklab, oklabDistance } from "./oklab.js";
 
 // ----------------------------------
-// Color Golf hazards: sand, water, portals and black holes
+// Color Golf hazards: sand, water, portals, black holes and mirrors
 // ----------------------------------
-// A hazard is a "looks-like" region of color space: { type: "sand" | "water" | "portal" | "blackhole", center: {h, s, l},
+// A hazard is a "looks-like" region of color space: { type: "sand" | "water" | "portal" | "blackhole" | "mirror", center: {h, s, l},
 // radius } with the radius in yards (OKLab distance × 1000), the same measure as yards and the hole.
 //
 // Rules (see game.js and solver.js):
@@ -16,6 +16,8 @@ import { hslToOklab, oklabDistance } from "./oklab.js";
 //   over sand, if regions ever overlap.
 // - Black hole (v1.8): +1 penalty stroke and the ball goes back to the tee. Like water, landing in
 //   one is never worth it, so the solver skips those strokes. A black hole wins over everything.
+// - Mirror (v1.8.1): no penalty; a stroke hit from inside one flips every hue move (clubs.js).
+//   It depends only on where the ball is, so the solver stays exact. Every other region wins over it.
 
 export const WEDGES = ["tints", "shades", "tones", "saturate"];
 export const WEDGE_ROWS = new Set(WEDGES);
@@ -25,7 +27,8 @@ const NONE = 1;
 const SAND = 2; // any wedge; SAND + 1 + i: only WEDGES[i]
 const WATER = 7;
 const BLACK_HOLE = 8;
-const PORTAL = 9; // PORTAL + i: inside the portal at hazards[i]
+const MIRROR = 9;
+const PORTAL = 10; // PORTAL + i: inside the portal at hazards[i]
 
 // Which hazard a color is in, memoized per whole-number HSL state.
 // A black hole wins if a color is somehow inside several, then water.
@@ -42,7 +45,8 @@ export function hazardMap(hazards = []) {
             if (type === "blackhole") continue;
             if (type === "water") return WATER;
             if (type === "portal") { if (found < PORTAL) found = PORTAL + i; }
-            else if (found === NONE) found = wedge ? SAND + 1 + WEDGES.indexOf(wedge) : SAND; // the first bunker's rule
+            else if (type === "mirror") { if (found === NONE) found = MIRROR; }
+            else if (found === NONE || found === MIRROR) found = wedge ? SAND + 1 + WEDGES.indexOf(wedge) : SAND; // the first bunker's rule
         }
         return found;
     };
@@ -51,12 +55,15 @@ export function hazardMap(hazards = []) {
         return cache[code];
     };
 
-    // "sand", "water", "portal", "blackhole" or null
+    // "sand", "water", "portal", "blackhole", "mirror" or null
     const at = (hsl, code = encode(hsl)) => {
         if (!cache) return null;
         const k = kind(hsl, code);
-        return k >= PORTAL ? "portal" : k === BLACK_HOLE ? "blackhole" : k === WATER ? "water" : k === NONE ? null : "sand";
+        return k >= PORTAL ? "portal" : k === MIRROR ? "mirror" : k === BLACK_HOLE ? "blackhole" : k === WATER ? "water" : k === NONE ? null : "sand";
     };
+
+    // Whether a stroke from `hsl` is hit from inside a mirror (hue moves flip)
+    const mirrored = (hsl, code = encode(hsl)) => at(hsl, code) === "mirror";
 
     // The portal a color is in (its hazard object), or null
     const portalAt = (hsl, code = encode(hsl)) => {
@@ -89,8 +96,8 @@ export function hazardMap(hazards = []) {
         const type = at(hsl);
         const lab = hslToOklab(hsl);
         const inside = (h, i) => oklabDistance(lab, centers[i].center) < centers[i].radius;
-        return hazards.find((h, i) => (type === "sand" ? h.type === "sand" : h.type === type) && inside(h, i)) ?? null;
+        return hazards.find((h, i) => h.type === type && inside(h, i)) ?? null;
     };
 
-    return { hazards, at, portalAt, land, wedgeAt, allows, which, empty: !centers.length };
+    return { hazards, at, mirrored, portalAt, land, wedgeAt, allows, which, empty: !centers.length };
 }

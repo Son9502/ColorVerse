@@ -9,6 +9,30 @@ Each entry is tagged with how it was produced:
 
 ---
 
+## Milestone 26 — Mirror greens: Silverglass Greens (v1.8.1) `[ai-assisted]`
+**2026-10-31**
+
+The second expansion course, from the agreed v1.8 spec; implementation `[ai-assisted]`.
+
+**Added**
+- Mirrors (`hazards.js`, `clubs.js`): a region type; a stroke hit from inside one flips every hue move about the ball's hue (`strike` / `allStrikes` take `mirrored`): Triadic +120° plays as −120°, Analogous +20° as −20°, the putter's Hue + as Hue −; saturation and lightness moves, and ±180° jumps, don't change. Wind still blows its own way. No penalty; every other region wins over a mirror. `hazardMap().mirrored(hsl)`; the round (`inMirror`), putting, the solver and the birdie-line count use it, so the server's replay does too
+- `placeMirrors` (`holeMaker.js`): a mirror round the tee, on the first landings of perfect routes that go on with a hue move (one per landing, up to 3), round the pin, or route and pin; `trap` puts a lake where the shot out of a mirror *looks* like it goes (where the swatch showing the route's next color really lands). Checked: perfect unchanged, finishable within par, birdie line 1–4, and the route through the mirror needs a different swatch from the one showing where it goes
+- `makeHole` / `buildHole` take a saturation range (`sats`) for tees and pins
+- Silverglass Greens (`generateCourses.mjs`, seed 7, any hue, saturation 12–45%, par 72, perfect 51): tutorial hole 1 (a big mirror on the tee), tee mirrors on 2, 15 and the ace (16), traps on 4, 5, 9, 10, 14, 17, route mirrors on 6, 11, green mirrors on 3, 7, 12, route and green on 8, 13, 18
+- Panel: swatches the flip changes get a dashed silver outline and a ⇄ badge (they still show the unflipped color, per the spec), and "flipped by the mirror" in their aria-label; note "On a mirror: hue moves flip…"; "Mirror: you're on it / N yds from you"; mirror dots on the score card; "1 mirror" in the hole summary; How to play
+- Map: solid silver footprint with a dark rim and a ⇄ icon
+- Unlock: Silverglass Greens needs −4 or better on Violet Vortex
+
+**Tried and dropped**
+- Making mirrors unavoidable (from the tee or a first landing, only a hue move keeps the perfect score): 0 of 36 muted holes qualified. A wedge first and the hue move later always gets round, because a mirror only reshuffles which swatch goes where. So mirrors sit where the natural route goes, and playing out with a wedge is a fair answer to one
+- A tee mirror plus a route mirror on one hole: routes whose first two shots are both flippable hue moves almost never stay in the birdie band; `double` is route plus green instead
+
+**Verified**
+- Every hole: stored perfect matches the solver; courses 1–6 unchanged byte for byte; `replayRound` of a perfect round: 51 strokes
+- On tee and route holes, the solver's perfect clubs replayed without mirrors miss (tee holes) and 1–3 of the 2–4 good tee shots land on a mirror (route holes)
+
+---
+
 ## Milestone 25 — Portals: Violet Vortex (v1.8.0) `[ai-assisted]`
 **2026-10-30**
 

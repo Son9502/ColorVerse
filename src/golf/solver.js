@@ -14,7 +14,8 @@ import { isWedge } from "./hazards.js";
 // (see clubs.js); it's fixed per hole, so the search stays exact. A landing in a portal (v1.8) is the
 // portal's exit, which depends only on the landing, so that stays exact too. A black hole (v1.8)
 // is skipped like water (back to the tee is never worth it). `avoidPortals` treats portals as
-// blocked, for the "can't make par without a portal" check on black-hole holes.
+// blocked, for the "can't make par without a portal" check on black-hole holes. From inside a mirror
+// (v1.8.1) hue moves flip, which depends only on the current color, so that stays exact too.
 
 const UNSEEN = 255;
 
@@ -39,9 +40,10 @@ export function searchFrom(tee, maxDepth = 7, hazards = null, { avoidHazards = f
         const next = [];
         for (const code of frontier) {
             const from = decode(code);
-            const inSand = blocked && hazards.at(from, code) === "sand";
+            const lie = blocked ? hazards.at(from, code) : null;
+            const inSand = lie === "sand";
             const wedge = inSand ? hazards.wedgeAt(from, code) : null;
-            allStrikes(from, wind).forEach((landing, clubIndex) => {
+            allStrikes(from, wind, lie === "mirror").forEach((landing, clubIndex) => {
                 if (inSand && !sandAllows(clubIndex, wedge)) return;
                 if (avoidPortals && blocked && hazards.portalAt(landing)) return;
                 const hsl = blocked ? hazards.land(landing) : landing; // through a portal, if it's in one
@@ -105,9 +107,10 @@ export function reachesWithin(from, target, maxDepth, hazards = null, { avoidHaz
             const next = [];
             for (const code of frontier) {
                 const here = decode(code);
-                const inSand = blocked && hazards.at(here, code) === "sand";
+                const lie = blocked ? hazards.at(here, code) : null;
+                const inSand = lie === "sand";
                 const wedge = inSand ? hazards.wedgeAt(here, code) : null;
-                const landings = allStrikes(here, wind);
+                const landings = allStrikes(here, wind, lie === "mirror");
                 for (let clubIndex = 0; clubIndex < landings.length; clubIndex++) {
                     if (inSand && !sandAllows(clubIndex, wedge)) continue;
                     const hsl = blocked ? hazards.land(landings[clubIndex]) : landings[clubIndex];

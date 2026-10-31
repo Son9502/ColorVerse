@@ -1,6 +1,6 @@
 import courses from "./courses.json";
 import { GolfRound, scoreName, compareRounds } from "./game.js";
-import { PUTTER, strike } from "./clubs.js";
+import { PUTTER, strike, encode } from "./clubs.js";
 import { IN_THE_HOLE, hslDistance, hslToHex } from "./oklab.js";
 import { harmonySets, selectBaseColor, clearBaseColor, addNameLabel } from "../harmony.js";
 import { describeColor } from "../color-names.js";
@@ -125,11 +125,11 @@ function windText(wind) {
     return `${wind.light > 0 ? "brightening +" : "darkening −"}${Math.abs(wind.light)}%`;
 }
 
-// "2 bunkers, 1 lake, 1 portal" (empty for a clear hole)
+// "2 bunkers, 1 lake, 1 portal, 1 mirror" (empty for a clear hole)
 function hazardSummary(hazards = []) {
     const count = (type) => hazards.filter(h => h.type === type).length;
     const part = (n, one, many) => (n ? `${n} ${n === 1 ? one : many}` : "");
-    return [part(count("sand"), "bunker", "bunkers"), part(count("water"), "lake", "lakes"), part(count("portal"), "portal", "portals"), part(count("blackhole"), "black hole", "black holes")]
+    return [part(count("sand"), "bunker", "bunkers"), part(count("water"), "lake", "lakes"), part(count("portal"), "portal", "portals"), part(count("blackhole"), "black hole", "black holes"), part(count("mirror"), "mirror", "mirrors")]
         .filter(Boolean).join(", ");
 }
 
@@ -732,15 +732,20 @@ export function setupGolf() {
         // A swatch that lands in a portal (v1.8) is outlined, labeled with how far from the pin the
         // ball comes out (just "Portal" on Expert, which has no yardage) next to a chip of the exit
         // color (not in Pro, which hides colors), so taking one is a choice. The hex is in the tooltip.
+        // On a mirror (v1.8.1) the swatches still show the unflipped colors; the ones the flip
+        // changes are marked ⇄.
+        const mirrored = !round.holeDone && round.inMirror;
         for (const [box, club] of clubs) {
-            const portal = round.holeDone ? null : round.hazards.portalAt(strike(current, club, round.hole.wind));
+            const flipped = mirrored && encode(strike(current, club, null, true)) !== encode(strike(current, club));
+            const portal = round.holeDone ? null : round.hazards.portalAt(strike(current, club, round.hole.wind, round.inMirror));
             const wrapper = box.closest(".square-wrapper");
+            wrapper?.classList.toggle("golf-flipped", flipped);
             wrapper?.classList.toggle("golf-portal", !!portal);
-            let warps = "";
+            let warps = flipped ? ", flipped by the mirror" : "";
             if (portal) {
                 const out = yards(portal.exit, round.hole.target);
                 const hex = round.pro ? "" : ` at ${hslToHex(portal.exit)}`;
-                warps = round.expert ? `, lands in a portal${hex}` : `, lands in a portal: comes out${hex}, ${out} yds from the pin`;
+                warps += round.expert ? `, lands in a portal${hex}` : `, lands in a portal: comes out${hex}, ${out} yds from the pin`;
                 wrapper.dataset.portal = round.expert ? "Portal" : `→ ${out} yds`;
                 wrapper.style.setProperty("--exit", round.pro ? "transparent" : css(portal.exit));
                 wrapper.title = warps.slice(2);
@@ -795,13 +800,14 @@ export function setupGolf() {
         if (lie?.landed === "water") note.textContent = "Water! +1 stroke, playing again from your last spot.";
         else if (lie?.landed === "portal") note.textContent = "Portal! The ball warped to its exit.";
         else if (lie?.landed === "blackhole") note.textContent = "Black hole! +1 stroke, back to the tee.";
+        else if (round.inMirror && !round.holeDone) note.textContent = "On a mirror: hue moves flip (+120° plays as −120°). Swatches marked ⇄ go the other way.";
         else if (round.inSand && !round.holeDone) {
             note.textContent = round.sandWedge
                 ? `In the bunker: ${ROW_NAMES[round.sandWedge]} only.`
                 : "In the bunker: wedges only (Tints, Shades, Tones, Saturate).";
         }
         else note.hidden = true;
-        note.className = ["water", "portal", "blackhole"].includes(lie?.landed) ? lie.landed : "sand";
+        note.className = ["water", "portal", "blackhole"].includes(lie?.landed) ? lie.landed : round.inMirror ? "mirror" : "sand";
 
         // A portal maze (v1.8) gets one line for its portals instead of a dozen
         const portals = hazards.filter(h => h.type === "portal");
@@ -816,8 +822,12 @@ export function setupGolf() {
             const item = document.createElement("li");
             item.className = hazard.type;
             const bunker = hazard.wedge ? `Bunker (${ROW_NAMES[hazard.wedge]} only)` : "Bunker";
-            const name = { water: "Water", portal: "Portal", blackhole: "Black hole", sand: bunker }[hazard.type];
+            const name = { water: "Water", portal: "Portal", blackhole: "Black hole", mirror: "Mirror", sand: bunker }[hazard.type];
             if (round.expert) item.textContent = name; // no yardage on Expert
+            else if (hazard.type === "mirror") {
+                const away = yards(round.current, hazard.center) - hazard.radius;
+                item.textContent = away < 0 ? "Mirror: you're on it" : `Mirror: ${away} yds from you`;
+            }
             else if (hazard.type === "water") item.textContent = `Water: ${yards(round.current, hazard.center) + hazard.radius} yds to carry`;
             else if (hazard.type === "portal" || hazard.type === "blackhole") item.textContent = `${name}: ${Math.max(0, yards(round.current, hazard.center) - hazard.radius)} yds from you`;
             else item.textContent = `${bunker}: ${Math.max(0, yards(round.hole.target, hazard.center) - hazard.radius)} yds from the pin`;
@@ -874,7 +884,7 @@ export function setupGolf() {
 
             const { club, hsl } = route[i];
             // Through a portal: the replay jumps from where the shot landed to the exit
-            const landing = strike(stops.at(-1), club, hole.wind);
+            const landing = strike(stops.at(-1), club, hole.wind, round.hazards.mirrored(stops.at(-1)));
             if (round.hazards.portalAt(landing)) stops.push({ ...landing, warp: true });
             stops.push(hsl);
             const item = document.createElement("li");
@@ -967,9 +977,10 @@ export function setupGolf() {
                 const water = (hole.hazards ?? []).filter(h => h.type === "water").length;
                 const portal = (hole.hazards ?? []).filter(h => h.type === "portal").length;
                 const blackHole = (hole.hazards ?? []).filter(h => h.type === "blackhole").length;
+                const mirror = (hole.hazards ?? []).filter(h => h.type === "mirror").length;
                 return {
                     label: index + 1, par: hole.par, current,
-                    hazards: `<span class="sand">${"●".repeat(sand)}</span><span class="water">${"●".repeat(water)}</span><span class="portal">${"●".repeat(portal)}</span><span class="blackhole">${"●".repeat(blackHole)}</span>`,
+                    hazards: `<span class="sand">${"●".repeat(sand)}</span><span class="water">${"●".repeat(water)}</span><span class="portal">${"●".repeat(portal)}</span><span class="blackhole">${"●".repeat(blackHole)}</span><span class="mirror">${"●".repeat(mirror)}</span>`,
                     perfect: played ? played.perfect : "–",
                     strokes: played ? played.strokes : current ? round.strokes : "–",
                     parPlayed: played ? hole.par : null,

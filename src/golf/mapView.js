@@ -38,11 +38,11 @@ function drawBall(hsl, rim = "#fff") {
     return canvas;
 }
 
-// Footprint textures: sand speckle or water stripes that drift (see tick). Portals and black
-// holes (v1.8) are plain fills, so a course full of them stays calm to look at.
+// Footprint textures: sand speckle or water stripes that drift (see tick). Portals, black
+// holes (v1.8) and mirrors (v1.8.1) are plain fills, so a course full of them stays calm to look at.
 const textures = {};
-const RING_COLORS = { water: 0x0b3a8c, sand: 0x6b4f16, portal: 0x5b1f9e, blackhole: 0xff7a1a };
-const SOLID = { portal: 0x6a2bc2, blackhole: 0x07060b };
+const RING_COLORS = { water: 0x0b3a8c, sand: 0x6b4f16, portal: 0x5b1f9e, blackhole: 0xff7a1a, mirror: 0x4a5360 };
+const SOLID = { portal: 0x6a2bc2, blackhole: 0x07060b, mirror: 0xc3cad3 };
 function hazardTexture(type) {
     if (textures[type]) return textures[type];
     const canvas = document.createElement("canvas");
@@ -117,7 +117,7 @@ function drawHazardIcon(type, wedge) {
     const ctx = canvas.getContext("2d");
     ctx.beginPath();
     ctx.arc(32, 32, 28, 0, Math.PI * 2);
-    ctx.fillStyle = { portal: "#6a2bc2", water: "#1f5fd6", blackhole: "#07060b" }[type] ?? "#e8cf96";
+    ctx.fillStyle = { portal: "#6a2bc2", water: "#1f5fd6", blackhole: "#07060b", mirror: "#c3cad3" }[type] ?? "#e8cf96";
     ctx.fill();
     ctx.lineWidth = 3;
     ctx.strokeStyle = "#111";
@@ -128,6 +128,12 @@ function drawHazardIcon(type, wedge) {
         ctx.beginPath();
         ctx.arc(32, 32, 18, 0, Math.PI * 2);
         ctx.stroke();
+    } else if (type === "mirror") { // ⇄
+        ctx.fillStyle = "#2f3742";
+        ctx.font = "bold 34px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("⇄", 32, 34);
     } else if (type === "portal") { // a spiral
         ctx.strokeStyle = "#fff";
         ctx.lineWidth = 3.5;
