@@ -800,11 +800,25 @@ export function setupGolf() {
         // A swatch that lands in a portal (v1.8) is outlined, labeled with how far from the pin the
         // ball comes out (just "Portal" on Expert, which has no yardage) next to a chip of the exit
         // color (not in Pro, which hides colors), so taking one is a choice. The hex is in the tooltip.
+        // A swatch that lands on a mirror (v1.8.1) gets a dotted silver outline, labeled with how far
+        // from the pin the Mirror club would then take you ("Mirror" on Expert), next to a chip of that color.
         for (const [box, club] of clubs) {
-            const portal = round.holeDone ? null : round.hazards.portalAt(strike(current, club, round.hole.wind));
+            const landing = strike(current, club, round.hole.wind);
+            const portal = round.holeDone ? null : round.hazards.portalAt(landing);
+            const mirror = !round.holeDone && club.row !== "mirror" && round.hazards.at(landing) === "mirror";
             const wrapper = box.closest(".square-wrapper");
             wrapper?.classList.toggle("golf-portal", !!portal);
+            wrapper?.classList.toggle("golf-to-mirror", mirror);
             let warps = "";
+            if (mirror) {
+                const reflected = mirrorOf(landing);
+                const out = yards(reflected, round.hole.target);
+                const hex = round.pro ? "" : ` (${hslToHex(reflected)})`;
+                warps = round.expert ? ", lands on a mirror" : `, lands on a mirror: the Mirror club then goes${hex} ${out} yds from the pin`;
+                wrapper.dataset.mirror = round.expert ? "Mirror" : `⇄ ${out} yds`;
+                wrapper.style.setProperty("--reflect", round.pro ? "transparent" : css(reflected));
+                wrapper.title = warps.slice(2);
+            }
             if (portal) {
                 const out = yards(portal.exit, round.hole.target);
                 const hex = round.pro ? "" : ` at ${hslToHex(portal.exit)}`;
@@ -812,7 +826,7 @@ export function setupGolf() {
                 wrapper.dataset.portal = round.expert ? "Portal" : `→ ${out} yds`;
                 wrapper.style.setProperty("--exit", round.pro ? "transparent" : css(portal.exit));
                 wrapper.title = warps.slice(2);
-            } else if (wrapper?.title) {
+            } else if (wrapper?.title && !mirror) {
                 wrapper.title = "";
             }
             box.setAttribute("aria-label", (round.pro ? clubName(club) : `${clubName(club)}, ${box.dataset.name}`) + warps);

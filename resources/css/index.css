@@ -1765,6 +1765,26 @@ body.golf .golf-portal::before {
     white-space: nowrap;
 }
 
+/* Lands on a mirror (v1.8.1): a dotted silver outline, with where the Mirror club would then
+   go below it (a chip of that color, --reflect from golf-ui.js, then the yardage), like a portal */
+body.golf .golf-to-mirror .square {
+    outline: 2px dotted #7d8794;
+    outline-offset: 2px;
+    margin-bottom: 4px;
+}
+
+body.golf .golf-to-mirror::before {
+    order: 3;
+    margin-top: 2px;
+    padding-left: 11px;
+    background: linear-gradient(var(--reflect), var(--reflect)) no-repeat left center / 8px 8px;
+    content: attr(data-mirror);
+    color: #4a5360;
+    font-size: 0.6rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
 /* Expert on a touch screen: the first tap aims, a second tap plays (golf-ui.js) */
 .golf-aimed .square {
     outline: 3px solid #f1c40f;

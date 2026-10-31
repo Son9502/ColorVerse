@@ -58,10 +58,11 @@ const VORTEX_PLAN = {
 
 // Silverglass Greens (v1.8.1): each hole is built round a mirror (see makeMirrorHole), on the tee
 // or on a tee shot's landing, and `skip` strokes longer without it, like Violet Vortex's portals;
-// `decoy` adds a second mirror whose reflection leads nowhere. The ace is a mirror on the tee.
+// `decoy` adds a second mirror whose reflection leads nowhere; a `chain` (see makeMirrorChain) needs
+// two mirrors with a shot between them. The ace is a mirror on the tee.
 const MIRROR_HOLES = [
-    "tutorial", "route", "tee", "decoy", "route", "teeDecoy", "tee", "decoy", "route",
-    "teeDecoy", "route", "decoy", "tee", "route", "decoy", "ace", "teeDecoy", "route",
+    "tutorial", "route", "tee", "decoy", "chain", "teeDecoy", "tee", "decoy", "route",
+    "teeDecoy", "chain", "decoy", "tee", "chain", "decoy", "ace", "teeDecoy", "route",
 ];
 const MIRROR_PLAN = {
     tutorial: { onTee: true, tutorial: true },
@@ -69,6 +70,7 @@ const MIRROR_PLAN = {
     teeDecoy: { onTee: true, decoy: true },
     route: {},
     decoy: { decoy: true },
+    chain: { chain: true },
     ace: { onTee: true },
 };
 
