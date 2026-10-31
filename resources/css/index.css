@@ -1189,6 +1189,31 @@ body.golf .square:hover {
 }
 
 /* Account (v1.6): sign-in, nickname */
+/* Settings (v1.8.1): account, color names and Pro, folded away */
+.golf-settings {
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    background: #fff;
+}
+
+.golf-settings summary {
+    padding: 8px 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.golf-settings summary .golf-sub {
+    margin-left: 6px;
+    font-weight: 400;
+}
+
+.golf-settings-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 0 12px 12px;
+}
+
 .golf-account,
 #golf-signin {
     display: flex;

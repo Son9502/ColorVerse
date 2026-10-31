@@ -3,7 +3,7 @@ import { GolfRound, scoreName, compareRounds } from "./game.js";
 import { PUTTER, MIRROR, strike, mirrorOf } from "./clubs.js";
 import { IN_THE_HOLE, hslDistance, hslToHex } from "./oklab.js";
 import { harmonySets, selectBaseColor, clearBaseColor, addNameLabel } from "../harmony.js";
-import { describeColor } from "../color-names.js";
+import { describeColor, colorNamesOn } from "../color-names.js";
 import { setMapState } from "./mapState.js";
 import { WEEK, dateKey, daysBetween, dayLabel, weekday, streak } from "./daily.js";
 import { poolKey, PARS } from "./practice.js";
@@ -319,6 +319,7 @@ export function setupGolf() {
     // ---- Account (v1.6): only when Firebase is configured ----
     if (cloud.cloudAvailable) {
         $("golf-account").hidden = false;
+        $("golf-account-settings").hidden = false;
         $("golf-leaderboard-toggle").hidden = false;
         if (cloud.cloudWanted()) cloud.loadCloud(); // signed in before, or back from a sign-in link
     }
@@ -474,6 +475,9 @@ export function setupGolf() {
         $("golf-account-name").textContent = account?.nickname ?? account?.email ?? "";
         $("golf-nickname").hidden = !account || !!account.nickname; // first sign-in: pick a nickname
         $("golf-nickname-label").textContent = "Welcome! Pick a nickname for the leaderboard (2–20 characters)";
+        if (account && !account.nickname) $("golf-settings").open = true; // the nickname form is in Settings
+        $("golf-account").hidden = !!account; // signed in: the account is under Settings
+        settingsSummary();
         if (account) {
             try {
                 const scores = await cloud.loadMyScores();
@@ -513,7 +517,21 @@ export function setupGolf() {
     proSwitch.addEventListener("change", () => {
         save(PRO_KEY, proSwitch.checked);
         renderCourses();
+        settingsSummary();
     });
+
+    // Settings, folded away (v1.8.1): its summary says who's signed in and what's switched on
+    const settingsSummary = () => {
+        const account = cloud.currentAccount();
+        $("golf-settings-summary").textContent = [
+            account && `signed in as ${account.nickname ?? account.email}`,
+            proSwitch.checked ? "Clubs (Pro)" : "Colors",
+            colorNamesOn() && "color names on",
+        ].filter(Boolean).join(" · ");
+    };
+    // (after color-names.js has saved the change)
+    document.querySelectorAll(".color-names-switch").forEach(input => input.addEventListener("change", () => queueMicrotask(settingsSummary)));
+    settingsSummary();
 
     const show = (section) => {
         for (const el of [setup, hud, roundEnd]) el.hidden = el !== section;
