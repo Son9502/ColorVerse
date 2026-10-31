@@ -1054,6 +1054,11 @@ body.golf .golf-only[hidden] {
     display: none;
 }
 
+/* The course screen and the score card: no clubs (golf-ui.js: show) */
+body.golf.golf-menu #ui-container {
+    display: none;
+}
+
 /* Swatches are clubs in a game: double-click to play */
 body.golf .square {
     cursor: pointer;

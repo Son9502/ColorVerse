@@ -533,8 +533,10 @@ export function setupGolf() {
     document.querySelectorAll(".color-names-switch").forEach(input => input.addEventListener("change", () => queueMicrotask(settingsSummary)));
     settingsSummary();
 
+    // The club rows only show while a hole is being played (not with the courses or the score card)
     const show = (section) => {
         for (const el of [setup, hud, roundEnd]) el.hidden = el !== section;
+        document.body.classList.toggle("golf-menu", section !== hud);
     };
 
     // ---- Enter / leave ----
@@ -563,7 +565,7 @@ export function setupGolf() {
         stopTimer();
         round = null;
         setMapState(null);
-        document.body.classList.remove("golf", "golf-pro");
+        document.body.classList.remove("golf", "golf-pro", "golf-menu");
         if (exploringSpace !== null) setSpaceToggle(exploringSpace);
         exploringSpace = null;
         panel.hidden = true;
