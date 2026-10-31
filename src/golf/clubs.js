@@ -1,5 +1,6 @@
 import { harmonyDict } from "../harmonyMath.js";
 import { clamp } from "../utils.js";
+import { hslToHex } from "./oklab.js";
 
 // ----------------------------------
 // Color Golf clubs: every move a stroke can make
@@ -24,11 +25,18 @@ export const PUTTER = [
     { label: "Light +", apply: ({ h, s, l }) => ({ h, s, l: l + PUTT }) },
 ];
 
-// Every club as { row, index }: harmony rows in panel order, then the putter
+// Mirror club (v1.8.1): reverses the color's hex (#5A1A5B → #B5A1A5). Only playable from inside a
+// mirror region (hazards.js), so it's not one of allStrikes' 41 shots; the solver adds it there.
+export const MIRROR = { row: "mirror", index: 0 };
+
+// Every club as { row, index }: harmony rows in panel order, then the putter, then the mirror
+// (new clubs go at the end, so recorded rounds keep their club ids)
 export const CLUBS = [
     ...HARMONY_ROWS.flatMap(row => harmonyDict({ h: 0, s: 0, l: 0 })[row].map((_, index) => ({ row, index }))),
     ...PUTTER.map((_, index) => ({ row: "putter", index })),
+    MIRROR,
 ];
+export const MIRROR_ID = CLUBS.length - 1;
 
 // A club as one small number (its place in CLUBS) and back, for recorded rounds (v1.6)
 export const clubId = ({ row, index }) => CLUBS.findIndex(club => club.row === row && club.index === index);
@@ -48,24 +56,31 @@ export function roundHSL({ h, s, l }) {
 export const CALM = null;
 const blow = (hsl, wind) => (wind ? { h: hsl.h + (wind.hue ?? 0), s: hsl.s, l: hsl.l + (wind.light ?? 0) } : hsl);
 
-// Mirror greens (v1.8.1): hit from inside a mirror (`mirrored`), every hue move flips about the
-// ball's hue (+120° plays as −120°, the putter's Hue + as Hue −); saturation and lightness moves
-// don't change. The flip comes before the wind, which still blows the way it says.
-const flip = (from, landing, mirrored) => (mirrored ? roundHSL({ h: 2 * from.h - landing.h, s: landing.s, l: landing.l }) : landing);
-
-// All results from one position, in CLUBS order
-export function allStrikes(hsl, wind = CALM, mirrored = false) {
+// All results from one position, in CLUBS order (the 41 harmony and putter shots; not the mirror)
+export function allStrikes(hsl, wind = CALM) {
     const harmonies = harmonyDict(hsl);
     return [
-        ...HARMONY_ROWS.flatMap(row => harmonies[row].map(landing => roundHSL(blow(flip(hsl, roundHSL(landing), mirrored), wind)))),
-        ...PUTTER.map(club => flip(hsl, roundHSL(club.apply(hsl)), mirrored)),
+        ...HARMONY_ROWS.flatMap(row => harmonies[row].map(landing => roundHSL(blow(roundHSL(landing), wind)))),
+        ...PUTTER.map(club => roundHSL(club.apply(hsl))),
     ];
 }
 
-// One stroke with a given club (the swatch shows the calm, unmirrored landing; wind then drifts it)
-export function strike(hsl, { row, index }, wind = CALM, mirrored = false) {
-    if (row === "putter") return flip(hsl, roundHSL(PUTTER[index].apply(hsl)), mirrored);
-    return roundHSL(blow(flip(hsl, roundHSL(harmonyDict(hsl)[row][index]), mirrored), wind));
+// One stroke with a given club (the swatch shows the calm landing; wind then drifts it).
+// The mirror isn't blown: it reflects exactly.
+export function strike(hsl, { row, index }, wind = CALM) {
+    if (row === "mirror") return mirrorOf(hsl);
+    if (row === "putter") return roundHSL(PUTTER[index].apply(hsl));
+    return roundHSL(blow(roundHSL(harmonyDict(hsl)[row][index]), wind));
+}
+
+// The color whose hex is this one's backwards, as whole-number HSL
+export function mirrorOf(hsl) {
+    const hex = [...hslToHex(hsl).slice(1)].reverse().join("");
+    const [r, g, b] = [0, 2, 4].map(i => parseInt(hex.slice(i, i + 2), 16) / 255);
+    const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2, d = max - min;
+    const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+    const h = d === 0 ? 0 : max === r ? 60 * (((g - b) / d) % 6) : max === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4);
+    return roundHSL({ h, s: s * 100, l: l * 100 });
 }
 
 // Pack HSL into one integer (and back), for the solver's lookup tables

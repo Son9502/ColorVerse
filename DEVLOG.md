@@ -9,27 +9,27 @@ Each entry is tagged with how it was produced:
 
 ---
 
-## Milestone 26 — Mirror greens: Silverglass Greens (v1.8.1) `[ai-assisted]`
+## Milestone 26 — Mirrors: Silverglass Greens (v1.8.1) `[ai-assisted]`
 **2026-10-31**
 
-The second expansion course, from the agreed v1.8 spec; implementation `[ai-assisted]`.
+The second expansion course. The spec's hue-flipping mirror was built first and replaced after review by the developer's idea: a Mirror club that reverses the hex. Implementation `[ai-assisted]`.
 
 **Added**
-- Mirrors (`hazards.js`, `clubs.js`): a region type; a stroke hit from inside one flips every hue move about the ball's hue (`strike` / `allStrikes` take `mirrored`): Triadic +120° plays as −120°, Analogous +20° as −20°, the putter's Hue + as Hue −; saturation and lightness moves, and ±180° jumps, don't change. Wind still blows its own way. No penalty; every other region wins over a mirror. `hazardMap().mirrored(hsl)`; the round (`inMirror`), putting, the solver and the birdie-line count use it, so the server's replay does too
-- `placeMirrors` (`holeMaker.js`): a mirror round the tee, on the first landings of perfect routes that go on with a hue move (one per landing, up to 3), round the pin, or route and pin; `trap` puts a lake where the shot out of a mirror *looks* like it goes (where the swatch showing the route's next color really lands). Checked: perfect unchanged, finishable within par, birdie line 1–4, and the route through the mirror needs a different swatch from the one showing where it goes
-- `makeHole` / `buildHole` take a saturation range (`sats`) for tees and pins
-- Silverglass Greens (`generateCourses.mjs`, seed 7, any hue, saturation 12–45%, par 72, perfect 51): tutorial hole 1 (a big mirror on the tee), tee mirrors on 2, 15 and the ace (16), traps on 4, 5, 9, 10, 14, 17, route mirrors on 6, 11, green mirrors on 3, 7, 12, route and green on 8, 13, 18
-- Panel: swatches the flip changes get a dashed silver outline and a ⇄ badge (they still show the unflipped color, per the spec), and "flipped by the mirror" in their aria-label; note "On a mirror: hue moves flip…"; "Mirror: you're on it / N yds from you"; mirror dots on the score card; "1 mirror" in the hole summary; How to play
+- Mirror club (`clubs.js`: `MIRROR`, `mirrorOf`): reverses the color's hex (#5A1A5B → #B5A1A5), back to whole-number HSL. Appended after the putter (club id 41), so recorded rounds keep their ids; not one of `allStrikes`' 41 shots. Not blown by the wind
+- Mirrors (`hazards.js`): a region type with no penalty; `allows` lets the Mirror club play only from inside one, so the round, the solver (`landingsFrom` adds it there) and the server's replay all enforce it. Every other region wins over a mirror
+- `makeMirrorHole` (`holeMaker.js`): the hole is built round its mirror, as Violet Vortex's are round their portals: the mirror is on the tee or on a tee shot's landing, the pin is the rest of the perfect score from the reflection, and without the mirror the hole is two strokes longer on par 3s and 4s (par needs the mirror) and one on par 5s. `decoy` adds a second mirror on another tee shot whose reflection lands 200+ yds from the pin. `makeHole` / `buildHole` take a saturation range (`sats`)
+- Silverglass Greens (`generateCourses.mjs`, seed 7, any hue, saturation 12–45%, par 72, perfect 51): tutorial hole 1 (a big mirror on the tee); mirrors on the tee on 3, 6, 7, 10, 13, 17 and the ace (16, holed with the mirror), on a tee shot's landing on the rest; decoys on 4, 6, 8, 10, 12, 15, 17
+- Panel: a Mirror row (shown on holes with mirrors, greyed out off one) whose swatch shows exactly where it goes; note "On a mirror: the Mirror club reverses your color's hex, #… → #…"; "Mirror: you're on it / N yds from you"; "perfect line N of 42" from a tee on a mirror; dots, summary, How to play
 - Map: solid silver footprint with a dark rim and a ⇄ icon
+- Tutorial boxes take the course's or the hazard's color (Violet Vortex purple, Silverglass silver), and the first hole of a round with a bunker, water or a black hole gets its own box explaining it (Expert bunkers: only the named wedge)
 - Unlock: Silverglass Greens needs −4 or better on Violet Vortex
 
 **Tried and dropped**
-- Making mirrors unavoidable (from the tee or a first landing, only a hue move keeps the perfect score): 0 of 36 muted holes qualified. A wedge first and the hue move later always gets round, because a mirror only reshuffles which swatch goes where. So mirrors sit where the natural route goes, and playing out with a wedge is a fair answer to one
-- A tee mirror plus a route mirror on one hole: routes whose first two shots are both flippable hue moves almost never stay in the birdie band; `double` is route plus green instead
+- The spec's mirror (hit from inside one and every hue move flips, swatches showing the unflipped colors, ⇄ marks on the ones that change). It only reshuffles which swatch goes where, so it never shortens or blocks a route: 0 of 36 muted holes could make one unavoidable (a wedge first and the hue move later always got round). The hex mirror opens new routes, so holes can be built round it
 
 **Verified**
-- Every hole: stored perfect matches the solver; courses 1–6 unchanged byte for byte; `replayRound` of a perfect round: 51 strokes
-- On tee and route holes, the solver's perfect clubs replayed without mirrors miss (tee holes) and 1–3 of the 2–4 good tee shots land on a mirror (route holes)
+- Every hole: stored perfect matches the solver and every perfect route plays the Mirror club; without mirrors par 3s and 4s take 2 more strokes; courses 1–6 unchanged byte for byte
+- `replayRound`: a perfect round is 51 strokes; the Mirror club off a mirror is refused; Violet Vortex and Royal Indigo still replay to their perfect scores
 
 ---
 

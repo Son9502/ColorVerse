@@ -574,7 +574,8 @@ Color Categories + Squares
 #tints,
 #tones,
 #saturate,
-#putter {
+#putter,
+#mirror {
     display: flex;
     align-items: flex-start; /* a name or portal label makes a swatch taller: keep the squares in line */
     gap: clamp(6px, 1vw, 18px);
@@ -1049,6 +1050,10 @@ body.golf .golf-only {
     display: block; /* same as .colors-row */
 }
 
+body.golf .golf-only[hidden] {
+    display: none;
+}
+
 /* Swatches are clubs in a game: double-click to play */
 body.golf .square {
     cursor: pointer;
@@ -1493,7 +1498,18 @@ body.golf-pro .square-wrapper::after {
     color: #8c96a3;
 }
 
-/* A gimmick course's first hole (v1.8) */
+/* Tutorial boxes (v1.8): a gimmick course's first hole, and each hazard's first hole in a round
+   (v1.8.1), in the course's or the hazard's color */
+#golf-tutorials {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+#golf-tutorials:empty {
+    display: none;
+}
+
 .golf-tutorial {
     display: flex;
     gap: 10px;
@@ -1506,8 +1522,28 @@ body.golf-pro .square-wrapper::after {
     font-size: 0.82rem;
 }
 
-.golf-tutorial[hidden] {
-    display: none;
+.golf-tutorial.silverglass {
+    border-left-color: #8c96a3;
+    background: #eef1f4;
+    color: #2f3742;
+}
+
+.golf-tutorial.sand {
+    border-left-color: #c9a24f;
+    background: #f6ecd2;
+    color: #6b4f16;
+}
+
+.golf-tutorial.water {
+    border-left-color: #1f5fd6;
+    background: #dde8fb;
+    color: #123f8f;
+}
+
+.golf-tutorial.blackhole {
+    border-left-color: #ff7a1a;
+    background: #222;
+    color: #ffb27a;
 }
 
 .golf-tutorial p {
@@ -1666,30 +1702,6 @@ body.golf .golf-portal::before {
     font-size: 0.6rem;
     font-weight: 700;
     white-space: nowrap;
-}
-
-/* Flipped by a mirror (v1.8.1): the swatch shows the unflipped color, so a dashed silver outline
-   and a ⇄ badge say it goes the other way */
-body.golf .golf-flipped .square {
-    position: relative;
-    outline: 2px dashed #8c96a3;
-    outline-offset: 2px;
-}
-
-body.golf .golf-flipped .square::after {
-    position: absolute;
-    top: -8px;
-    right: -8px;
-    width: 15px;
-    height: 15px;
-    border-radius: 50%;
-    background: #5d6773;
-    color: #fff;
-    content: "⇄";
-    font-size: 10px;
-    font-weight: 700;
-    line-height: 15px;
-    text-align: center;
 }
 
 /* Expert on a touch screen: the first tap aims, a second tap plays (golf-ui.js) */

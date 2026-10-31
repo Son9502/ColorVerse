@@ -56,22 +56,20 @@ const VORTEX_PLAN = {
     ace: () => null,
 };
 
-// Silverglass Greens (v1.8.1): where each hole's mirrors go (see placeMirrors): round the tee, on a
-// landing of the best route, round the pin, or route and pin (`double`); `trap` adds a lake where
-// the shot out of the mirror looks like it goes. The ace's mirror is on the tee.
+// Silverglass Greens (v1.8.1): each hole is built round a mirror (see makeMirrorHole), on the tee
+// or on a tee shot's landing, and `skip` strokes longer without it, like Violet Vortex's portals;
+// `decoy` adds a second mirror whose reflection leads nowhere. The ace is a mirror on the tee.
 const MIRROR_HOLES = [
-    "tutorial", "tee", "green", "routeTrap", "teeTrap", "route", "green", "double", "routeTrap",
-    "teeTrap", "route", "green", "double", "routeTrap", "tee", "ace", "teeTrap", "double",
+    "tutorial", "route", "tee", "decoy", "route", "teeDecoy", "tee", "decoy", "route",
+    "teeDecoy", "route", "decoy", "tee", "route", "decoy", "ace", "teeDecoy", "route",
 ];
 const MIRROR_PLAN = {
-    tutorial: { tee: true, tutorial: true },
-    tee: { tee: true },
-    teeTrap: { tee: true, trap: true },
-    route: { route: true },
-    routeTrap: { route: true, trap: true },
-    green: { green: true },
-    double: { route: true, green: true },
-    ace: { tee: true },
+    tutorial: { onTee: true, tutorial: true },
+    tee: { onTee: true },
+    teeDecoy: { onTee: true, decoy: true },
+    route: {},
+    decoy: { decoy: true },
+    ace: { onTee: true },
 };
 
 // Each course keeps its tees and targets inside a hue range [from, to) in degrees (wrapping past 360),
@@ -118,9 +116,9 @@ const COURSES = [
     },
     {
         id: "silverglass", name: "Silverglass Greens", seed: 7, hues: [0, 360], sats: [12, 45], difficulty: "Expansion", // muted colors
-        gimmick: "Mirrors flip every hue move hit from inside them; the swatches don't show the flip.",
-        tutorial: "You're on a mirror (silver on the map). From a mirror, hue moves flip: +120° plays as −120°. The swatches show the unflipped colors, so aim with the opposite one.",
-        mirrors: (i) => MIRROR_PLAN[MIRROR_HOLES[i]],
+        gimmick: "On a mirror, the Mirror club reverses your color's hex (#5A1A5B → #B5A1A5).",
+        tutorial: "You're on a mirror (silver on the map). From one you can play the Mirror club: it reverses your color's hex, #5A1A5B → #B5A1A5. You need it to make par here.",
+        mirrors: (i, perfect) => ({ ...MIRROR_PLAN[MIRROR_HOLES[i]], skip: skipFor(perfect) }),
     },
 ];
 
@@ -135,7 +133,7 @@ const courses = COURSES.map(({ id, name, seed, rev, hues, sats, difficulty, gimm
     const holes = layout.flat().map(([par, layoutPerfect], i) => {
         const perfect = difficulty === "Expert" && layoutPerfect > 1 && layup !== i ? expertPerfect(par) : layoutPerfect;
         const hole = buildHole({ rand, hazardRand, windRand }, {
-            par, perfect, hues, sats, difficulty, plan: planFor?.(i, par, perfect), windPlan, layup: layup === i, portals: portalsFor?.(i, par, perfect), mirrors: mirrorsFor?.(i),
+            par, perfect, hues, sats, difficulty, plan: planFor?.(i, par, perfect), windPlan, layup: layup === i, portals: portalsFor?.(i, par, perfect), mirrors: mirrorsFor?.(i, perfect),
             log: (message) => console.log(`  (hole ${i + 1}: ${message})`),
         });
         const summary = [(hole.hazards ?? []).map(h => h.type).join(", ") || "clear", hole.wind ? `wind ${JSON.stringify(hole.wind)}` : "calm"].join("; ");

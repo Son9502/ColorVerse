@@ -16,8 +16,8 @@ import { hslToOklab, oklabDistance } from "./oklab.js";
 //   over sand, if regions ever overlap.
 // - Black hole (v1.8): +1 penalty stroke and the ball goes back to the tee. Like water, landing in
 //   one is never worth it, so the solver skips those strokes. A black hole wins over everything.
-// - Mirror (v1.8.1): no penalty; a stroke hit from inside one flips every hue move (clubs.js).
-//   It depends only on where the ball is, so the solver stays exact. Every other region wins over it.
+// - Mirror (v1.8.1): no penalty; from inside one the Mirror club can be played (it reverses the
+//   color's hex, clubs.js), and only there. Every other region wins over a mirror.
 
 export const WEDGES = ["tints", "shades", "tones", "saturate"];
 export const WEDGE_ROWS = new Set(WEDGES);
@@ -62,8 +62,6 @@ export function hazardMap(hazards = []) {
         return k >= PORTAL ? "portal" : k === MIRROR ? "mirror" : k === BLACK_HOLE ? "blackhole" : k === WATER ? "water" : k === NONE ? null : "sand";
     };
 
-    // Whether a stroke from `hsl` is hit from inside a mirror (hue moves flip)
-    const mirrored = (hsl, code = encode(hsl)) => at(hsl, code) === "mirror";
 
     // The portal a color is in (its hazard object), or null
     const portalAt = (hsl, code = encode(hsl)) => {
@@ -82,8 +80,10 @@ export function hazardMap(hazards = []) {
         return k > SAND && k < WATER ? WEDGES[k - SAND - 1] : null;
     };
 
-    // Whether `club` can be played from `hsl`: anything outside sand; in sand, a wedge (the named one, if any)
+    // Whether `club` can be played from `hsl`: anything outside sand; in sand, a wedge (the named one,
+    // if any). The Mirror club only from inside a mirror.
     const allows = (hsl, club, code = encode(hsl)) => {
+        if (club.row === "mirror") return at(hsl, code) === "mirror";
         if (at(hsl, code) !== "sand") return true;
         const wedge = wedgeAt(hsl, code);
         return wedge ? club.row === wedge : isWedge(club);
@@ -99,5 +99,5 @@ export function hazardMap(hazards = []) {
         return hazards.find((h, i) => h.type === type && inside(h, i)) ?? null;
     };
 
-    return { hazards, at, mirrored, portalAt, land, wedgeAt, allows, which, empty: !centers.length };
+    return { hazards, at, portalAt, land, wedgeAt, allows, which, empty: !centers.length };
 }

@@ -1,4 +1,4 @@
-import { CLUBS, STATE_COUNT, allStrikes, encode, decode } from "./clubs.js";
+import { CLUBS, STATE_COUNT, allStrikes, mirrorOf, encode, decode } from "./clubs.js";
 import { hslToOklab, oklabDistance, IN_THE_HOLE } from "./oklab.js";
 import { isWedge } from "./hazards.js";
 
@@ -15,7 +15,7 @@ import { isWedge } from "./hazards.js";
 // portal's exit, which depends only on the landing, so that stays exact too. A black hole (v1.8)
 // is skipped like water (back to the tee is never worth it). `avoidPortals` treats portals as
 // blocked, for the "can't make par without a portal" check on black-hole holes. From inside a mirror
-// (v1.8.1) hue moves flip, which depends only on the current color, so that stays exact too.
+// (v1.8.1) the Mirror club is one more stroke (its landing depends only on the color, so exact too).
 
 const UNSEEN = 255;
 
@@ -23,6 +23,13 @@ const WEDGE_CLUB = CLUBS.map(isWedge);
 const CLUB_ROW = CLUBS.map(club => club.row);
 // Whether club `i` can be played from a state whose sand rule is `wedge` (null: any wedge)
 const sandAllows = (i, wedge) => (wedge ? CLUB_ROW[i] === wedge : WEDGE_CLUB[i]);
+
+// Every landing from a state, in CLUBS order: the 41 shots, plus the mirror's from inside a mirror
+export function landingsFrom(hsl, lie, wind) {
+    const landings = allStrikes(hsl, wind);
+    if (lie === "mirror") landings.push(mirrorOf(hsl));
+    return landings;
+}
 
 // Strokes from `tee` to every state reachable within `maxDepth`, plus how each was first reached
 export function searchFrom(tee, maxDepth = 7, hazards = null, { avoidHazards = false, avoidPortals = false, wind = null } = {}) {
@@ -43,7 +50,7 @@ export function searchFrom(tee, maxDepth = 7, hazards = null, { avoidHazards = f
             const lie = blocked ? hazards.at(from, code) : null;
             const inSand = lie === "sand";
             const wedge = inSand ? hazards.wedgeAt(from, code) : null;
-            allStrikes(from, wind, lie === "mirror").forEach((landing, clubIndex) => {
+            landingsFrom(from, lie, wind).forEach((landing, clubIndex) => {
                 if (inSand && !sandAllows(clubIndex, wedge)) return;
                 if (avoidPortals && blocked && hazards.portalAt(landing)) return;
                 const hsl = blocked ? hazards.land(landing) : landing; // through a portal, if it's in one
@@ -110,7 +117,7 @@ export function reachesWithin(from, target, maxDepth, hazards = null, { avoidHaz
                 const lie = blocked ? hazards.at(here, code) : null;
                 const inSand = lie === "sand";
                 const wedge = inSand ? hazards.wedgeAt(here, code) : null;
-                const landings = allStrikes(here, wind, lie === "mirror");
+                const landings = landingsFrom(here, lie, wind);
                 for (let clubIndex = 0; clubIndex < landings.length; clubIndex++) {
                     if (inSand && !sandAllows(clubIndex, wedge)) continue;
                     const hsl = blocked ? hazards.land(landings[clubIndex]) : landings[clubIndex];
