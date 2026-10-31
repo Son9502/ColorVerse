@@ -72,6 +72,27 @@ const MIRROR_PLAN = {
     ace: {},
 };
 
+// Caddie Strike (v1.8.2): each hole bans some clubs (hole.rules, rules.js), and is built so the ban
+// costs at least a stroke. Club types: Driver = Complementary, Wood = Split-comp., Hybrids = Triadic,
+// Tetradic, Double-comp., Iron = Analogous, Wedges = Tints, Shades, Tones, Saturate.
+const BANS = {
+    noLong: { name: "No Driver or Woods", ban: ["complementary", "split-complementary"] },
+    noHybrids: { name: "No Hybrids", ban: ["triadic", "tetradic", "double-complementary"] },
+    noWedges: { name: "No Wedges", ban: ["tints", "shades", "tones", "saturate"] },
+    noTintsShades: { name: "No Tints or Shades", ban: ["tints", "shades"] },
+    noPutter: { name: "No putter", ban: ["putter"] },
+    noLongIron: { name: "No Driver, Woods or Iron", ban: ["complementary", "split-complementary", "analogous"] },
+    noWoodsWedges: { name: "No Woods or Wedges", ban: ["split-complementary", "tints", "shades", "tones", "saturate"] },
+    hybridsIrons: { name: "Hybrids, Iron and putter only", ban: ["complementary", "split-complementary", "tints", "shades", "tones", "saturate"] },
+};
+// "No putter" is only on par 4s and 5s: on a par 3 the putter never saves a stroke. A wedges-only ban
+// was dropped (wedge moves go in any order, so it leaves far too many perfect lines), and so was
+// "No Iron" (one short row rarely costs a stroke).
+const CADDIE_HOLES = [
+    "noLong", "noPutter", "noHybrids", "noWedges", "noLongIron", "noTintsShades", "noLong", "noWoodsWedges", "hybridsIrons",
+    "noPutter", "noWedges", "noHybrids", "noLongIron", "noLong", "noTintsShades", "noWedges", "hybridsIrons", "noWoodsWedges",
+];
+
 // Each course keeps its tees and targets inside a hue range [from, to) in degrees (wrapping past 360),
 // and optionally a saturation range `sats` [min, max], so the name says how it plays. Routes may still pass through other hues.
 // `hazards(i, par, perfect)` says what hole i gets: { water, greenside, route } counts (or null for none).
@@ -120,12 +141,18 @@ const COURSES = [
         tutorial: "A swatch with a dotted silver outline lands on a mirror, which flips your color's hex (#234243 → #342432); its label shows how far from the pin that leaves you. You need one to make par here.",
         mirrors: (i, perfect) => ({ ...MIRROR_PLAN[MIRROR_HOLES[i]], skip: skipFor(perfect) }),
     },
+    {
+        id: "caddie", name: "Caddie Strike", seed: 8, hues: [0, 360], difficulty: "Expansion", // full spectrum
+        gimmick: "Each hole bans some clubs; banned rows are greyed out.",
+        tutorial: "Your caddie won't carry every club: each hole bans some (shown under the hole info), and their rows are greyed out. Here it's the Driver and Woods.",
+        rules: (i) => BANS[CADDIE_HOLES[i]],
+    },
 ];
 
 const only = process.argv.slice(2); // optional: course ids to generate (others are kept from the current file)
 const existing = only.length ? JSON.parse(readFileSync(new URL("../src/golf/courses.json", import.meta.url))) : [];
 
-const courses = COURSES.map(({ id, name, seed, rev, hues, sats, difficulty, gimmick, tutorial, layout = [FRONT, BACK], hazards: planFor, layup, wind: windPlan, portals: portalsFor, mirrors: mirrorsFor }) => {
+const courses = COURSES.map(({ id, name, seed, rev, hues, sats, difficulty, gimmick, tutorial, layout = [FRONT, BACK], hazards: planFor, layup, wind: windPlan, portals: portalsFor, mirrors: mirrorsFor, rules: rulesFor }) => {
     if (only.length && !only.includes(id)) return existing.find(course => course.id === id);
     const rand = rng(seed);
     const hazardRand = rng(seed * 7919); // separate sequence: hazards don't change which holes are chosen
@@ -133,10 +160,10 @@ const courses = COURSES.map(({ id, name, seed, rev, hues, sats, difficulty, gimm
     const holes = layout.flat().map(([par, layoutPerfect], i) => {
         const perfect = difficulty === "Expert" && layoutPerfect > 1 && layup !== i ? expertPerfect(par) : layoutPerfect;
         const hole = buildHole({ rand, hazardRand, windRand }, {
-            par, perfect, hues, sats, difficulty, plan: planFor?.(i, par, perfect), windPlan, layup: layup === i, portals: portalsFor?.(i, par, perfect), mirrors: mirrorsFor?.(i, perfect),
+            par, perfect, hues, sats, difficulty, plan: planFor?.(i, par, perfect), windPlan, layup: layup === i, portals: portalsFor?.(i, par, perfect), mirrors: mirrorsFor?.(i, perfect), rules: rulesFor?.(i),
             log: (message) => console.log(`  (hole ${i + 1}: ${message})`),
         });
-        const summary = [(hole.hazards ?? []).map(h => h.type).join(", ") || "clear", hole.wind ? `wind ${JSON.stringify(hole.wind)}` : "calm"].join("; ");
+        const summary = [(hole.hazards ?? []).map(h => h.type).join(", ") || "clear", hole.wind ? `wind ${JSON.stringify(hole.wind)}` : "calm", hole.rules?.name].filter(Boolean).join("; ");
         console.log(`${name} hole ${i + 1}: par ${par}, perfect ${hole.perfect}, ${Math.round(yardsBetween(hole.tee, hole.target))} yds, ${summary}`);
         return hole;
     });

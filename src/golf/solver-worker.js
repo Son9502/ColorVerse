@@ -4,12 +4,12 @@ import { hazardMap } from "./hazards.js";
 // ----------------------------------
 // Par solver worker: the perfect route for a hole, off the main thread
 // ----------------------------------
-// Receives { id, tee, target, perfect, hazards, wind }; replies { id, route } where route is
+// Receives { id, tee, target, perfect, hazards, wind, rules }; replies { id, route } where route is
 // [{ club, hsl }, ...] (one entry per stroke), or { id, error }.
 
-self.addEventListener("message", ({ data: { id, tee, target, perfect, hazards = [], wind = null } }) => {
+self.addEventListener("message", ({ data: { id, tee, target, perfect, hazards = [], wind = null, rules = null } }) => {
     try {
-        const search = searchFrom(tee, perfect, hazardMap(hazards), { wind });
+        const search = searchFrom(tee, perfect, hazardMap(hazards), { wind, rules });
         const best = parFor(search, target);
         self.postMessage({ id, route: best ? pathTo(search, best.end) : [] });
     } catch (error) {

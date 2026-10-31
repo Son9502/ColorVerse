@@ -12,7 +12,7 @@ export const FREE_COURSES = 3;
 // courses have been played by hand. Cobalt Bay's perfect round is −6, so Royal Indigo asks less;
 // Royal Indigo's is −5, so Violet Vortex (the first expansion course, v1.8) asks less again.
 // Expansion courses after it start at −4 on the one before (Violet Vortex's perfect round is −21).
-const UNLOCK_TO_PAR = { cobalt: -6, indigo: -3, vortex: -2, silverglass: -4 };
+const UNLOCK_TO_PAR = { cobalt: -6, indigo: -3, vortex: -2, silverglass: -4, caddie: -4 };
 const DEFAULT_TO_PAR = -6;
 export const unlockToPar = (course) => UNLOCK_TO_PAR[course.id] ?? DEFAULT_TO_PAR;
 

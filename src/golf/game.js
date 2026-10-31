@@ -1,6 +1,7 @@
 import { strike, PUTTER, clubId } from "./clubs.js";
 import { hslDistance, IN_THE_HOLE } from "./oklab.js";
 import { hazardMap } from "./hazards.js";
+import { ruleAllows } from "./rules.js";
 
 // ----------------------------------
 // Color Golf round: strokes, undo, score card
@@ -22,13 +23,14 @@ const NO_HAZARDS = hazardMap();
 
 // Fewest putts (0–2) from `hsl` into the hole, or null if it takes more than 2.
 // No putting out of sand, and a putt that would land in a hazard doesn't count.
-// A mirror (v1.8.1) isn't a hazard here.
-export function puttsToHole(hsl, target, hazards = NO_HAZARDS) {
+// A mirror (v1.8.1) isn't a hazard here. With the putter banned (v1.8.2), only a ball already in counts.
+export function puttsToHole(hsl, target, hazards = NO_HAZARDS, rules = null) {
     const rough = (c) => { const type = hazards.at(c); return type !== null && type !== "mirror"; };
     if (rough(hsl)) return null;
     let frontier = [hsl];
-    for (let putts = 0; putts <= 2; putts++) {
-        if (frontier.some(c => hslDistance(c, target) < IN_THE_HOLE)) return putts;
+    const putts = ruleAllows(rules, { row: "putter", index: 0 }) ? 2 : 0;
+    for (let n = 0; n <= putts; n++) {
+        if (frontier.some(c => hslDistance(c, target) < IN_THE_HOLE)) return n;
         frontier = frontier
             .flatMap(c => PUTTER.map((_, index) => strike(c, { row: "putter", index })))
             .filter(c => !rough(c));
@@ -55,8 +57,9 @@ export class GolfRound {
     get inSand() { return this.hazards.at(this.current) === "sand"; }
     get canUndo() { return !this.holeDone && this.history.length > 0 && this.undosLeft[this.nine] > 0; }
 
-    // Clubs allowed from here: wedges only in a bunker (just one, in an Expert bunker that names it)
-    canPlay(club) { return this.hazards.allows(this.current, club); }
+    // Clubs allowed from here: wedges only in a bunker (just one, in an Expert bunker that names it),
+    // and none the hole bans (v1.8.2)
+    canPlay(club) { return ruleAllows(this.hole.rules, club) && this.hazards.allows(this.current, club); }
     get sandWedge() { return this.inSand ? this.hazards.wedgeAt(this.current) : null; }
 
     // Distance to the target, whether that's in the hole, whether it's on the green
@@ -65,7 +68,7 @@ export class GolfRound {
         const distance = hslDistance(hsl, this.hole.target);
         const holed = distance < IN_THE_HOLE;
         const hazard = this.hazards.at(hsl);
-        return { distance, holed, hazard, onGreen: holed || puttsToHole(hsl, this.hole.target, this.hazards) !== null };
+        return { distance, holed, hazard, onGreen: holed || puttsToHole(hsl, this.hole.target, this.hazards, this.hole.rules) !== null };
     }
 
     // One stroke with a club ({ row, index }); returns the new lie plus `landed`

@@ -1,6 +1,7 @@
 import { CLUBS, STATE_COUNT, allStrikes, encode, decode } from "./clubs.js";
 import { hslToOklab, oklabDistance, IN_THE_HOLE } from "./oklab.js";
 import { isWedge } from "./hazards.js";
+import { clubMask } from "./rules.js";
 
 // ----------------------------------
 // Par solver: breadth-first search over every club from the tee
@@ -17,7 +18,7 @@ import { isWedge } from "./hazards.js";
 // blocked, for the "can't make par without a portal" check on black-hole holes. A mirror (v1.8.1)
 // sends the ball to its color with the hex reversed, which depends only on the landing, so that's
 // exact too. Water and black holes are judged where the ball lands, not where a warp puts it (as the
-// round does).
+// round does). `rules` (v1.8.2, rules.js) leaves out the clubs a hole bans.
 
 const UNSEEN = 255;
 
@@ -36,8 +37,9 @@ function rough(hazards, landing, hsl, code, avoidHazards) {
 
 
 // Strokes from `tee` to every state reachable within `maxDepth`, plus how each was first reached
-export function searchFrom(tee, maxDepth = 7, hazards = null, { avoidHazards = false, avoidPortals = false, wind = null } = {}) {
+export function searchFrom(tee, maxDepth = 7, hazards = null, { avoidHazards = false, avoidPortals = false, wind = null, rules = null } = {}) {
     const blocked = hazards && !hazards.empty;
+    const allowed = clubMask(rules);
     const dist = new Uint8Array(STATE_COUNT).fill(UNSEEN);
     const parent = new Int32Array(STATE_COUNT).fill(-1);
     const club = new Uint8Array(STATE_COUNT);
@@ -55,6 +57,7 @@ export function searchFrom(tee, maxDepth = 7, hazards = null, { avoidHazards = f
             const inSand = lie === "sand";
             const wedge = inSand ? hazards.wedgeAt(from, code) : null;
             allStrikes(from, wind).forEach((landing, clubIndex) => {
+                if (allowed && !allowed[clubIndex]) return;
                 if (inSand && !sandAllows(clubIndex, wedge)) return;
                 if (avoidPortals && blocked && hazards.portalAt(landing)) return;
                 const hsl = blocked ? hazards.land(landing) : landing; // through a portal or a mirror, if it's in one
@@ -100,7 +103,8 @@ function labsOf(codes) {
 // parFor(searchFrom(...)).par <= maxDepth, but it stops at the first state in the hole and reuses one
 // scratch table, so the generators can ask it thousands of times (the birdie-line checks).
 let scratch = null;
-export function reachesWithin(from, target, maxDepth, hazards = null, { avoidHazards = false, wind = null } = {}) {
+export function reachesWithin(from, target, maxDepth, hazards = null, { avoidHazards = false, wind = null, rules = null } = {}) {
+    const allowed = clubMask(rules);
     const goal = hslToOklab(target);
     const inHole = (hsl) => oklabDistance(hslToOklab(hsl), goal) < IN_THE_HOLE;
     if (inHole(from)) return true;
@@ -120,6 +124,7 @@ export function reachesWithin(from, target, maxDepth, hazards = null, { avoidHaz
                 const wedge = inSand ? hazards.wedgeAt(here, code) : null;
                 const landings = allStrikes(here, wind);
                 for (let clubIndex = 0; clubIndex < landings.length; clubIndex++) {
+                    if (allowed && !allowed[clubIndex]) continue;
                     if (inSand && !sandAllows(clubIndex, wedge)) continue;
                     const hsl = blocked ? hazards.land(landings[clubIndex]) : landings[clubIndex];
                     const to = encode(hsl);

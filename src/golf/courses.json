@@ -138,5 +138,25 @@
     {"tee":{"h":85,"s":42,"l":37},"target":{"h":224,"s":30,"l":54},"par":3,"perfect":1,"hazards":[{"type":"mirror","center":{"h":85,"s":77,"l":37},"radius":28}],"lines":1},
     {"tee":{"h":213,"s":16,"l":60},"target":{"h":347,"s":45,"l":28},"par":4,"perfect":3,"hazards":[{"type":"mirror","center":{"h":213,"s":50,"l":60},"radius":28},{"type":"mirror","center":{"h":213,"s":16,"l":36},"radius":25}],"lines":1},
     {"tee":{"h":44,"s":22,"l":45},"target":{"h":269,"s":41,"l":32},"par":4,"perfect":3,"hazards":[{"type":"mirror","center":{"h":44,"s":22,"l":67},"radius":22}],"lines":1}
+  ]},
+  {"id":"caddie","name":"Caddie Strike","hues":[0,360],"difficulty":"Expansion","gimmick":"Each hole bans some clubs; banned rows are greyed out.","tutorial":"Your caddie won't carry every club: each hole bans some (shown under the hole info), and their rows are greyed out. Here it's the Driver and Woods.","holes":[
+    {"tee":{"h":48,"s":43,"l":73},"target":{"h":258,"s":89,"l":73},"par":4,"perfect":3,"rules":{"name":"No Driver or Woods","ban":["complementary","split-complementary"]},"lines":3},
+    {"tee":{"h":172,"s":46,"l":53},"target":{"h":262,"s":46,"l":47},"par":4,"perfect":3,"rules":{"name":"No putter","ban":["putter"]},"lines":4},
+    {"tee":{"h":347,"s":30,"l":45},"target":{"h":267,"s":30,"l":45},"par":3,"perfect":2,"rules":{"name":"No Hybrids","ban":["triadic","tetradic","double-complementary"]},"lines":1},
+    {"tee":{"h":179,"s":47,"l":49},"target":{"h":269,"s":47,"l":37},"par":5,"perfect":4,"rules":{"name":"No Wedges","ban":["tints","shades","tones","saturate"]},"lines":2},
+    {"tee":{"h":17,"s":78,"l":49},"target":{"h":227,"s":78,"l":53},"par":4,"perfect":3,"rules":{"name":"No Driver, Woods or Iron","ban":["complementary","split-complementary","analogous"]},"lines":4},
+    {"tee":{"h":26,"s":63,"l":73},"target":{"h":236,"s":70,"l":59},"par":4,"perfect":3,"rules":{"name":"No Tints or Shades","ban":["tints","shades"]},"lines":2},
+    {"tee":{"h":166,"s":30,"l":33},"target":{"h":16,"s":30,"l":33},"par":3,"perfect":2,"rules":{"name":"No Driver or Woods","ban":["complementary","split-complementary"]},"lines":2},
+    {"tee":{"h":105,"s":48,"l":69},"target":{"h":315,"s":48,"l":65},"par":4,"perfect":3,"rules":{"name":"No Woods or Wedges","ban":["split-complementary","tints","shades","tones","saturate"]},"lines":3},
+    {"tee":{"h":293,"s":53,"l":42},"target":{"h":53,"s":53,"l":50},"par":5,"perfect":3,"rules":{"name":"Hybrids, Iron and putter only","ban":["complementary","split-complementary","tints","shades","tones","saturate"]},"lines":2},
+    {"tee":{"h":96,"s":49,"l":49},"target":{"h":216,"s":49,"l":54},"par":4,"perfect":3,"rules":{"name":"No putter","ban":["putter"]},"lines":4},
+    {"tee":{"h":54,"s":56,"l":48},"target":{"h":264,"s":56,"l":40},"par":5,"perfect":3,"rules":{"name":"No Wedges","ban":["tints","shades","tones","saturate"]},"lines":2},
+    {"tee":{"h":100,"s":93,"l":66},"target":{"h":160,"s":93,"l":66},"par":3,"perfect":2,"rules":{"name":"No Hybrids","ban":["triadic","tetradic","double-complementary"]},"lines":3},
+    {"tee":{"h":328,"s":53,"l":52},"target":{"h":50,"s":53,"l":52},"par":4,"perfect":3,"rules":{"name":"No Driver, Woods or Iron","ban":["complementary","split-complementary","analogous"]},"lines":4},
+    {"tee":{"h":34,"s":92,"l":66},"target":{"h":244,"s":55,"l":60},"par":4,"perfect":3,"rules":{"name":"No Driver or Woods","ban":["complementary","split-complementary"]},"lines":3},
+    {"tee":{"h":323,"s":66,"l":78},"target":{"h":233,"s":60,"l":46},"par":5,"perfect":4,"rules":{"name":"No Tints or Shades","ban":["tints","shades"]},"lines":2},
+    {"tee":{"h":255,"s":80,"l":59},"target":{"h":292,"s":82,"l":59},"par":3,"perfect":1,"rules":{"name":"No Wedges","ban":["tints","shades","tones","saturate"]},"lines":1},
+    {"tee":{"h":84,"s":57,"l":41},"target":{"h":324,"s":57,"l":33},"par":4,"perfect":3,"rules":{"name":"Hybrids, Iron and putter only","ban":["complementary","split-complementary","tints","shades","tones","saturate"]},"lines":3},
+    {"tee":{"h":128,"s":39,"l":53},"target":{"h":338,"s":39,"l":49},"par":4,"perfect":3,"rules":{"name":"No Woods or Wedges","ban":["split-complementary","tints","shades","tones","saturate"]},"lines":3}
   ]}
 ]

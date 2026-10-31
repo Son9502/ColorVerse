@@ -71,7 +71,7 @@ function proLabel({ row, index }) {
 let solver = null;
 let solverRequest = 0;
 const pendingRoutes = new Map();
-function solveRoute({ tee, target, perfect, hazards = [], wind = null }) {
+function solveRoute({ tee, target, perfect, hazards = [], wind = null, rules = null }) {
     if (!solver) {
         solver = new Worker(new URL("./solver-worker.js", import.meta.url), { type: "module" });
         solver.onmessage = ({ data }) => {
@@ -84,7 +84,7 @@ function solveRoute({ tee, target, perfect, hazards = [], wind = null }) {
     const id = ++solverRequest;
     return new Promise((resolve, reject) => {
         pendingRoutes.set(id, { resolve, reject });
-        solver.postMessage({ id, tee, target, perfect, hazards, wind });
+        solver.postMessage({ id, tee, target, perfect, hazards, wind, rules });
     });
 }
 
@@ -762,6 +762,10 @@ export function setupGolf() {
         $("golf-wind").textContent = wind ? `Wind ${wind} on every full shot (putts aren't affected)` : "";
         $("golf-wind-badge").hidden = !wind;
         $("golf-wind-badge").textContent = wind ? `🌬 ${wind}` : "";
+        // Club bans (v1.8.2): the banned rows grey out like a bunker's (renderHazards)
+        const ban = hole.rules?.name;
+        $("golf-rule").hidden = !ban;
+        $("golf-rule").textContent = ban ? `Caddie strike: ${ban} on this hole` : "";
         $("golf-target").style.backgroundColor = css(hole.target);
         $("golf-target-name").textContent = describeColor(hole.target);
         holeEnd.hidden = true;
@@ -900,7 +904,9 @@ export function setupGolf() {
         }));
 
         for (const [box, club] of clubs) {
-            box.closest(".square-wrapper")?.classList.toggle("golf-blocked", !round.holeDone && !round.canPlay(club));
+            const blocked = !round.holeDone && !round.canPlay(club);
+            box.closest(".square-wrapper")?.classList.toggle("golf-blocked", blocked);
+            box.setAttribute("aria-disabled", String(blocked)); // in a bunker, or banned (v1.8.2)
         }
     };
 

@@ -241,6 +241,8 @@ Seven account-only courses after Royal Indigo, each built around one gimmick, th
 - Swatches that land on a mirror are outlined (dotted silver) and labeled "⇄ N yds", where the flip leaves you.
 - Tutorial boxes take the course's or the hazard's color, and bunkers, water and black holes get one on their first hole of a round.
 
+**Done:** v1.8.2 Caddie Strike: 18 club-ban holes (full spectrum), par 72, perfect 51. `hole.rules` and `rules.js` now hold rules that aren't regions, shared by the round, solver, builder and server. Every ban costs at least a stroke; the line under the hole info names it and the banned rows grey out. No bunkers on this course (one could need a banned wedge).
+
 **Order:** one course per release, each playable and committed before the next: v1.8.0 hole rules + Portals (Violet Vortex), v1.8.1 Mirror greens (Silverglass Greens), v1.8.2 Club bans (Caddie Strike), v1.8.3 Turning wind (Saffron Whirlwind), v1.8.4 Roulette (Scarlet Roulette), v1.8.5 Flip (Hexflip Hollow), v1.8.6 Survival (The Obsidian Gauntlet).
 
 ### v2.0: 1-D and 2-D Modes

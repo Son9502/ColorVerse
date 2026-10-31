@@ -9,6 +9,28 @@ Each entry is tagged with how it was produced:
 
 ---
 
+## Milestone 27 — Club bans: Caddie Strike (v1.8.2) `[ai-assisted]`
+**2026-10-31**
+
+The third expansion course, from the agreed v1.8 spec; implementation `[ai-assisted]`.
+
+**Added**
+- Hole rules (`rules.js`): gimmicks that aren't regions live in `hole.rules`, read by one module the round, the solver, the hole builder and the server's replay share. First rule: club bans, `{ ban: [row, …], name }`. `ruleAllows` (the round's `canPlay`, so the replay refuses a banned club too), `clubMask` (the solver's loops: `searchFrom` / `reachesWithin` take `rules`). With the putter banned, "on the green" only counts a ball already in
+- `makeBanHole` (`holeMaker.js`): the pin is a color the allowed clubs reach in exactly the perfect score while every club together reaches it in fewer, so each ban costs at least a stroke (two on hole 4); putts alone can't hole it; birdie line 1–4 counting allowed clubs
+- Caddie Strike (`generateCourses.mjs`, seed 8, full spectrum, par 72, perfect 51, no hazards: a bunker would need wedges a hole might ban). Bans: No Driver or Woods (1, 7, 14), No putter (2, 10), No Hybrids (3, 12), No Wedges (4, 11, 16), No Driver, Woods or Iron (5, 13), No Tints or Shades (6, 15), No Woods or Wedges (8, 18), Hybrids, Iron and putter only (9, 17)
+- Panel: "Caddie strike: … on this hole" under the hole info; banned rows grey out as in a bunker, and blocked swatches are `aria-disabled`; orange tutorial box on hole 1; How to play
+- Unlock: Caddie Strike needs −4 or better on Silverglass Greens
+
+**Tried and dropped**
+- "Wedges and putter only": wedge moves go in any order, so 11–16 first shots keep the perfect score, far over the 1–4 band. "No Iron": one short row rarely costs a stroke. "No putter" and "No Wedges" on par 3s: the putter never saves a stroke on a par 3, and a no-wedge par 3 only cost one when putts alone could hole it
+
+**Verified**
+- Every hole: perfect matches the solver under its ban; without the ban the perfect score is lower; no perfect route uses a banned club; courses 1–7 unchanged byte for byte
+- `replayRound`: a perfect round is 51; a banned club is refused
+- Headless Chrome: holes 1–4 played to birdies; a double-click on a banned swatch plays nothing; no console errors
+
+---
+
 ## Milestone 26 — Mirrors: Silverglass Greens (v1.8.1) `[ai-assisted]`
 **2026-10-31**
 

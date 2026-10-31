@@ -1,6 +1,7 @@
 import { searchFrom, parFor, pathTo, reachesWithin } from "./solver.js";
 import { CLUBS, allStrikes, mirrorOf, roundHSL, encode, decode } from "./clubs.js";
 import { hazardMap, isWedge, WEDGES } from "./hazards.js";
+import { clubMask } from "./rules.js";
 import { hslDistance, IN_THE_HOLE, ON_THE_GREEN } from "./oklab.js";
 
 // ----------------------------------
@@ -110,13 +111,17 @@ function birdieLines(hole, perfect, map = null) {
         return reachesWithin(shot, hole.target, perfect - 1, map);
     });
 }
+// (only clubs the hole's rules allow, v1.8.2)
 const birdieLineCount = (hole, perfect, map, wind = null) => {
+    const rules = hole.rules ?? null;
+    const allowed = clubMask(rules);
     let count = 0;
-    for (const landing of allStrikes(hole.tee, wind)) { // counts clubs, like the selection check
+    allStrikes(hole.tee, wind).forEach((landing, i) => { // counts clubs, like the selection check
+        if (allowed && !allowed[i]) return;
         const shot = map.land(landing); // through a portal (v1.8) or a mirror (v1.8.1)
-        if (map.at(landing) === "water") continue;
-        if (reachesWithin(shot, hole.target, perfect - 1, map, { wind })) count++;
-    }
+        if (map.at(landing) === "water") return;
+        if (reachesWithin(shot, hole.target, perfect - 1, map, { wind, rules })) count++;
+    });
     return count;
 };
 
@@ -456,11 +461,55 @@ export function makeMirrorHole(rand, { par, perfect, hues, sats, band, chain = f
     return null;
 }
 
+// A club-ban hole (v1.8.2, Caddie Strike): `rules` bans some rows, and the pin is a color the allowed
+// clubs reach in exactly `perfect` strokes but every club together reaches in fewer, so the ban
+// always costs at least a stroke (not checked on the ace), and putts alone can't hole it (the tee
+// isn't really on the green). Birdie line in `band`, counting allowed clubs.
+// Returns { tee, target, par, perfect, rules }, or null if 300 tries find nothing.
+const PUTTS_ONLY = { ban: [...new Set(CLUBS.map(club => club.row))].filter(row => row !== "putter") };
+
+export function makeBanHole(rand, { par, perfect, hues, sats, band, rules }) {
+    for (let tries = 0; tries < 300; tries++) {
+        const tee = randomColor(rand, hues, sats);
+        const search = searchFrom(tee, perfect, null, { rules });
+        const fits = (pin) => {
+            const yards = yardsBetween(tee, pin);
+            return inRange(pin, hues, sats) && yards >= LENGTH[par][0] && yards <= LENGTH[par][1] && hslDistance(tee, pin) >= ON_THE_GREEN * 2;
+        };
+        // Colors first reached in exactly `perfect` strokes (the ace: a swatch, nudged inside the hole)
+        let pins = search.reached.filter(code => search.dist[code] === perfect).map(decode);
+        if (perfect === 1) pins = pins.map(pin => nudge(rand, pin, 0, IN_THE_HOLE * 0.75)).filter(Boolean);
+        pins = pins.filter(fits);
+        for (let n = 0; n < 12 && pins.length; n++) {
+            const target = pins.splice(Math.floor(rand() * pins.length), 1)[0];
+            if (parFor(search, target)?.par !== perfect) continue;
+            if (perfect > 1 && !reachesWithin(tee, target, perfect - 1)) continue; // the ban costs a stroke
+            if (reachesWithin(tee, target, perfect, null, { rules: PUTTS_ONLY })) continue;
+            const hole = { tee, target, par, perfect, rules };
+            if (perfect > 1) {
+                const line = birdieLineCount(hole, perfect, hazardMap([]));
+                if (line < band[0] || line > band[1]) continue;
+            }
+            return hole;
+        }
+    }
+    return null;
+}
+
 // One hole: { tee, target, par, perfect, hazards?, wind? }. `rands` are { rand, hazardRand, windRand }
 // (separate sequences, so adding hazards or wind never changes which tee and target are chosen).
 // `plan` is { water, greenside, route } counts or null; `windPlan` is { hue: [min, max], light: [min, max] }
 // or null. `layup` makes a par 5 whose birdie lines are all under water. `log` reports a hole left clear.
-export function buildHole({ rand, hazardRand, windRand }, { par, perfect, hues, sats, difficulty, plan = null, windPlan = null, layup = false, portals = null, mirrors = null, log = () => {} }) {
+export function buildHole({ rand, hazardRand, windRand }, { par, perfect, hues, sats, difficulty, plan = null, windPlan = null, layup = false, portals = null, mirrors = null, rules = null, log = () => {} }) {
+    // Club bans (v1.8.2): the hole is built under its rules
+    for (let attempt = 0; rules && attempt < 8; attempt++) {
+        const hole = makeBanHole(rand, { par, perfect, hues, sats, band: BIRDIE_LINE[difficulty], rules });
+        if (hole) {
+            hole.lines = birdieLineCount(hole, hole.perfect, hazardMap([]));
+            return hole;
+        }
+        if (attempt === 7) log(`no hole passed the checks with "${rules.name}"; built without a ban`);
+    }
     // Mirrors (v1.8.1): the hole is built round its mirror
     for (let attempt = 0; mirrors && attempt < 8; attempt++) {
         const hole = makeMirrorHole(rand, { par, perfect, hues, sats, band: BIRDIE_LINE[difficulty], ...mirrors });
