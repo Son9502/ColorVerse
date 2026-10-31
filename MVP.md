@@ -209,7 +209,7 @@ Seven account-only courses after Royal Indigo, each built around one gimmick, th
 | # | Course | Colors | Gimmick | What it does |
 |---|---|---|---|---|
 | 6 | Violet Vortex | Violets and purples (250°–300°) | Portals | Landing inside a portal (a looks-like region, like a hazard) warps the ball to the portal's fixed exit color, which can be far outside the course's hues. Shortcuts across the wheel, and traps that send you backwards. |
-| 7 | Silverglass Greens | Muted, grayish colors (saturation 10–45%), any hue | Mirrors | On a mirror region, the Mirror club reverses the color's hex (#5A1A5B → #B5A1A5) for a stroke. (First specced as hue moves flipping inside a mirror; changed in v1.8.1, see Done.) |
+| 7 | Silverglass Greens | Muted, grayish colors (saturation 10–45%), any hue | Mirrors | Land on a mirror region and the color's hex flips (#234243 → #342432), like a portal. (First specced as hue moves flipping inside a mirror; changed in v1.8.1, see Done.) |
 | 8 | Caddie Strike | Full spectrum | Club bans | Each hole bans some clubs ("Irons only", "No Driver or Woods", "Wedges and putter only"); banned rows grey out, as in a bunker. |
 | 9 | Saffron Whirlwind | Yellows and oranges (30°–65°) | Turning wind | The wind changes every shot in a short cycle known before you tee off ("+8° ↻, then −4% light, then calm, repeat"). Shown as the current and next wind. |
 | 10 | Scarlet Roulette | Reds and pinks (330°–20°) | Roulette row | A new row whose one swatch cycles through 4 hue shifts, one per second (set per hole, e.g. +30°, +95°, −60°, +150°). The stroke plays whichever shift is showing when you tap; keyboard players get the 4 as separate swatches. |
@@ -236,9 +236,9 @@ Seven account-only courses after Royal Indigo, each built around one gimmick, th
 - **Tutorial hole:** each gimmick course's hole 1 teaches its gimmick (the course's `tutorial` text, shown on hole 1, and a hole built so the gimmick is the way to par; Violet Vortex's has a bigger portal and no trap). Later expansion courses do the same.
 
 **Done:** v1.8.1 Silverglass Greens: 18 mirror holes (saturation 12–45%, any hue), par 72, perfect 51.
-- **Changed from the spec:** instead of flipping hue moves, a mirror lets you play the **Mirror club**, which reverses your color's hex (#5A1A5B → #B5A1A5). Its row shows on holes with mirrors and is greyed out off one; the swatch shows where it goes. The hue flip only reshuffled the swatches, so it could never shorten or block a route; the hex mirror opens new ones.
-- Holes are built round the mirror (on the tee or a tee shot's landing), two strokes longer without it on par 3s and 4s, like Violet Vortex's portals; decoy mirrors reflect far from the pin.
-- Swatches that land on a mirror are outlined (dotted silver) and labeled "⇄ N yds", where the Mirror club would then go. Chain holes (5, 11, 14) need two mirrors with a shot between them; two presses in a row cancel out.
+- **Changed from the spec:** land on a mirror and your color's hex flips (#234243 → #342432), like a portal whose exit is your own color reversed. The hue-flip mirror only reshuffled the swatches, so it could never shorten or block a route; a Mirror club (+1 stroke) was built next and replaced by this.
+- Holes are built round the mirrors, two strokes longer without them on par 3s and 4s, like Violet Vortex's portals. Chains (5, 11, 14) need two mirrors with a shot between; decoys reflect far from the pin; the ace flips into the hole.
+- Swatches that land on a mirror are outlined (dotted silver) and labeled "⇄ N yds", where the flip leaves you.
 - Tutorial boxes take the course's or the hazard's color, and bunkers, water and black holes get one on their first hole of a round.
 
 **Order:** one course per release, each playable and committed before the next: v1.8.0 hole rules + Portals (Violet Vortex), v1.8.1 Mirror greens (Silverglass Greens), v1.8.2 Club bans (Caddie Strike), v1.8.3 Turning wind (Saffron Whirlwind), v1.8.4 Roulette (Scarlet Roulette), v1.8.5 Flip (Hexflip Hollow), v1.8.6 Survival (The Obsidian Gauntlet).

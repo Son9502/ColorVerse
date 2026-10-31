@@ -1,4 +1,4 @@
-import { searchFrom, parFor, pathTo, reachesWithin, landingsFrom } from "./solver.js";
+import { searchFrom, parFor, pathTo, reachesWithin } from "./solver.js";
 import { CLUBS, allStrikes, mirrorOf, roundHSL, encode, decode } from "./clubs.js";
 import { hazardMap, isWedge, WEDGES } from "./hazards.js";
 import { hslDistance, IN_THE_HOLE, ON_THE_GREEN } from "./oklab.js";
@@ -112,10 +112,9 @@ function birdieLines(hole, perfect, map = null) {
 }
 const birdieLineCount = (hole, perfect, map, wind = null) => {
     let count = 0;
-    // counts clubs, like the selection check (the Mirror club too, from a tee on a mirror)
-    for (const landing of landingsFrom(hole.tee, map.at(hole.tee), wind)) {
-        const shot = map.land(landing); // through a portal (v1.8)
-        if (map.at(shot) === "water") continue;
+    for (const landing of allStrikes(hole.tee, wind)) { // counts clubs, like the selection check
+        const shot = map.land(landing); // through a portal (v1.8) or a mirror (v1.8.1)
+        if (map.at(landing) === "water") continue;
         if (reachesWithin(shot, hole.target, perfect - 1, map, { wind })) count++;
     }
     return count;
@@ -387,97 +386,71 @@ export function placeMaze(rand, hole, wanted, band, { skip = 1, share = 0.5 } = 
     return null;
 }
 
-// A mirror hole (v1.8.1), built round its mirror the way portal holes are built round their portal:
-// the mirror sits on the tee (`onTee`) or on one of the tee's full shots, the pin is the rest of the
-// perfect score from the mirror's reflection (the Mirror club reverses the hex), and without the
-// mirror the hole is at least `skip` strokes longer, so the mirror is the way to par. A `decoy` is a
-// second mirror on another tee shot whose reflection lands far from the pin (200+ yds, and not on the
-// perfect score). A `tutorial` mirror is bigger. Checked: perfect, the birdie line in `band`.
+// A mirror hole (v1.8.1), built round its mirrors the way portal holes are built round their portals.
+// A mirror sits where one of the tee's full shots lands and flips the ball's hex there, for no extra
+// stroke; the pin is the rest of the perfect score from that reflection. With `chain`, the reflection
+// is one shot from a second mirror, and the pin is the rest from *its* reflection (neither mirror alone
+// makes the perfect score). Without mirrors the hole is at least `skip` strokes longer, so they're the
+// way to par. A `decoy` is one more mirror on another tee shot, reflecting 200+ yds from the pin and off
+// the perfect score. A `tutorial` mirror is bigger, and 3+ tee shots land on it. Each flip that
+// matters lands at most 75% of the hole's length from the pin, so the swatch's label reads as progress.
 // Returns { tee, target, par, perfect, hazards }, or null if 400 tries find nothing.
-export function makeMirrorHole(rand, { par, perfect, hues, sats, band, onTee = false, decoy = false, tutorial = false, skip = 1 }) {
-    const after = perfect - (onTee ? 1 : 2); // strokes from the reflection into the hole
+export function makeMirrorHole(rand, { par, perfect, hues, sats, band, chain = false, decoy = false, tutorial = false, skip = 1 }) {
+    const after = perfect - (chain ? 2 : 1); // strokes from the last reflection into the hole
     if (after < 0) return null;
-    const radius = () => Math.round(tutorial ? 36 + rand() * 6 : 22 + rand() * 10);
+    const pick = (list) => list[Math.floor(rand() * list.length)];
+    const radius = () => Math.round(tutorial ? 34 + rand() * 6 : 22 + rand() * 10);
+    const fullShots = (from) => allStrikes(from).slice(0, 35); // a putt stays too near to need a mirror
+
     for (let tries = 0; tries < 400; tries++) {
         const tee = randomColor(rand, hues, sats);
-        const shots = allStrikes(tee).slice(0, 35); // full shots: a putt stays too near the tee
-        const spot = onTee ? tee : shots[Math.floor(rand() * shots.length)];
-        const reflected = mirrorOf(spot);
-
-        // The pin: `after` strokes from the reflection (on it, for the ace), in the course's colors
-        // and the par's length
         const fits = (pin) => {
             const yards = yardsBetween(tee, pin);
             return inRange(pin, hues, sats) && yards >= LENGTH[par][0] && yards <= LENGTH[par][1] && hslDistance(tee, pin) >= ON_THE_GREEN * 2;
         };
+        // Mirror spots: a tee shot, then (chain) a shot from its reflection
+        const spots = [pick(fullShots(tee))];
+        if (chain) spots.push(pick(fullShots(mirrorOf(spots[0]))));
+        const last = mirrorOf(spots.at(-1));
+
+        // The pin: `after` strokes from the last reflection (on it, when that's 0)
         let pins;
         if (after === 0) {
-            pins = [nudge(rand, reflected, 0, IN_THE_HOLE * 0.75)].filter(pin => pin && fits(pin));
+            pins = [nudge(rand, last, 0, IN_THE_HOLE * 0.75)].filter(pin => pin && fits(pin));
         } else {
-            const search = searchFrom(reflected, after);
+            const search = searchFrom(last, after);
             pins = search.reached.filter(code => search.dist[code] === after).map(decode).filter(fits);
         }
+        const closer = (pin) => spots.every(spot => yardsBetween(mirrorOf(spot), pin) <= yardsBetween(tee, pin) * 0.75);
+        pins = pins.filter(closer);
         if (!pins.length) continue;
-        const target = pins[Math.floor(rand() * pins.length)];
+        const target = pick(pins);
 
-        const mirrors = [{ type: "mirror", center: spot, radius: radius() }];
-        if (!roomFor(spot, mirrors[0].radius, [], onTee ? [target] : [tee, target])) continue;
+        // Mirrors clear of each other, the tee, the pin and the reflections (so a flip lands off them)
+        const mirrors = [];
+        const fixed = [tee, target, ...spots.map(mirrorOf)];
+        for (const center of spots) {
+            const r = radius();
+            if (roomFor(center, r, mirrors, fixed)) mirrors.push({ type: "mirror", center, radius: r });
+        }
+        if (mirrors.length < spots.length) continue;
+        if (tutorial && allStrikes(tee).filter(shot => hazardMap(mirrors).at(shot) === "mirror").length < 3) continue;
         if (decoy) {
-            const options = shots.filter(shot => roomFor(shot, 30, mirrors, [tee, target])
-                && yardsBetween(mirrorOf(shot), target) >= 200 && !reachesWithin(mirrorOf(shot), target, perfect - 2));
+            const options = fullShots(tee).filter(shot => roomFor(shot, 30, mirrors, fixed)
+                && yardsBetween(mirrorOf(shot), target) >= 200 && !reachesWithin(mirrorOf(shot), target, perfect - 1));
             if (!options.length) continue;
-            mirrors.push({ type: "mirror", center: options[Math.floor(rand() * options.length)], radius: radius() });
+            mirrors.push({ type: "mirror", center: pick(options), radius: radius() });
         }
 
-        // Without the mirror: at least `skip` strokes longer. With it: exactly `perfect`.
+        // Without mirrors: at least `skip` strokes longer. With them: exactly `perfect`, and a chain
+        // needs both of its mirrors
         if (reachesWithin(tee, target, perfect + skip - 1)) continue;
-        const map = hazardMap(mirrors);
-        if (parFor(searchFrom(tee, perfect, map), target)?.par !== perfect) continue;
+        const reaches = (list) => parFor(searchFrom(tee, perfect, hazardMap(list)), target)?.par === perfect;
+        if (!reaches(mirrors)) continue;
+        if (chain && (reaches(mirrors.filter((_, i) => i !== 0)) || reaches(mirrors.filter((_, i) => i !== 1)))) continue;
         const hole = { tee, target, par, perfect, hazards: mirrors };
-        const line = birdieLineCount(hole, perfect, map);
+        const line = birdieLineCount(hole, perfect, hazardMap(mirrors));
         if (perfect > 1 && (line < band[0] || line > band[1])) continue;
-        return hole;
-    }
-    return null;
-}
-
-// A mirror chain (v1.8.1): two mirrors with a shot between them (two presses in a row cancel out).
-// Perfect 3: Mirror from a tee on a mirror, a shot onto the second mirror, Mirror into the hole.
-// Perfect 4: a tee shot onto the first mirror first. Without mirrors the hole is at least `skip`
-// strokes longer, and neither mirror alone makes the perfect score. Checked as makeMirrorHole.
-// Returns { tee, target, par, perfect, hazards }, or null if 400 tries find nothing.
-export function makeMirrorChain(rand, { par, perfect, hues, sats, band, skip = 1 }) {
-    if (perfect !== 3 && perfect !== 4) return null;
-    const pick = (list) => list[Math.floor(rand() * list.length)];
-    const radius = () => Math.round(22 + rand() * 10);
-    for (let tries = 0; tries < 400; tries++) {
-        const tee = randomColor(rand, hues, sats);
-        const first = perfect === 3 ? tee : pick(allStrikes(tee).slice(0, 35)); // full shots only
-        const bounce = mirrorOf(first);
-        // The second mirror: any full shot from the bounce whose reflection makes a pin in the
-        // course's colors and the par's length
-        const fits = (pin) => {
-            const yards = yardsBetween(tee, pin);
-            return inRange(pin, hues, sats) && yards >= LENGTH[par][0] && yards <= LENGTH[par][1] && hslDistance(tee, pin) >= ON_THE_GREEN * 2;
-        };
-        const options = allStrikes(bounce).slice(0, 35)
-            .map(second => ({ second, target: nudge(rand, mirrorOf(second), 0, IN_THE_HOLE * 0.75) }))
-            .filter(({ target }) => target && fits(target));
-        if (!options.length) continue;
-        const { second, target } = pick(options);
-
-        const one = { type: "mirror", center: first, radius: radius() };
-        const two = { type: "mirror", center: second, radius: radius() };
-        // Apart from each other, the pin, the tee (unless it's on the first) and where the first sends you
-        if (!roomFor(one.center, one.radius, [], perfect === 3 ? [target, bounce] : [tee, target, bounce])) continue;
-        if (!roomFor(two.center, two.radius, [one], [tee, target, bounce])) continue;
-
-        if (reachesWithin(tee, target, perfect + skip - 1)) continue;
-        const reaches = (mirrors) => parFor(searchFrom(tee, perfect, hazardMap(mirrors)), target)?.par === perfect;
-        if (!reaches([one, two]) || reaches([one]) || reaches([two])) continue;
-        const hole = { tee, target, par, perfect, hazards: [one, two] };
-        const line = birdieLineCount(hole, perfect, hazardMap(hole.hazards));
-        if (line < band[0] || line > band[1]) continue;
         return hole;
     }
     return null;
@@ -490,8 +463,7 @@ export function makeMirrorChain(rand, { par, perfect, hues, sats, band, skip = 1
 export function buildHole({ rand, hazardRand, windRand }, { par, perfect, hues, sats, difficulty, plan = null, windPlan = null, layup = false, portals = null, mirrors = null, log = () => {} }) {
     // Mirrors (v1.8.1): the hole is built round its mirror
     for (let attempt = 0; mirrors && attempt < 8; attempt++) {
-        const make = mirrors.chain ? makeMirrorChain : makeMirrorHole;
-        const hole = make(rand, { par, perfect, hues, sats, band: BIRDIE_LINE[difficulty], ...mirrors });
+        const hole = makeMirrorHole(rand, { par, perfect, hues, sats, band: BIRDIE_LINE[difficulty], ...mirrors });
         if (hole) {
             hole.lines = birdieLineCount(hole, hole.perfect, hazardMap(hole.hazards));
             return hole;

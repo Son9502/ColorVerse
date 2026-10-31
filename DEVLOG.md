@@ -12,25 +12,25 @@ Each entry is tagged with how it was produced:
 ## Milestone 26 — Mirrors: Silverglass Greens (v1.8.1) `[ai-assisted]`
 **2026-10-31**
 
-The second expansion course. The spec's hue-flipping mirror was built first and replaced after review by the developer's idea: a Mirror club that reverses the hex. Implementation `[ai-assisted]`.
+The second expansion course. The mirror went through three designs with the developer; the last is the developer's: land on a mirror and your color's hex flips. Implementation `[ai-assisted]`.
 
 **Added**
-- Mirror club (`clubs.js`: `MIRROR`, `mirrorOf`): reverses the color's hex (#5A1A5B → #B5A1A5), back to whole-number HSL. Appended after the putter (club id 41), so recorded rounds keep their ids; not one of `allStrikes`' 41 shots. Not blown by the wind
-- Mirrors (`hazards.js`): a region type with no penalty; `allows` lets the Mirror club play only from inside one, so the round, the solver (`landingsFrom` adds it there) and the server's replay all enforce it. Every other region wins over a mirror
-- `makeMirrorHole` (`holeMaker.js`): the hole is built round its mirror, as Violet Vortex's are round their portals: the mirror is on the tee or on a tee shot's landing, the pin is the rest of the perfect score from the reflection, and without the mirror the hole is two strokes longer on par 3s and 4s (par needs the mirror) and one on par 5s. `decoy` adds a second mirror on another tee shot whose reflection lands 200+ yds from the pin. `makeHole` / `buildHole` take a saturation range (`sats`)
-- Silverglass Greens (`generateCourses.mjs`, seed 7, any hue, saturation 12–45%, par 72, perfect 51): tutorial hole 1 (a big mirror on the tee); mirrors on the tee on 3, 6, 7, 10, 13, 17 and the ace (16, holed with the mirror), on a tee shot's landing on 2, 4, 8, 9, 12, 15, 18; decoys on 4, 6, 8, 10, 12, 15, 17; chains on 5, 11, 14
-- Panel: a Mirror row (shown on holes with mirrors, greyed out off one) whose swatch shows exactly where it goes; note "On a mirror: the Mirror club reverses your color's hex, #… → #…"; "Mirror: you're on it / N yds from you"; "perfect line N of 42" from a tee on a mirror; dots, summary, How to play
-- Map: solid silver footprint with a dark rim and a ⇄ icon
+- Mirrors (`hazards.js`): a region type that works like a portal, but the ball comes out at its own color with the hex reversed (#234243 → #342432, `mirrorOf` in `clubs.js`, back to whole-number HSL), once, for no extra stroke. `land` covers portals and mirrors, so the round, the solver, the birdie-line count and the server's replay all follow it. Every other region wins over a mirror. Water and black holes are judged where a ball lands, not where a warp puts it, in the round and the solver alike
+- `makeMirrorHole` (`holeMaker.js`): the hole is built round its mirrors, as Violet Vortex's are round their portals. A mirror sits where a tee shot lands; the pin is the rest of the perfect score from the reflection; without mirrors par 3s and 4s take two more strokes (par needs a mirror) and par 5s one more. `chain`: a shot from the reflection lands on a second mirror, and neither alone makes the perfect score. `decoy`: a mirror on another tee shot reflecting 200+ yds from the pin. `tutorial`: a bigger mirror that 3+ tee shots land on. Each flip on the route lands at most 75% of the hole's length from the pin, so its label reads as progress. `makeHole` / `buildHole` take a saturation range (`sats`)
+- Silverglass Greens (`generateCourses.mjs`, seed 7, any hue, saturation 12–45% for tees and pins, par 72, perfect 51): tutorial 1; chains 5, 11, 14; decoys 3, 6, 8, 10, 13, 17; the ace (16) flips into the hole
+- Panel: swatches that land on a mirror get a dotted silver outline and a "⇄ N yds" label (where the flip leaves you, with a chip of that color; "Mirror" on Expert), also in the tooltip and aria-label; "Mirror! Your color's hex flipped: #… → #…"; list, summary, score-card dots, How to play. Map: solid silver footprint with a dark rim and a ⇄ icon; the trail jumps at a flip
 - Tutorial boxes take the course's or the hazard's color (Violet Vortex purple, Silverglass silver), and the first hole of a round with a bunker, water or a black hole gets its own box explaining it (Expert bunkers: only the named wedge)
+- "Last shot" after a portal, black hole or mirror measures the shot, not the jump
 - Unlock: Silverglass Greens needs −4 or better on Violet Vortex
-- After review: swatches that land on a mirror get a dotted silver outline and a "⇄ N yds" label (where the Mirror club would then go, with a chip of that color; "Mirror" on Expert), like portals; `makeMirrorChain` builds holes with two mirrors and a shot between them (Mirror, a shot onto the second, Mirror into the hole), where neither mirror alone makes the perfect score
 
 **Tried and dropped**
-- The spec's mirror (hit from inside one and every hue move flips, swatches showing the unflipped colors, ⇄ marks on the ones that change). It only reshuffles which swatch goes where, so it never shortens or blocks a route: 0 of 36 muted holes could make one unavoidable (a wedge first and the hue move later always got round). The hex mirror opens new routes, so holes can be built round it
+- The spec's mirror: hit from inside one and every hue move flips (swatches unflipped, ⇄ marks on the ones that change). It only reshuffles which swatch goes where, so it can't shorten or block a route: 0 of 36 muted holes could make one unavoidable
+- A Mirror club playable only on a mirror (+1 stroke to reverse the hex). It worked (chains included) but the developer preferred the flip happening on landing, like a portal
 
 **Verified**
-- Every hole: stored perfect matches the solver and every perfect route plays the Mirror club; without mirrors par 3s and 4s take 2 more strokes; courses 1–6 unchanged byte for byte
-- `replayRound`: a perfect round is 51 strokes; the Mirror club off a mirror is refused; Violet Vortex and Royal Indigo still replay to their perfect scores
+- Every hole: stored perfect matches the solver and the game; every perfect route flips (chains twice); without mirrors each par 3 and 4 is over par; courses 1–6 unchanged byte for byte
+- `replayRound`: a perfect round is 51 strokes; Violet Vortex, Royal Indigo and Ember Dunes still replay to their perfect scores
+- Headless Chrome: hole 1 (3 outlined swatches, tutorial, flip note), holes 1–2 played to birdies, no console errors
 
 ---
 

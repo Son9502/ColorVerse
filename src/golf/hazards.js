@@ -1,4 +1,4 @@
-import { STATE_COUNT, encode } from "./clubs.js";
+import { STATE_COUNT, encode, mirrorOf } from "./clubs.js";
 import { hslToOklab, oklabDistance } from "./oklab.js";
 
 // ----------------------------------
@@ -16,8 +16,9 @@ import { hslToOklab, oklabDistance } from "./oklab.js";
 //   over sand, if regions ever overlap.
 // - Black hole (v1.8): +1 penalty stroke and the ball goes back to the tee. Like water, landing in
 //   one is never worth it, so the solver skips those strokes. A black hole wins over everything.
-// - Mirror (v1.8.1): no penalty; from inside one the Mirror club can be played (it reverses the
-//   color's hex, clubs.js), and only there. Every other region wins over a mirror.
+// - Mirror (v1.8.1): like a portal, but the ball comes out at its own color with the hex reversed
+//   (#234243 → #342432, clubs.js: mirrorOf), once: wherever that is, it stays. Only the landing
+//   matters, so the solver stays exact. Every other region wins over a mirror.
 
 export const WEDGES = ["tints", "shades", "tones", "saturate"];
 export const WEDGE_ROWS = new Set(WEDGES);
@@ -70,8 +71,8 @@ export function hazardMap(hazards = []) {
         return k >= PORTAL ? hazards[k - PORTAL] : null;
     };
 
-    // Where a ball that lands on `hsl` ends up: the portal's exit, or right there
-    const land = (hsl, code = encode(hsl)) => portalAt(hsl, code)?.exit ?? hsl;
+    // Where a ball that lands on `hsl` ends up: the portal's exit, its mirror image, or right there
+    const land = (hsl, code = encode(hsl)) => portalAt(hsl, code)?.exit ?? (at(hsl, code) === "mirror" ? mirrorOf(hsl) : hsl);
 
     // In a bunker: the one wedge row allowed there, or null if any wedge is (also null outside sand)
     const wedgeAt = (hsl, code = encode(hsl)) => {
@@ -80,10 +81,8 @@ export function hazardMap(hazards = []) {
         return k > SAND && k < WATER ? WEDGES[k - SAND - 1] : null;
     };
 
-    // Whether `club` can be played from `hsl`: anything outside sand; in sand, a wedge (the named one,
-    // if any). The Mirror club only from inside a mirror.
+    // Whether `club` can be played from `hsl`: anything outside sand; in sand, a wedge (the named one, if any)
     const allows = (hsl, club, code = encode(hsl)) => {
-        if (club.row === "mirror") return at(hsl, code) === "mirror";
         if (at(hsl, code) !== "sand") return true;
         const wedge = wedgeAt(hsl, code);
         return wedge ? club.row === wedge : isWedge(club);

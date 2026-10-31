@@ -56,22 +56,20 @@ const VORTEX_PLAN = {
     ace: () => null,
 };
 
-// Silverglass Greens (v1.8.1): each hole is built round a mirror (see makeMirrorHole), on the tee
-// or on a tee shot's landing, and `skip` strokes longer without it, like Violet Vortex's portals;
-// `decoy` adds a second mirror whose reflection leads nowhere; a `chain` (see makeMirrorChain) needs
-// two mirrors with a shot between them. The ace is a mirror on the tee.
+// Silverglass Greens (v1.8.1): each hole is built round its mirrors (see makeMirrorHole), where tee
+// shots land; a ball that lands on one comes out with its hex reversed. Without them the hole is
+// `skip` strokes longer, like Violet Vortex's portals. `decoy` adds a mirror whose reflection leads
+// nowhere; a `chain` needs two mirrors with a shot between them. The ace flips into the hole.
 const MIRROR_HOLES = [
-    "tutorial", "route", "tee", "decoy", "chain", "teeDecoy", "tee", "decoy", "route",
-    "teeDecoy", "chain", "decoy", "tee", "chain", "decoy", "ace", "teeDecoy", "route",
+    "tutorial", "mirror", "decoy", "mirror", "chain", "decoy", "mirror", "decoy", "mirror",
+    "decoy", "chain", "mirror", "decoy", "chain", "mirror", "ace", "decoy", "mirror",
 ];
 const MIRROR_PLAN = {
-    tutorial: { onTee: true, tutorial: true },
-    tee: { onTee: true },
-    teeDecoy: { onTee: true, decoy: true },
-    route: {},
+    tutorial: { tutorial: true },
+    mirror: {},
     decoy: { decoy: true },
     chain: { chain: true },
-    ace: { onTee: true },
+    ace: {},
 };
 
 // Each course keeps its tees and targets inside a hue range [from, to) in degrees (wrapping past 360),
@@ -118,8 +116,8 @@ const COURSES = [
     },
     {
         id: "silverglass", name: "Silverglass Greens", seed: 7, hues: [0, 360], sats: [12, 45], difficulty: "Expansion", // muted colors
-        gimmick: "On a mirror, the Mirror club reverses your color's hex (#5A1A5B → #B5A1A5).",
-        tutorial: "You're on a mirror (silver on the map). From one you can play the Mirror club: it reverses your color's hex, #5A1A5B → #B5A1A5. You need it to make par here.",
+        gimmick: "Land on a mirror and your color's hex flips: #234243 comes out as #342432.",
+        tutorial: "A swatch with a dotted silver outline lands on a mirror, which flips your color's hex (#234243 → #342432); its label shows how far from the pin that leaves you. You need one to make par here.",
         mirrors: (i, perfect) => ({ ...MIRROR_PLAN[MIRROR_HOLES[i]], skip: skipFor(perfect) }),
     },
 ];

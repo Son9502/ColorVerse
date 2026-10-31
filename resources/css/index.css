@@ -574,8 +574,7 @@ Color Categories + Squares
 #tints,
 #tones,
 #saturate,
-#putter,
-#mirror {
+#putter {
     display: flex;
     align-items: flex-start; /* a name or portal label makes a swatch taller: keep the squares in line */
     gap: clamp(6px, 1vw, 18px);
@@ -1765,7 +1764,7 @@ body.golf .golf-portal::before {
     white-space: nowrap;
 }
 
-/* Lands on a mirror (v1.8.1): a dotted silver outline, with where the Mirror club would then
+/* Lands on a mirror (v1.8.1): a dotted silver outline, with where the flip leaves you
    go below it (a chip of that color, --reflect from golf-ui.js, then the yardage), like a portal */
 body.golf .golf-to-mirror .square {
     outline: 2px dotted #7d8794;

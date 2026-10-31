@@ -53,7 +53,6 @@ export class GolfRound {
     get finished() { return this.card.length === this.course.holes.length; }
     get holeDone() { return this.card.length > this.holeIndex; }
     get inSand() { return this.hazards.at(this.current) === "sand"; }
-    get inMirror() { return this.hazards.at(this.current) === "mirror"; }
     get canUndo() { return !this.holeDone && this.history.length > 0 && this.undosLeft[this.nine] > 0; }
 
     // Clubs allowed from here: wedges only in a bunker (just one, in an Expert bunker that names it)
@@ -74,7 +73,8 @@ export class GolfRound {
     // Water: +1 penalty stroke and the ball stays where it was hit from.
     // Portal (v1.8): the ball warps to the portal's exit; the trail keeps the landing, marked `warp`,
     // so the map can show the jump instead of a shot. Black hole (v1.8): +1 penalty stroke and the
-    // ball goes back to the tee, drawn the same way. The Mirror club (v1.8.1) plays only on a mirror.
+    // ball goes back to the tee, drawn the same way. Mirror (v1.8.1): the ball comes out at its color
+    // with the hex reversed, drawn as a jump too. Where a warp puts the ball isn't a landing: no penalty there.
     play(club) {
         if (this.holeDone || !this.canPlay(club)) return null;
         this.history.push({ current: this.current, strokes: this.strokes, trail: this.trail.length });
@@ -85,10 +85,10 @@ export class GolfRound {
         const landedIn = landed ? this.hazards.which(landing) : null;
         if (landed === "water") {
             this.strokes += 2; // the stroke + 1 penalty
-        } else if (landed === "portal" || landed === "blackhole") {
+        } else if (landed === "portal" || landed === "blackhole" || landed === "mirror") {
             this.trail.push(this.current, { ...landing, warp: true });
-            this.current = { ...(landed === "portal" ? landedIn.exit : this.hole.tee) };
-            this.strokes += landed === "portal" ? 1 : 2;
+            this.current = { ...(landed === "blackhole" ? this.hole.tee : this.hazards.land(landing)) };
+            this.strokes += landed === "blackhole" ? 2 : 1; // a black hole adds a penalty stroke
         } else {
             this.trail.push(this.current);
             this.current = landing;

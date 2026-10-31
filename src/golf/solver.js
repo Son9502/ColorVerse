@@ -1,4 +1,4 @@
-import { CLUBS, STATE_COUNT, allStrikes, mirrorOf, encode, decode } from "./clubs.js";
+import { CLUBS, STATE_COUNT, allStrikes, encode, decode } from "./clubs.js";
 import { hslToOklab, oklabDistance, IN_THE_HOLE } from "./oklab.js";
 import { isWedge } from "./hazards.js";
 
@@ -14,8 +14,10 @@ import { isWedge } from "./hazards.js";
 // (see clubs.js); it's fixed per hole, so the search stays exact. A landing in a portal (v1.8) is the
 // portal's exit, which depends only on the landing, so that stays exact too. A black hole (v1.8)
 // is skipped like water (back to the tee is never worth it). `avoidPortals` treats portals as
-// blocked, for the "can't make par without a portal" check on black-hole holes. From inside a mirror
-// (v1.8.1) the Mirror club is one more stroke (its landing depends only on the color, so exact too).
+// blocked, for the "can't make par without a portal" check on black-hole holes. A mirror (v1.8.1)
+// sends the ball to its color with the hex reversed, which depends only on the landing, so that's
+// exact too. Water and black holes are judged where the ball lands, not where a warp puts it (as the
+// round does).
 
 const UNSEEN = 255;
 
@@ -24,12 +26,14 @@ const CLUB_ROW = CLUBS.map(club => club.row);
 // Whether club `i` can be played from a state whose sand rule is `wedge` (null: any wedge)
 const sandAllows = (i, wedge) => (wedge ? CLUB_ROW[i] === wedge : WEDGE_CLUB[i]);
 
-// Every landing from a state, in CLUBS order: the 41 shots, plus the mirror's from inside a mirror
-export function landingsFrom(hsl, lie, wind) {
-    const landings = allStrikes(hsl, wind);
-    if (lie === "mirror") landings.push(mirrorOf(hsl));
-    return landings;
+// Whether a stroke landing on `landing` (ending on `hsl`, through any warp) is never worth it: in
+// water or a black hole, or with `avoidHazards`, in sand where it lands or ends up
+function rough(hazards, landing, hsl, code, avoidHazards) {
+    const hit = hazards.at(landing);
+    if (hit === "water" || hit === "blackhole") return true;
+    return avoidHazards && (hit === "sand" || hazards.at(hsl, code) === "sand");
 }
+
 
 // Strokes from `tee` to every state reachable within `maxDepth`, plus how each was first reached
 export function searchFrom(tee, maxDepth = 7, hazards = null, { avoidHazards = false, avoidPortals = false, wind = null } = {}) {
@@ -50,16 +54,13 @@ export function searchFrom(tee, maxDepth = 7, hazards = null, { avoidHazards = f
             const lie = blocked ? hazards.at(from, code) : null;
             const inSand = lie === "sand";
             const wedge = inSand ? hazards.wedgeAt(from, code) : null;
-            landingsFrom(from, lie, wind).forEach((landing, clubIndex) => {
+            allStrikes(from, wind).forEach((landing, clubIndex) => {
                 if (inSand && !sandAllows(clubIndex, wedge)) return;
                 if (avoidPortals && blocked && hazards.portalAt(landing)) return;
-                const hsl = blocked ? hazards.land(landing) : landing; // through a portal, if it's in one
+                const hsl = blocked ? hazards.land(landing) : landing; // through a portal or a mirror, if it's in one
                 const to = encode(hsl);
                 if (dist[to] !== UNSEEN) return;
-                if (blocked) {
-                    const hazard = hazards.at(hsl, to);
-                    if (hazard === "water" || hazard === "blackhole" || (hazard === "sand" && avoidHazards)) return;
-                }
+                if (blocked && rough(hazards, landing, hsl, to, avoidHazards)) return;
                 dist[to] = depth;
                 parent[to] = code;
                 club[to] = clubIndex;
@@ -117,16 +118,13 @@ export function reachesWithin(from, target, maxDepth, hazards = null, { avoidHaz
                 const lie = blocked ? hazards.at(here, code) : null;
                 const inSand = lie === "sand";
                 const wedge = inSand ? hazards.wedgeAt(here, code) : null;
-                const landings = landingsFrom(here, lie, wind);
+                const landings = allStrikes(here, wind);
                 for (let clubIndex = 0; clubIndex < landings.length; clubIndex++) {
                     if (inSand && !sandAllows(clubIndex, wedge)) continue;
                     const hsl = blocked ? hazards.land(landings[clubIndex]) : landings[clubIndex];
                     const to = encode(hsl);
                     if (seen[to]) continue;
-                    if (blocked) {
-                        const hazard = hazards.at(hsl, to);
-                        if (hazard === "water" || hazard === "blackhole" || (hazard === "sand" && avoidHazards)) continue;
-                    }
+                    if (blocked && rough(hazards, landings[clubIndex], hsl, to, avoidHazards)) continue;
                     if (inHole(hsl)) return true;
                     seen[to] = 1;
                     touched.push(to);

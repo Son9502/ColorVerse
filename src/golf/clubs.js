@@ -25,18 +25,11 @@ export const PUTTER = [
     { label: "Light +", apply: ({ h, s, l }) => ({ h, s, l: l + PUTT }) },
 ];
 
-// Mirror club (v1.8.1): reverses the color's hex (#5A1A5B → #B5A1A5). Only playable from inside a
-// mirror region (hazards.js), so it's not one of allStrikes' 41 shots; the solver adds it there.
-export const MIRROR = { row: "mirror", index: 0 };
-
-// Every club as { row, index }: harmony rows in panel order, then the putter, then the mirror
-// (new clubs go at the end, so recorded rounds keep their club ids)
+// Every club as { row, index }: harmony rows in panel order, then the putter
 export const CLUBS = [
     ...HARMONY_ROWS.flatMap(row => harmonyDict({ h: 0, s: 0, l: 0 })[row].map((_, index) => ({ row, index }))),
     ...PUTTER.map((_, index) => ({ row: "putter", index })),
-    MIRROR,
 ];
-export const MIRROR_ID = CLUBS.length - 1;
 
 // A club as one small number (its place in CLUBS) and back, for recorded rounds (v1.6)
 export const clubId = ({ row, index }) => CLUBS.findIndex(club => club.row === row && club.index === index);
@@ -56,7 +49,7 @@ export function roundHSL({ h, s, l }) {
 export const CALM = null;
 const blow = (hsl, wind) => (wind ? { h: hsl.h + (wind.hue ?? 0), s: hsl.s, l: hsl.l + (wind.light ?? 0) } : hsl);
 
-// All results from one position, in CLUBS order (the 41 harmony and putter shots; not the mirror)
+// All results from one position, in CLUBS order
 export function allStrikes(hsl, wind = CALM) {
     const harmonies = harmonyDict(hsl);
     return [
@@ -65,15 +58,14 @@ export function allStrikes(hsl, wind = CALM) {
     ];
 }
 
-// One stroke with a given club (the swatch shows the calm landing; wind then drifts it).
-// The mirror isn't blown: it reflects exactly.
+// One stroke with a given club (the swatch shows the calm landing; wind then drifts it)
 export function strike(hsl, { row, index }, wind = CALM) {
-    if (row === "mirror") return mirrorOf(hsl);
     if (row === "putter") return roundHSL(PUTTER[index].apply(hsl));
     return roundHSL(blow(roundHSL(harmonyDict(hsl)[row][index]), wind));
 }
 
-// The color whose hex is this one's backwards, as whole-number HSL
+// The color whose hex is this one's backwards (#234243 → #342432), as whole-number HSL: where a
+// mirror (v1.8.1) sends a ball that lands on it
 export function mirrorOf(hsl) {
     const hex = [...hslToHex(hsl).slice(1)].reverse().join("");
     const [r, g, b] = [0, 2, 4].map(i => parseInt(hex.slice(i, i + 2), 16) / 255);
