@@ -1106,12 +1106,18 @@ body.golf .square:hover {
     line-height: 1.4;
 }
 
-/* Course picker: one card per course, with a strip of its hues */
+/* Course picker: one card per course, with a strip of its hues. The list scrolls in its own box
+   (about four cards tall) so the page doesn't grow with every new course. */
 #golf-courses {
     list-style: none;
     display: flex;
     flex-direction: column;
     gap: 8px;
+    max-height: min(440px, 60vh);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-right: 4px; /* room for the scrollbar */
+    scrollbar-gutter: stable;
 }
 
 .golf-course {
