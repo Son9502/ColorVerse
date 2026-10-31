@@ -1112,16 +1112,34 @@ body.golf .square:hover {
 }
 
 /* Daily hole, practice and the courses scroll together in their own box, so the page doesn't
-   grow with every new course */
+   grow with every new course. On a wide screen the box takes whatever height the panel has left
+   (less with Settings open), so its bottom is always on screen; on a phone it's a fixed height. */
 #golf-picker {
     display: flex;
     flex-direction: column;
     gap: 10px;
     max-height: min(560px, 65vh);
     overflow-y: auto;
-    overscroll-behavior: contain;
     padding-right: 4px; /* room for the scrollbar */
     scrollbar-gutter: stable;
+}
+
+@media (min-width: 761px) {
+    body.golf.golf-menu #ui-info {
+        min-height: 0;
+    }
+
+    body.golf.golf-menu #golf-panel:has(> #golf-setup:not([hidden])),
+    body.golf.golf-menu #golf-setup {
+        flex: 1 1 auto;
+        min-height: 0;
+    }
+
+    body.golf.golf-menu #golf-picker {
+        flex: 1 1 auto;
+        max-height: none;
+        min-height: 220px;
+    }
 }
 
 /* Course picker: one card per course, with a strip of its hues */
