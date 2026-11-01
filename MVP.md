@@ -247,6 +247,8 @@ Seven account-only courses after Royal Indigo, each built around one gimmick, th
 
 **Done:** v1.8.3 Saffron Whirlwind: 18 turning-wind holes (30°–65°), par 72, perfect 49 (par 5s are eagle holes: three strokes of turning wind reach nearly every color). The cycle lives in `hole.rules.windCycle`; the solver tracks the wind's place in it, so it stays exact. The hole line shows the whole cycle, the map badge this stroke's wind and the next. No water or black holes on this course (penalty strokes turn the wind too).
 
+**Done:** v1.8.4 Scarlet Roulette: 18 roulette holes (330°–20°), par 72, perfect 49. A Roulette row's wheel spins through four hue shifts set per hole, one a second, and a stroke plays the one showing; keyboard players get the four as separate swatches. Changed from the spec's intent: the roulette is the way to the perfect score, not to par (a hue shift can save one stroke at most).
+
 **Order:** one course per release, each playable and committed before the next: v1.8.0 hole rules + Portals (Violet Vortex), v1.8.1 Mirror greens (Silverglass Greens), v1.8.2 Club bans (Caddie Strike), v1.8.3 Turning wind (Saffron Whirlwind), v1.8.4 Roulette (Scarlet Roulette), v1.8.5 Flip (Hexflip Hollow), v1.8.6 Survival (The Obsidian Gauntlet).
 
 ### v2.0: 1-D and 2-D Modes

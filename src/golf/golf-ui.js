@@ -36,9 +36,14 @@ const HUE_SHIFTS = {
     "tetradic": [90, 180, 270], "double-complementary": [60, 180, 240], "analogous": [-40, -20, 20, 40],
 };
 
-// "Tints 60%", "Triadic +120°", "Putter Sat +"
+// The hole's roulette shifts (v1.8.4), for the roulette clubs' names; set at each hole
+let rouletteShifts = null;
+const shiftText = (shift) => `${shift > 0 ? "+" : "−"}${Math.abs(shift)}°`;
+
+// "Tints 60%", "Triadic +120°", "Putter Sat +", "Roulette +95°"
 function clubName({ row, index }) {
     if (row === "putter") return `Putt ${PUTTER[index].label}`;
+    if (row === "roulette") return `Roulette ${shiftText(rouletteShifts?.[index] ?? 0)}`;
     if (HUE_SHIFTS[row]) {
         const shift = HUE_SHIFTS[row][index];
         return `${ROW_NAMES[row]} ${shift > 0 ? "+" : "−"}${Math.abs(shift)}°`;
@@ -65,6 +70,7 @@ const HAZARD_LESSONS = {
 // Pro label under a swatch: the row name is already above it, so just the shift or strength
 function proLabel({ row, index }) {
     if (row === "putter") return PUTTER[index].label;
+    if (row === "roulette") return clubName({ row, index }).slice("Roulette ".length);
     return clubName({ row, index }).slice(ROW_NAMES[row].length + 1);
 }
 
@@ -300,6 +306,19 @@ export function setupGolf() {
     const putterBoxes = PUTTER.map((_, index) => $(`putt${index + 1}`));
     putterBoxes.forEach((box, index) => clubs.set(box, { row: "putter", index }));
     const putterNames = putterBoxes.map(addNameLabel);
+    // Roulette (v1.8.4): four keys (clubs, for the keyboard) and the wheel that spins through them
+    const rouletteKeys = [1, 2, 3, 4].map(i => $(`roul${i}`));
+    rouletteKeys.forEach((box, index) => clubs.set(box, { row: "roulette", index }));
+    const rouletteNames = rouletteKeys.map(addNameLabel);
+    const wheel = $("roulette-wheel");
+    let spin = 0; // the shift the wheel shows
+    const wheelClub = () => ({ row: "roulette", index: spin });
+    // The keys show while one of them has focus (index.css)
+    const rouletteRow = $("roulette");
+    rouletteRow.addEventListener("focusin", () => rouletteRow.classList.add("keys-open"));
+    rouletteRow.addEventListener("focusout", ({ relatedTarget }) => {
+        if (!rouletteRow.contains(relatedTarget)) rouletteRow.classList.remove("keys-open");
+    });
     // Pro rounds show these under the swatches instead of the colors (index.css)
     for (const [box, club] of clubs) box.closest(".square-wrapper")?.setAttribute("data-club", proLabel(club));
     // In a game each row heading starts with its club type (hidden while exploring)
@@ -770,7 +789,7 @@ export function setupGolf() {
         const length = !round.expert && `${yards(hole.tee, hole.target)} yds`; // Expert: no yardage
         const summary = hazardSummary(hole.hazards);
         const pro = round.pro && "Pro";
-        const line = hole.lines !== undefined && `perfect line ${hole.lines} of 41`;
+        const line = hole.lines !== undefined && `perfect line ${hole.lines} of ${hole.rules?.roulette ? 45 : 41}`;
         let title, info;
         if (mode === "daily") {
             title = `Daily hole · Par ${hole.par}`;
@@ -787,6 +806,9 @@ export function setupGolf() {
         $("golf-hole-title").textContent = title;
         $("golf-hole-info").innerHTML = termify(info.filter(Boolean).join(" · ")); // gimmick words explain themselves (terms.js)
         renderTutorials();
+        rouletteShifts = hole.rules?.roulette ?? null;
+        $("roulette-row").hidden = !rouletteShifts;
+        wheel.tabIndex = -1; // the keys are the keyboard's way in
         // Club bans (v1.8.2): the banned rows grey out like a bunker's (renderHazards)
         const ban = hole.rules?.ban && hole.rules.name;
         $("golf-rule").hidden = !ban;
@@ -810,6 +832,17 @@ export function setupGolf() {
             box.style.backgroundColor = css(landing);
             box.dataset.name = putterNames[index].textContent = describeColor(landing);
         });
+        // Roulette keys show their calm landings and shifts; the wheel shows the one it's on
+        if (rouletteShifts) {
+            rouletteKeys.forEach((box, index) => {
+                const landing = strike(current, { row: "roulette", index }, null, rouletteShifts);
+                box.style.backgroundColor = css(landing);
+                box.closest(".square-wrapper").querySelector(".square-label").textContent = shiftText(rouletteShifts[index]);
+                box.closest(".square-wrapper").dataset.club = proLabel({ row: "roulette", index });
+                box.dataset.name = rouletteNames[index].textContent = describeColor(landing);
+            });
+            paintWheel();
+        }
         $("golf-you-name").textContent = describeColor(current);
         renderWind();
         // Screen readers hear the club, and its color unless Pro hides the colors.
@@ -819,7 +852,7 @@ export function setupGolf() {
         // A swatch that lands on a mirror (v1.8.1) gets a dotted silver outline, labeled with how far
         // from the pin the flip leaves you ("Mirror" on Expert), next to a chip of that color.
         for (const [box, club] of clubs) {
-            const landing = strike(current, club, windFor(round.hole, round.strokes));
+            const landing = strike(current, club, windFor(round.hole, round.strokes), rouletteShifts);
             const portal = round.holeDone ? null : round.hazards.portalAt(landing);
             const mirror = !round.holeDone && round.hazards.at(landing) === "mirror";
             const wrapper = box.closest(".square-wrapper");
@@ -886,6 +919,23 @@ export function setupGolf() {
         label.textContent = lieLabel(lie);
     };
 
+
+    // The roulette wheel (v1.8.4): one swatch that moves to the next shift every second while a hole with
+    // one is being played; a stroke on it plays the shift showing (playSwatch)
+    const paintWheel = () => {
+        if (!round || !rouletteShifts) return;
+        const landing = strike(round.current, wheelClub(), null, rouletteShifts);
+        wheel.style.backgroundColor = css(landing);
+        const wrapper = wheel.closest(".square-wrapper");
+        wrapper.querySelector(".square-label").textContent = shiftText(rouletteShifts[spin]);
+        wrapper.dataset.club = proLabel(wheelClub());
+        wrapper.classList.toggle("golf-blocked", round.holeDone || !round.canPlay(wheelClub()));
+    };
+    setInterval(() => {
+        if (!round || !rouletteShifts || round.holeDone || hud.hidden) return;
+        spin = (spin + 1) % rouletteShifts.length;
+        paintWheel();
+    }, 1000);
 
     // Wind: drifts every full shot (the swatches show the calm landing, so aim off). A turning wind
     // (v1.8.3) says the whole cycle under the hole info and this stroke's and the next on the map.
@@ -996,7 +1046,7 @@ export function setupGolf() {
 
             const { club, hsl } = route[i];
             // Through a portal: the replay jumps from where the shot landed to the exit
-            const landing = strike(stops.at(-1), club, windFor(hole, i)); // the route has no penalty strokes
+            const landing = strike(stops.at(-1), club, windFor(hole, i), hole.rules?.roulette); // the route has no penalty strokes
             if (["portal", "mirror"].includes(round.hazards.at(landing))) stops.push({ ...landing, warp: true });
             stops.push(hsl);
             const item = document.createElement("li");
@@ -1175,7 +1225,7 @@ export function setupGolf() {
     }, { capture: true });
     ui.addEventListener("click", (event) => {
         const square = event.target.closest(".square");
-        if (!inGame() || !clubs.has(square) || lastPointerType() !== "touch") return;
+        if (!inGame() || !(clubs.has(square) || square === wheel) || lastPointerType() !== "touch") return;
         event.stopPropagation();
         if (round?.expert && aimed !== square) aim(square);
         else playSwatch(square);
@@ -1189,7 +1239,7 @@ export function setupGolf() {
     }, { capture: true });
 
     function playSwatch(square) {
-        const club = clubs.get(square);
+        const club = square === wheel ? wheelClub() : clubs.get(square); // the wheel plays the shift showing
         if (!round || !club || round.holeDone) return;
 
         const lie = round.play(club);

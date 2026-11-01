@@ -689,6 +689,40 @@
                         </div>
                     </div>
                 </div>
+                <!-- Roulette: Color Golf, on holes with one (v1.8.4). The wheel spins through the hole's four hue
+                     shifts, one a second, and plays whichever is showing; the four keys are the same shifts as
+                     separate swatches for keyboard and screen-reader players (shown while one has focus). -->
+                <div id="roulette-row" class="colors-row golf-only" hidden>
+                    <div class="row-header">
+                        <h3>Roulette</h3>
+                        <button class="row-toggle" aria-expanded="true">▾</button>
+                    </div>
+
+                    <div class="row-body">
+                        <div id="roulette" class="swatch-row">
+                            <div class="square-wrapper roulette-wheel">
+                                <div id="roulette-wheel" class="square" aria-hidden="true"></div>
+                                <p class="square-label"></p>
+                            </div>
+                            <div class="square-wrapper roulette-key">
+                                <div id="roul1" class="square"></div>
+                                <p class="square-label"></p>
+                            </div>
+                            <div class="square-wrapper roulette-key">
+                                <div id="roul2" class="square"></div>
+                                <p class="square-label"></p>
+                            </div>
+                            <div class="square-wrapper roulette-key">
+                                <div id="roul3" class="square"></div>
+                                <p class="square-label"></p>
+                            </div>
+                            <div class="square-wrapper roulette-key">
+                                <div id="roul4" class="square"></div>
+                                <p class="square-label"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
             </div>
 

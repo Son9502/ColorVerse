@@ -11,10 +11,11 @@ self.addEventListener("message", ({ data: { id, tee, target, perfect, hazards = 
     try {
         // A route that plays like golf if there is one (v1.8.2), or any perfect route
         const cycle = rules?.windCycle ?? null; // turning wind (v1.8.3)
-        let search = searchFrom(tee, perfect, hazardMap(hazards), { wind, cycle, rules, golf: target });
+        const roulette = rules?.roulette ?? null; // roulette clubs (v1.8.4)
+        let search = searchFrom(tee, perfect, hazardMap(hazards), { wind, cycle, roulette, rules, golf: target });
         let best = parFor(search, target);
         if (best?.par !== perfect) {
-            search = searchFrom(tee, perfect, hazardMap(hazards), { wind, cycle, rules });
+            search = searchFrom(tee, perfect, hazardMap(hazards), { wind, cycle, roulette, rules });
             best = parFor(search, target);
         }
         self.postMessage({ id, route: best ? pathTo(search, best.end) : [] });

@@ -13,6 +13,7 @@ const TERMS = {
     mirror: { title: "Mirror", text: "Land on one and your color's hex flips, for no extra stroke. Swatches that land on one have a dotted silver outline, labeled with how far from the pin the flip leaves you.", example: "#234243 lands on a mirror and comes out as #342432." },
     ban: { title: "Caddie strike", text: "Your caddie won't carry these clubs on this hole: their rows are greyed out.", example: "\"No Hybrids\": Triadic, Tetradic and Double-comp. can't be played." },
     wind: { title: "Wind", text: "Drifts every full shot by the same amount; putts aren't affected. Swatches show where a calm shot lands, so aim off.", example: "Wind +6° hue: Triadic +120° lands at +126°." },
+    roulette: { title: "Roulette", text: "A swatch that spins through four hue shifts set for the hole, one a second: a stroke plays whichever is showing. With the keyboard, Tab into the row for all four.", example: "The wheel shows +95° when you tap: the ball moves 95° round the hue wheel." },
     turning: { title: "Turning wind", text: "The wind changes every stroke, in the cycle shown, then starts again; putts aren't affected. Swatches show where a calm shot lands.", example: "−10° hue → +4% light: stroke 1 drifts −10° hue, stroke 2 brightens 4%, stroke 3 drifts −10° again." },
     line: { title: "Perfect line", text: "How many of the 41 first shots can still make the perfect score. Fewer means a harder hole.", example: "\"Perfect line 2 of 41\": only two swatches from the tee keep the perfect score alive." },
     pro: { title: "Pro", text: "Swatches show only the club, not the color, so you play on color theory alone. Expert always plays Pro; Pro scores are kept separately.", example: "You see \"+120°\" instead of the color it lands on." },
@@ -25,7 +26,7 @@ const TERMS = {
 // Phrases that become terms (case matters: "Caddie Strike" the course isn't "Caddie strike" the rule)
 const PHRASES = [
     [/\b[Bb]lack holes?\b/, "blackhole"], [/\b[Bb]unkers?\b/, "sand"], [/\b[Ll]akes?\b/, "water"],
-    [/\b[Pp]ortals?\b/, "portal"], [/\b[Mm]irrors?\b/, "mirror"], [/\bCaddie strike\b/, "ban"], [/\bbans\b/, "ban"],
+    [/\b[Pp]ortals?\b/, "portal"], [/\b[Mm]irrors?\b/, "mirror"], [/\bCaddie strike\b/, "ban"], [/\bbans\b/, "ban"], [/\broulette\b/, "roulette"],
     [/\bWind \(per stroke\)/, "turning"], [/\b[Tt]urning wind\b/, "turning"], [/\bwind turns\b/, "turning"], [/\b[Ww]ind\b/, "wind"],
     [/\b[Pp]erfect line\b/, "line"], [/\bPro\b/, "pro"],
     [/\bBeginner\b/, "beginner"], [/\bStandard\b/, "standard"], [/\bExpert\b/, "expert"], [/\bExpansion\b/, "expansion"],

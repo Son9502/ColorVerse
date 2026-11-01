@@ -25,11 +25,18 @@ export const PUTTER = [
     { label: "Light +", apply: ({ h, s, l }) => ({ h, s, l: l + PUTT }) },
 ];
 
-// Every club as { row, index }: harmony rows in panel order, then the putter
+// Roulette (v1.8.4, Scarlet Roulette): four hue shifts set per hole (rules.js: roulette), a full shot
+// each. Only on holes that have them, so they're not among allStrikes' usual 41.
+export const ROULETTE_SLOTS = 4;
+
+// Every club as { row, index }: harmony rows in panel order, then the putter, then the roulette
+// (new clubs go at the end, so recorded rounds keep their club ids)
 export const CLUBS = [
     ...HARMONY_ROWS.flatMap(row => harmonyDict({ h: 0, s: 0, l: 0 })[row].map((_, index) => ({ row, index }))),
     ...PUTTER.map((_, index) => ({ row: "putter", index })),
+    ...Array.from({ length: ROULETTE_SLOTS }, (_, index) => ({ row: "roulette", index })),
 ];
+export const STANDARD_CLUBS = CLUBS.filter(club => club.row !== "roulette"); // every hole's 41
 
 // A club as one small number (its place in CLUBS) and back, for recorded rounds (v1.6)
 export const clubId = ({ row, index }) => CLUBS.findIndex(club => club.row === row && club.index === index);
@@ -49,17 +56,21 @@ export function roundHSL({ h, s, l }) {
 export const CALM = null;
 const blow = (hsl, wind) => (wind ? { h: hsl.h + (wind.hue ?? 0), s: hsl.s, l: hsl.l + (wind.light ?? 0) } : hsl);
 
-// All results from one position, in CLUBS order
-export function allStrikes(hsl, wind = CALM) {
+// All results from one position, in CLUBS order: the 41 harmony and putter shots, then a hole's
+// roulette shifts (`roulette`: 4 hue shifts in degrees) if it has them
+export function allStrikes(hsl, wind = CALM, roulette = null) {
     const harmonies = harmonyDict(hsl);
     return [
         ...HARMONY_ROWS.flatMap(row => harmonies[row].map(landing => roundHSL(blow(roundHSL(landing), wind)))),
         ...PUTTER.map(club => roundHSL(club.apply(hsl))),
+        ...(roulette ?? []).map(shift => roundHSL(blow({ h: hsl.h + shift, s: hsl.s, l: hsl.l }, wind))),
     ];
 }
 
-// One stroke with a given club (the swatch shows the calm landing; wind then drifts it)
-export function strike(hsl, { row, index }, wind = CALM) {
+// One stroke with a given club (the swatch shows the calm landing; wind then drifts it).
+// A roulette club needs the hole's shifts.
+export function strike(hsl, { row, index }, wind = CALM, roulette = null) {
+    if (row === "roulette") return roundHSL(blow({ h: hsl.h + roulette[index], s: hsl.s, l: hsl.l }, wind));
     if (row === "putter") return roundHSL(PUTTER[index].apply(hsl));
     return roundHSL(blow(roundHSL(harmonyDict(hsl)[row][index]), wind));
 }

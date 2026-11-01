@@ -9,6 +9,30 @@ Each entry is tagged with how it was produced:
 
 ---
 
+## Milestone 29 — Roulette: Scarlet Roulette (v1.8.4) `[ai-assisted]`
+**2026-10-31**
+
+The fifth expansion course, from the agreed v1.8 spec; implementation `[ai-assisted]`.
+
+**Added**
+- Roulette clubs (`clubs.js`): four hue shifts per hole (`hole.rules.roulette`), clubs 41–44 after the putter so recorded rounds keep their ids; full shots (wind blows them). `allStrikes` and `strike` take the hole's shifts; `STANDARD_CLUBS` are every hole's 41. `ruleAllows` refuses a roulette club on a hole without one, so the server's replay does too
+- Solver: `searchFrom` / `reachesWithin` take `roulette` (45 shots from each state)
+- `makeRouletteHole` (`holeMaker.js`): four shifts 10–170° either way, none within 4° of a harmony shift and 15° apart; pin first reached in exactly the perfect score with them; without the roulette the hole is a stroke longer; think and golf-like checks; birdie line counted out of 45
+- Scarlet Roulette (`generateCourses.mjs`, seed 10, 330°–20°, par 72, perfect 49, par 5s eagle holes as on Saffron Whirlwind, `EAGLE_LAYOUT`)
+- Panel: a Roulette row (on roulette holes) whose wheel spins through the four shifts, one a second, showing each one's calm landing and shift; a click or tap plays whichever is showing (Expert: tap to aim, tap again). Four keys, the same shifts as separate swatches, open while one has keyboard focus, for keyboard and screen-reader players. Red tutorial box, "roulette" term, "perfect line … of 45"
+- Unlock: Scarlet Roulette needs −4 or better on Saffron Whirlwind (provisional)
+
+**Tried and dropped**
+- Needing the roulette for par (two strokes saved, as on Violet Vortex): 0 holes in 300 tries; the harmony clubs reach any hue within a few strokes, so a hue shift saves one stroke at most. The roulette is the way to the perfect score instead
+- Par 5s with a perfect score of 4 (as with Saffron Whirlwind: four extra shifts make nearly every color reachable in three)
+
+**Verified**
+- Every hole: perfect matches the solver with its roulette; the round plays the perfect route to the perfect score; every perfect route uses the roulette once and without it each hole takes one more stroke; think and golf-like checks pass; courses 1–9 unchanged byte for byte
+- `replayRound`: a perfect round is 49; a roulette club on a hole without one is refused
+- Headless Chrome: the wheel turns each second and a click plays the shift showing (You becomes the wheel's color); the keys open on focus; hole 1 played to a birdie; no console errors
+
+---
+
 ## Milestone 28 — Turning wind: Saffron Whirlwind (v1.8.3) `[ai-assisted]`
 **2026-10-31**
 

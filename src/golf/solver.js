@@ -28,6 +28,7 @@ import { clubMask } from "./rules.js";
 // phase); the tables grow by the cycle's length (2–3) and the search stays exact. `played` is how
 // many strokes came before `from` (where in the cycle it starts). Penalty strokes would turn the
 // wind too, and the search skips water and black holes, so a course with a wind cycle has neither.
+// `roulette` (v1.8.4: the hole's four hue shifts) adds the roulette clubs.
 
 const UNSEEN = 255;
 
@@ -55,7 +56,7 @@ const nodeOf = (code, turns, n) => (turns === 1 ? code : code * turns + (n % tur
 
 // Strokes from `tee` to every state reachable within `maxDepth`, plus how each was first reached.
 // `dist` and `reached` are per color (the fewest strokes, whatever the wind's phase); `pathTo` follows the nodes.
-export function searchFrom(tee, maxDepth = 7, hazards = null, { avoidHazards = false, avoidPortals = false, wind = null, cycle = null, rules = null, golf = null } = {}) {
+export function searchFrom(tee, maxDepth = 7, hazards = null, { avoidHazards = false, avoidPortals = false, wind = null, cycle = null, roulette = null, rules = null, golf = null } = {}) {
     const blocked = hazards && !hazards.empty;
     const allowed = clubMask(rules);
     const pin = golf && hslToOklab(golf);
@@ -81,7 +82,7 @@ export function searchFrom(tee, maxDepth = 7, hazards = null, { avoidHazards = f
             const inSand = lie === "sand";
             const wedge = inSand ? hazards.wedgeAt(from, code) : null;
             const nearPin = !pin || oklabDistance(hslToOklab(from), pin) < PUTT_RANGE;
-            allStrikes(from, windNow).forEach((landing, clubIndex) => {
+            allStrikes(from, windNow, roulette).forEach((landing, clubIndex) => {
                 if (allowed && !allowed[clubIndex]) return;
                 if (inSand && !sandAllows(clubIndex, wedge)) return;
                 if (PUTTER_CLUB[clubIndex] && !nearPin) return;
@@ -134,7 +135,7 @@ function labsOf(codes) {
 // parFor(searchFrom(...)).par <= maxDepth, but it stops at the first state in the hole and reuses one
 // scratch table, so the generators can ask it thousands of times (the birdie-line checks).
 const scratch = new Map(); // a seen table per cycle length
-export function reachesWithin(from, target, maxDepth, hazards = null, { avoidHazards = false, wind = null, cycle = null, played = 0, rules = null } = {}) {
+export function reachesWithin(from, target, maxDepth, hazards = null, { avoidHazards = false, wind = null, cycle = null, played = 0, roulette = null, rules = null } = {}) {
     const allowed = clubMask(rules);
     const goal = hslToOklab(target);
     const inHole = (hsl) => oklabDistance(hslToOklab(hsl), goal) < IN_THE_HOLE;
@@ -157,7 +158,7 @@ export function reachesWithin(from, target, maxDepth, hazards = null, { avoidHaz
                 const lie = blocked ? hazards.at(here, code) : null;
                 const inSand = lie === "sand";
                 const wedge = inSand ? hazards.wedgeAt(here, code) : null;
-                const landings = allStrikes(here, windNow);
+                const landings = allStrikes(here, windNow, roulette);
                 for (let clubIndex = 0; clubIndex < landings.length; clubIndex++) {
                     if (allowed && !allowed[clubIndex]) continue;
                     if (inSand && !sandAllows(clubIndex, wedge)) continue;

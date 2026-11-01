@@ -574,7 +574,8 @@ Color Categories + Squares
 #tints,
 #tones,
 #saturate,
-#putter {
+#putter,
+#roulette {
     display: flex;
     align-items: flex-start; /* a name or portal label makes a swatch taller: keep the squares in line */
     gap: clamp(6px, 1vw, 18px);
@@ -1645,6 +1646,42 @@ body.golf-pro .square-wrapper::after {
     border-left-color: #e0a100;
     background: #fff6d6;
     color: #6b4c00;
+}
+
+.golf-tutorial.scarlet {
+    border-left-color: #d6204f;
+    background: #fde8ee;
+    color: #6e0c27;
+}
+
+/* Roulette (v1.8.4): the wheel is a bigger swatch with a red ring; the four keys only show while one
+   has keyboard focus (they're the keyboard and screen-reader way to play a shift) */
+body.golf .roulette-wheel .square {
+    width: 56px;
+    height: 56px;
+    outline: 3px solid #d6204f;
+    outline-offset: 2px;
+}
+
+body.golf .roulette-wheel .square-label {
+    color: #a3123a;
+    font-weight: 700;
+}
+
+.roulette-key {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+}
+
+#roulette.keys-open .roulette-key {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip-path: none;
 }
 
 .golf-tutorial.sand {

@@ -99,9 +99,14 @@ const CADDIE_HOLES = [
 // makeWindHole), much stronger than Ember Dunes' breezes; the tutorial's is two winds, neither calm. No water or black
 // holes: their penalty strokes would turn the wind too, which the solver doesn't follow.
 const WHIRL = { hue: [12, 24], light: [6, 10] };
-// Par 5s are all perfect 3 here: three strokes of turning wind reach nearly every color, so a pin that
-// truly needs four is too rare to find
-const WHIRL_LAYOUT = [FRONT, BACK].map(nine => nine.map(([par, perfect]) => [par, par === 5 ? 3 : perfect]));
+// Par 5s all perfect 3 (eagle holes), for Saffron Whirlwind and Scarlet Roulette: three strokes of
+// turning wind, or with four extra hue shifts, reach nearly every color, so a pin that truly needs
+// four is too rare to find
+const EAGLE_LAYOUT = [FRONT, BACK].map(nine => nine.map(([par, perfect]) => [par, par === 5 ? 3 : perfect]));
+
+// Scarlet Roulette (v1.8.4): every hole has a roulette row of four hue shifts, built so the perfect
+// score needs it (holeMaker.js: makeRouletteHole). Needing it for par too (two strokes saved) turned
+// out to be out of reach: the harmony clubs get to any hue within a few strokes anyway.
 
 // "Make you think" (v1.8.2, holeMaker.js: thinks): on each hole but the ace, none of this many tee
 // shots closest to the pin keeps the perfect score, and a perfect route plays like golf (putts only
@@ -163,17 +168,23 @@ const COURSES = [
         rules: (i) => BANS[CADDIE_HOLES[i]],
     },
     {
-        id: "saffron", name: "Saffron Whirlwind", seed: 9, hues: [30, 65], difficulty: "Expansion", layout: WHIRL_LAYOUT, // yellows and oranges
+        id: "saffron", name: "Saffron Whirlwind", seed: 9, hues: [30, 65], difficulty: "Expansion", layout: EAGLE_LAYOUT, // yellows and oranges
         gimmick: "The wind turns every stroke, in a cycle you know before you tee off; putts aren't affected.",
         tutorial: "The wind turns every stroke here, in the cycle shown under the hole info; putts aren't affected. Swatches show where a calm shot lands, so aim off for this stroke's wind.",
         turning: (i) => ({ strengths: WHIRL, ...(i === 0 && { length: 2, calm: false }) }),
+    },
+    {
+        id: "scarlet", name: "Scarlet Roulette", seed: 10, hues: [330, 20], difficulty: "Expansion", layout: EAGLE_LAYOUT, // reds and pinks
+        gimmick: "A roulette swatch spins through four hue shifts, one a second: a stroke plays whichever is showing.",
+        tutorial: "The Roulette row's swatch spins through this hole's four hue shifts, one a second, and a stroke plays whichever is showing (with the keyboard, Tab to the row for all four). The perfect score here needs it.",
+        roulette: () => ({ skip: 1 }),
     },
 ];
 
 const only = process.argv.slice(2); // optional: course ids to generate (others are kept from the current file)
 const existing = only.length ? JSON.parse(readFileSync(new URL("../src/golf/courses.json", import.meta.url))) : [];
 
-const courses = COURSES.map(({ id, name, seed, rev, hues, sats, difficulty, gimmick, tutorial, layout = [FRONT, BACK], hazards: planFor, layup, wind: windPlan, portals: portalsFor, mirrors: mirrorsFor, rules: rulesFor, turning: turningFor }) => {
+const courses = COURSES.map(({ id, name, seed, rev, hues, sats, difficulty, gimmick, tutorial, layout = [FRONT, BACK], hazards: planFor, layup, wind: windPlan, portals: portalsFor, mirrors: mirrorsFor, rules: rulesFor, turning: turningFor, roulette: rouletteFor }) => {
     if (only.length && !only.includes(id)) return existing.find(course => course.id === id);
     const rand = rng(seed);
     const hazardRand = rng(seed * 7919); // separate sequence: hazards don't change which holes are chosen
@@ -181,10 +192,10 @@ const courses = COURSES.map(({ id, name, seed, rev, hues, sats, difficulty, gimm
     const holes = layout.flat().map(([par, layoutPerfect], i) => {
         const perfect = difficulty === "Expert" && layoutPerfect > 1 && layup !== i ? expertPerfect(par) : layoutPerfect;
         const hole = buildHole({ rand, hazardRand, windRand }, {
-            par, perfect, hues, sats, difficulty, think: THINK[difficulty], plan: planFor?.(i, par, perfect), windPlan, layup: layup === i, portals: portalsFor?.(i, par, perfect), mirrors: mirrorsFor?.(i, perfect), rules: rulesFor?.(i), turning: turningFor?.(i),
+            par, perfect, hues, sats, difficulty, think: THINK[difficulty], plan: planFor?.(i, par, perfect), windPlan, layup: layup === i, portals: portalsFor?.(i, par, perfect), mirrors: mirrorsFor?.(i, perfect), rules: rulesFor?.(i), turning: turningFor?.(i), roulette: rouletteFor?.(i, par, perfect),
             log: (message) => console.log(`  (hole ${i + 1}: ${message})`),
         });
-        const summary = [(hole.hazards ?? []).map(h => h.type).join(", ") || "clear", hole.wind ? `wind ${JSON.stringify(hole.wind)}` : "calm", hole.rules?.name, hole.rules?.windCycle && `turning ${JSON.stringify(hole.rules.windCycle)}`].filter(Boolean).join("; ");
+        const summary = [(hole.hazards ?? []).map(h => h.type).join(", ") || "clear", hole.wind ? `wind ${JSON.stringify(hole.wind)}` : "calm", hole.rules?.name, hole.rules?.windCycle && `turning ${JSON.stringify(hole.rules.windCycle)}`, hole.rules?.roulette && `roulette ${hole.rules.roulette.join(" ")}`].filter(Boolean).join("; ");
         console.log(`${name} hole ${i + 1}: par ${par}, perfect ${hole.perfect}, ${Math.round(yardsBetween(hole.tee, hole.target))} yds, ${summary}`);
         return hole;
     });

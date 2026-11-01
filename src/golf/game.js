@@ -86,7 +86,8 @@ export class GolfRound {
         this.history.push({ current: this.current, strokes: this.strokes, trail: this.trail.length });
         this.clubs.push(clubId(club));
 
-        const landing = strike(this.current, club, windFor(this.hole, this.strokes)); // a turning wind (v1.8.3) goes by the stroke
+        // A turning wind (v1.8.3) goes by the stroke; roulette clubs (v1.8.4) by the hole's shifts
+        const landing = strike(this.current, club, windFor(this.hole, this.strokes), this.hole.rules?.roulette);
         const landed = this.hazards.at(landing);
         const landedIn = landed ? this.hazards.which(landing) : null;
         if (landed === "water") {
