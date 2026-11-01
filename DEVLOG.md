@@ -30,6 +30,7 @@ The third expansion course, from the agreed v1.8 spec; implementation `[ai-assis
 - Golf-like routes (`searchFrom`'s `golf`, `playsLikeGolf`): a perfect route must exist with the putter only near the pin (within 80 yds, about two putts) and no Driver or Woods into the hole; "Show perfect route" shows that one
 - `buildHole` rebuilds a hole (up to 80 tries) until it passes, when the course asks (`THINK` in `generateCourses.mjs`); the daily holes and practice don't, so they build exactly as before
 - Regenerated: Ember Dunes and Verdant Pines (rev 3), Cobalt Bay (rev 3), Royal Indigo (rev 4), Violet Vortex (rev 4), Silverglass Greens, Caddie Strike. Prism Point unchanged. A player who always takes the swatch closest to the pin now makes perfect only on the aces (before: 2–8 holes per course) and plays Verdant Pines at +35 (before +5), Royal Indigo at +50 (before +33)
+- Unlock scores reset for the harder courses (`unlocks.js`), from a simulated player who plans one shot ahead: Cobalt Bay −4 on Verdant Pines (was −6), Royal Indigo +2 on Cobalt Bay (was −3), Violet Vortex +4 on Royal Indigo (was −2), Silverglass Greens −3 on Violet Vortex (was −4), Caddie Strike −2 on Silverglass Greens (was −4)
 - Caddie Strike's bans moved to fit: "No Wedges" only on the ace, "No putter" once, par 5s "No Tints or Shades" or "Hybrids, Iron and putter only"
 
 **Verified**
