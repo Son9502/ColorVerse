@@ -95,6 +95,14 @@ const CADDIE_HOLES = [
     "noLongIron", "noTintsShades", "noHybrids", "noLongIron", "noLong", "noTintsShades", "noWedges", "hybridsIrons", "noWoodsWedges",
 ];
 
+// Saffron Whirlwind (v1.8.3): every hole's wind turns each stroke in a cycle of 2–3 (holeMaker.js:
+// makeWindHole), stronger than Ember Dunes' breezes; the tutorial's is two winds. No water or black
+// holes: their penalty strokes would turn the wind too, which the solver doesn't follow.
+const WHIRL = { hue: [6, 12], light: [3, 6] };
+// Par 5s are all perfect 3 here: three strokes of turning wind reach nearly every color, so a pin that
+// truly needs four is too rare to find
+const WHIRL_LAYOUT = [FRONT, BACK].map(nine => nine.map(([par, perfect]) => [par, par === 5 ? 3 : perfect]));
+
 // "Make you think" (v1.8.2, holeMaker.js: thinks): on each hole but the ace, none of this many tee
 // shots closest to the pin keeps the perfect score, and a perfect route plays like golf (putts only
 // near the pin, no Driver or Woods into the hole). The beginner course is left as it is.
@@ -154,12 +162,18 @@ const COURSES = [
         tutorial: "Your caddie won't carry every club: each hole bans some (shown under the hole info), and their rows are greyed out. Here it's the Driver and Woods.",
         rules: (i) => BANS[CADDIE_HOLES[i]],
     },
+    {
+        id: "saffron", name: "Saffron Whirlwind", seed: 9, hues: [30, 65], difficulty: "Expansion", layout: WHIRL_LAYOUT, // yellows and oranges
+        gimmick: "The wind turns every stroke, in a cycle you know before you tee off.",
+        tutorial: "The wind turns every stroke here, in a cycle shown under the hole info (now, then next). Swatches show where a calm shot lands, so aim off for this stroke's wind.",
+        turning: (i) => ({ strengths: WHIRL, ...(i === 0 && { length: 2 }) }),
+    },
 ];
 
 const only = process.argv.slice(2); // optional: course ids to generate (others are kept from the current file)
 const existing = only.length ? JSON.parse(readFileSync(new URL("../src/golf/courses.json", import.meta.url))) : [];
 
-const courses = COURSES.map(({ id, name, seed, rev, hues, sats, difficulty, gimmick, tutorial, layout = [FRONT, BACK], hazards: planFor, layup, wind: windPlan, portals: portalsFor, mirrors: mirrorsFor, rules: rulesFor }) => {
+const courses = COURSES.map(({ id, name, seed, rev, hues, sats, difficulty, gimmick, tutorial, layout = [FRONT, BACK], hazards: planFor, layup, wind: windPlan, portals: portalsFor, mirrors: mirrorsFor, rules: rulesFor, turning: turningFor }) => {
     if (only.length && !only.includes(id)) return existing.find(course => course.id === id);
     const rand = rng(seed);
     const hazardRand = rng(seed * 7919); // separate sequence: hazards don't change which holes are chosen
@@ -167,10 +181,10 @@ const courses = COURSES.map(({ id, name, seed, rev, hues, sats, difficulty, gimm
     const holes = layout.flat().map(([par, layoutPerfect], i) => {
         const perfect = difficulty === "Expert" && layoutPerfect > 1 && layup !== i ? expertPerfect(par) : layoutPerfect;
         const hole = buildHole({ rand, hazardRand, windRand }, {
-            par, perfect, hues, sats, difficulty, think: THINK[difficulty], plan: planFor?.(i, par, perfect), windPlan, layup: layup === i, portals: portalsFor?.(i, par, perfect), mirrors: mirrorsFor?.(i, perfect), rules: rulesFor?.(i),
+            par, perfect, hues, sats, difficulty, think: THINK[difficulty], plan: planFor?.(i, par, perfect), windPlan, layup: layup === i, portals: portalsFor?.(i, par, perfect), mirrors: mirrorsFor?.(i, perfect), rules: rulesFor?.(i), turning: turningFor?.(i),
             log: (message) => console.log(`  (hole ${i + 1}: ${message})`),
         });
-        const summary = [(hole.hazards ?? []).map(h => h.type).join(", ") || "clear", hole.wind ? `wind ${JSON.stringify(hole.wind)}` : "calm", hole.rules?.name].filter(Boolean).join("; ");
+        const summary = [(hole.hazards ?? []).map(h => h.type).join(", ") || "clear", hole.wind ? `wind ${JSON.stringify(hole.wind)}` : "calm", hole.rules?.name, hole.rules?.windCycle && `turning ${JSON.stringify(hole.rules.windCycle)}`].filter(Boolean).join("; ");
         console.log(`${name} hole ${i + 1}: par ${par}, perfect ${hole.perfect}, ${Math.round(yardsBetween(hole.tee, hole.target))} yds, ${summary}`);
         return hole;
     });

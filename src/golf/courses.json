@@ -158,5 +158,25 @@
     {"tee":{"h":97,"s":94,"l":69},"target":{"h":59,"s":95,"l":70},"par":3,"perfect":1,"rules":{"name":"No Wedges","ban":["tints","shades","tones","saturate"]},"lines":1},
     {"tee":{"h":135,"s":63,"l":33},"target":{"h":345,"s":63,"l":37},"par":4,"perfect":3,"rules":{"name":"Hybrids, Iron and putter only","ban":["complementary","split-complementary","tints","shades","tones","saturate"]},"lines":3},
     {"tee":{"h":179,"s":95,"l":64},"target":{"h":29,"s":95,"l":68},"par":4,"perfect":3,"rules":{"name":"No Woods or Wedges","ban":["split-complementary","tints","shades","tones","saturate"]},"lines":4}
+  ]},
+  {"id":"saffron","name":"Saffron Whirlwind","hues":[30,65],"difficulty":"Expansion","gimmick":"The wind turns every stroke, in a cycle you know before you tee off.","tutorial":"The wind turns every stroke here, in a cycle shown under the hole info (now, then next). Swatches show where a calm shot lands, so aim off for this stroke's wind.","holes":[
+    {"tee":{"h":46,"s":63,"l":74},"target":{"h":46,"s":38,"l":40},"par":4,"perfect":3,"rules":{"windCycle":[{"hue":-10},{"light":4}]},"lines":4},
+    {"tee":{"h":35,"s":39,"l":54},"target":{"h":59,"s":88,"l":49},"par":4,"perfect":3,"rules":{"windCycle":[null,{"light":-5},{"hue":10}]},"lines":4},
+    {"tee":{"h":50,"s":81,"l":32},"target":{"h":56,"s":32,"l":30},"par":3,"perfect":2,"rules":{"windCycle":[{"hue":6},null,{"hue":-10}]},"lines":1},
+    {"tee":{"h":39,"s":77,"l":30},"target":{"h":59,"s":62,"l":69},"par":5,"perfect":3,"rules":{"windCycle":[null,{"light":-5}]},"lines":2},
+    {"tee":{"h":49,"s":60,"l":78},"target":{"h":49,"s":36,"l":43},"par":4,"perfect":3,"rules":{"windCycle":[null,{"hue":-10}]},"lines":3},
+    {"tee":{"h":59,"s":69,"l":27},"target":{"h":49,"s":41,"l":68},"par":4,"perfect":3,"rules":{"windCycle":[null,{"hue":10},{"light":-3}]},"lines":4},
+    {"tee":{"h":50,"s":46,"l":48},"target":{"h":50,"s":46,"l":28},"par":3,"perfect":2,"rules":{"windCycle":[{"hue":9},{"light":-3}]},"lines":4},
+    {"tee":{"h":52,"s":78,"l":60},"target":{"h":34,"s":31,"l":45},"par":4,"perfect":3,"rules":{"windCycle":[{"hue":11},{"light":-4}]},"lines":3},
+    {"tee":{"h":37,"s":65,"l":76},"target":{"h":57,"s":39,"l":26},"par":5,"perfect":3,"rules":{"windCycle":[{"light":-3},null]},"lines":2},
+    {"tee":{"h":46,"s":90,"l":54},"target":{"h":30,"s":90,"l":29},"par":4,"perfect":3,"rules":{"windCycle":[{"light":3},null,{"light":-3}]},"lines":3},
+    {"tee":{"h":40,"s":91,"l":32},"target":{"h":60,"s":87,"l":55},"par":5,"perfect":3,"rules":{"windCycle":[{"light":5},{"hue":7}]},"lines":4},
+    {"tee":{"h":35,"s":66,"l":74},"target":{"h":35,"s":40,"l":57},"par":3,"perfect":2,"rules":{"windCycle":[{"light":3},null]},"lines":1},
+    {"tee":{"h":48,"s":79,"l":61},"target":{"h":40,"s":32,"l":33},"par":4,"perfect":3,"rules":{"windCycle":[{"light":3},{"hue":12}]},"lines":2},
+    {"tee":{"h":35,"s":90,"l":66},"target":{"h":54,"s":36,"l":30},"par":4,"perfect":3,"rules":{"windCycle":[{"light":-4},{"hue":-9},{"hue":-12}]},"lines":3},
+    {"tee":{"h":51,"s":37,"l":63},"target":{"h":31,"s":87,"l":24},"par":5,"perfect":3,"rules":{"windCycle":[{"light":6},{"light":4}]},"lines":4},
+    {"tee":{"h":50,"s":47,"l":46},"target":{"h":53,"s":86,"l":47},"par":3,"perfect":1,"rules":{"windCycle":[{"light":6},{"light":-5},{"hue":10}]},"lines":1},
+    {"tee":{"h":41,"s":60,"l":55},"target":{"h":30,"s":92,"l":28},"par":4,"perfect":3,"rules":{"windCycle":[{"light":-3},{"light":-5},{"hue":9}]},"lines":4},
+    {"tee":{"h":48,"s":75,"l":70},"target":{"h":56,"s":30,"l":41},"par":4,"perfect":3,"rules":{"windCycle":[{"hue":-6},null]},"lines":2}
   ]}
 ]

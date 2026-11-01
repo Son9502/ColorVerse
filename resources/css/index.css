@@ -1594,6 +1594,12 @@ body.golf-pro .square-wrapper::after {
     color: #6b3a07;
 }
 
+.golf-tutorial.saffron {
+    border-left-color: #e0a100;
+    background: #fff6d6;
+    color: #6b4c00;
+}
+
 .golf-tutorial.sand {
     border-left-color: #c9a24f;
     background: #f6ecd2;

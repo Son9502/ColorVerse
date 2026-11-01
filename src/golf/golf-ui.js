@@ -8,6 +8,7 @@ import { setMapState } from "./mapState.js";
 import { WEEK, dateKey, daysBetween, dayLabel, weekday, streak } from "./daily.js";
 import { poolKey, PARS } from "./practice.js";
 import { courseLock, unlockToPar } from "./unlocks.js";
+import { windFor } from "./rules.js";
 import * as cloud from "../cloud/cloud.js";
 import { lastPointerType } from "../pointer.js";
 
@@ -782,14 +783,8 @@ export function setupGolf() {
         $("golf-hole-title").textContent = title;
         $("golf-hole-info").textContent = info.filter(Boolean).join(" · ");
         renderTutorials();
-        // Wind: drifts every full shot (the swatches show the calm landing, so aim off)
-        const wind = windText(hole.wind);
-        $("golf-wind").hidden = !wind;
-        $("golf-wind").textContent = wind ? `Wind ${wind} on every full shot (putts aren't affected)` : "";
-        $("golf-wind-badge").hidden = !wind;
-        $("golf-wind-badge").textContent = wind ? `🌬 ${wind}` : "";
         // Club bans (v1.8.2): the banned rows grey out like a bunker's (renderHazards)
-        const ban = hole.rules?.name;
+        const ban = hole.rules?.ban && hole.rules.name;
         $("golf-rule").hidden = !ban;
         $("golf-rule").textContent = ban ? `Caddie strike: ${ban} on this hole` : "";
         $("golf-target").style.backgroundColor = css(hole.target);
@@ -812,6 +807,7 @@ export function setupGolf() {
             box.dataset.name = putterNames[index].textContent = describeColor(landing);
         });
         $("golf-you-name").textContent = describeColor(current);
+        renderWind();
         // Screen readers hear the club, and its color unless Pro hides the colors.
         // A swatch that lands in a portal (v1.8) is outlined, labeled with how far from the pin the
         // ball comes out (just "Portal" on Expert, which has no yardage) next to a chip of the exit
@@ -819,7 +815,7 @@ export function setupGolf() {
         // A swatch that lands on a mirror (v1.8.1) gets a dotted silver outline, labeled with how far
         // from the pin the flip leaves you ("Mirror" on Expert), next to a chip of that color.
         for (const [box, club] of clubs) {
-            const landing = strike(current, club, round.hole.wind);
+            const landing = strike(current, club, windFor(round.hole, round.strokes));
             const portal = round.holeDone ? null : round.hazards.portalAt(landing);
             const mirror = !round.holeDone && round.hazards.at(landing) === "mirror";
             const wrapper = box.closest(".square-wrapper");
@@ -886,6 +882,21 @@ export function setupGolf() {
         label.textContent = lieLabel(lie);
     };
 
+
+    // Wind: drifts every full shot (the swatches show the calm landing, so aim off). A turning wind
+    // (v1.8.3) says the whole cycle under the hole info and this stroke's and the next on the map.
+    const renderWind = () => {
+        const { hole, strokes } = round;
+        const cycle = hole.rules?.windCycle;
+        const now = windFor(hole, strokes);
+        const say = (wind) => windText(wind) ?? "calm";
+        $("golf-wind").hidden = !cycle && !now;
+        $("golf-wind").textContent = cycle
+            ? `Turning wind, one per stroke: ${cycle.map(say).join(" → ")}, then again (putts aren't affected). This stroke: ${say(now)}`
+            : now ? `Wind ${say(now)} on every full shot (putts aren't affected)` : "";
+        $("golf-wind-badge").hidden = !cycle && !now;
+        $("golf-wind-badge").textContent = cycle ? `🌬 now ${say(now)} · next ${say(windFor(hole, strokes + 1))}` : now ? `🌬 ${say(now)}` : "";
+    };
 
     // Hazard note ("Water! …" / "In the bunker …"), yardage to each hazard, and in a bunker
     // grey out every club but the wedges
@@ -981,7 +992,7 @@ export function setupGolf() {
 
             const { club, hsl } = route[i];
             // Through a portal: the replay jumps from where the shot landed to the exit
-            const landing = strike(stops.at(-1), club, hole.wind);
+            const landing = strike(stops.at(-1), club, windFor(hole, i)); // the route has no penalty strokes
             if (["portal", "mirror"].includes(round.hazards.at(landing))) stops.push({ ...landing, warp: true });
             stops.push(hsl);
             const item = document.createElement("li");

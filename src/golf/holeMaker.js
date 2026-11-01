@@ -1,7 +1,7 @@
 import { searchFrom, parFor, pathTo, reachesWithin } from "./solver.js";
-import { CLUBS, allStrikes, mirrorOf, roundHSL, encode, decode } from "./clubs.js";
+import { CLUBS, allStrikes, strike, mirrorOf, roundHSL, encode, decode } from "./clubs.js";
 import { hazardMap, isWedge, WEDGES } from "./hazards.js";
-import { clubMask, ruleAllows } from "./rules.js";
+import { clubMask, ruleAllows, windFor, windOptions } from "./rules.js";
 import { hslDistance, IN_THE_HOLE, ON_THE_GREEN } from "./oklab.js";
 
 // ----------------------------------
@@ -114,16 +114,18 @@ function birdieLines(hole, perfect, map = null) {
         return reachesWithin(shot, hole.target, perfect - 1, map);
     });
 }
-// (only clubs the hole's rules allow, v1.8.2)
+// (only clubs the hole's rules allow, v1.8.2; with a turning wind, v1.8.3, the first stroke's wind,
+// then the cycle from stroke 2)
 const birdieLineCount = (hole, perfect, map, wind = null) => {
     const rules = hole.rules ?? null;
     const allowed = clubMask(rules);
+    const cycle = rules?.windCycle ?? null;
     let count = 0;
-    allStrikes(hole.tee, wind).forEach((landing, i) => { // counts clubs, like the selection check
+    allStrikes(hole.tee, cycle ? cycle[0] : wind).forEach((landing, i) => { // counts clubs, like the selection check
         if (allowed && !allowed[i]) return;
         const shot = map.land(landing); // through a portal (v1.8) or a mirror (v1.8.1)
         if (map.at(landing) === "water") return;
-        if (reachesWithin(shot, hole.target, perfect - 1, map, { wind, rules })) count++;
+        if (reachesWithin(shot, hole.target, perfect - 1, map, { wind, cycle, played: 1, rules })) count++;
     });
     return count;
 };
@@ -134,9 +136,9 @@ const birdieLineCount = (hole, perfect, map, wind = null) => {
 export function thinks(hole, count) {
     if (hole.perfect <= 1) return true;
     const map = hazardMap(hole.hazards ?? []);
-    const options = { wind: hole.wind ?? null, rules: hole.rules ?? null };
+    const options = { ...windOptions(hole), played: 1, rules: hole.rules ?? null };
     const seen = new Set();
-    const closest = allStrikes(hole.tee, options.wind)
+    const closest = allStrikes(hole.tee, windFor(hole, 0))
         .filter((landing, i) => ruleAllows(options.rules, CLUBS[i]) && map.at(landing) !== "water")
         .map(landing => map.land(landing))
         .filter(end => !seen.has(encode(end)) && seen.add(encode(end)))
@@ -148,7 +150,7 @@ export function thinks(hole, count) {
 // Whether a perfect route plays like golf (v1.8.2): the putter only near the pin, no Driver or Woods
 // into the hole (solver.js: `golf`)
 export function playsLikeGolf(hole) {
-    const options = { wind: hole.wind ?? null, rules: hole.rules ?? null, golf: hole.target };
+    const options = { ...windOptions(hole), rules: hole.rules ?? null, golf: hole.target };
     return parFor(searchFrom(hole.tee, hole.perfect, hazardMap(hole.hazards ?? []), options), hole.target)?.par === hole.perfect;
 }
 
@@ -524,6 +526,55 @@ export function makeBanHole(rand, { par, perfect, hues, sats, band, rules, think
     return null;
 }
 
+// A turning-wind hole (v1.8.3, Saffron Whirlwind): a cycle of 2–3 winds (`length`, or either), one
+// per stroke (rules.js: windCycle), from `{ hue: [min, max], light: [min, max] }` strengths either
+// way, and at most one calm. The pin is a color first reached in exactly `perfect` strokes in that
+// wind, and the wind has to matter: some tee swatch that would keep the perfect score in calm air
+// doesn't in this one. Birdie line in `band`; `think` as in buildHole.
+// Returns { tee, target, par, perfect, rules }, or null if 300 tries find nothing.
+export function makeWindHole(rand, { par, perfect, hues, sats, band, think = 0, strengths, length = null }) {
+    const between = ([min, max]) => (min + Math.floor(rand() * (max - min + 1))) * (rand() < 0.5 ? -1 : 1);
+    const randomCycle = () => {
+        const n = length ?? (rand() < 0.5 ? 2 : 3);
+        const winds = [];
+        for (let i = 0; i < n; i++) {
+            const kind = winds.includes(null) ? (rand() < 0.5 ? "hue" : "light") : ["hue", "light", "calm"][Math.floor(rand() * 3)];
+            winds.push(kind === "calm" ? null : { [kind]: between(strengths[kind]) });
+        }
+        return winds;
+    };
+    for (let tries = 0; tries < 300; tries++) {
+        const cycle = randomCycle();
+        if (cycle.every(wind => !wind)) continue;
+        const rules = { windCycle: cycle };
+        const tee = randomColor(rand, hues, sats);
+        const search = searchFrom(tee, perfect, null, { cycle });
+        const fits = (pin) => {
+            const yards = yardsBetween(tee, pin);
+            return inRange(pin, hues, sats) && yards >= LENGTH[par][0] && yards <= LENGTH[par][1] && hslDistance(tee, pin) >= ON_THE_GREEN * 2;
+        };
+        let pins = search.reached.filter(code => search.dist[code] === perfect).map(decode);
+        if (perfect === 1) pins = pins.map(pin => nudge(rand, pin, 0, IN_THE_HOLE * 0.75)).filter(Boolean);
+        pins = pins.filter(fits);
+        for (let n = 0; n < 12 && pins.length; n++) {
+            const target = pins.splice(Math.floor(rand() * pins.length), 1)[0];
+            if (parFor(search, target)?.par !== perfect) continue;
+            // The wind matters: a swatch that keeps the perfect score in calm air but not in this wind
+            const misled = CLUBS.some(club => reachesWithin(strike(tee, club), target, perfect - 1)
+                && !reachesWithin(strike(tee, club, cycle[0]), target, perfect - 1, null, { cycle, played: 1 }));
+            if (!misled) continue;
+            const hole = { tee, target, par, perfect, rules };
+            if (perfect > 1) {
+                const line = birdieLineCount(hole, perfect, hazardMap([]));
+                if (line < band[0] || line > band[1]) continue;
+            }
+            if (think && !(thinks(hole, think) && playsLikeGolf(hole))) continue; // see buildHole
+            return hole;
+        }
+    }
+    return null;
+}
+
 // One hole, rebuilt until it passes the course's `think` check (v1.8.2: see thinks(), and a perfect
 // route that plays like golf); 0 skips it (Prism Point, the daily holes and practice). The other
 // options are buildOnce's.
@@ -543,7 +594,16 @@ export function buildHole(rands, options) {
 // (separate sequences, so adding hazards or wind never changes which tee and target are chosen).
 // `plan` is { water, greenside, route } counts or null; `windPlan` is { hue: [min, max], light: [min, max] }
 // or null. `layup` makes a par 5 whose birdie lines are all under water. `log` reports a hole left clear.
-function buildOnce({ rand, hazardRand, windRand }, { par, perfect, hues, sats, difficulty, plan = null, windPlan = null, layup = false, portals = null, mirrors = null, rules = null, think = 0, log = () => {} }) {
+function buildOnce({ rand, hazardRand, windRand }, { par, perfect, hues, sats, difficulty, plan = null, windPlan = null, layup = false, portals = null, mirrors = null, rules = null, turning = null, think = 0, log = () => {} }) {
+    // Turning wind (v1.8.3): the hole is built in its wind cycle
+    for (let attempt = 0; turning && attempt < 8; attempt++) {
+        const hole = makeWindHole(rand, { par, perfect, hues, sats, band: BIRDIE_LINE[difficulty], think, ...turning });
+        if (hole) {
+            hole.lines = birdieLineCount(hole, hole.perfect, hazardMap([]));
+            return hole;
+        }
+        if (attempt === 7) log("no turning-wind hole passed the checks; built calm");
+    }
     // Club bans (v1.8.2): the hole is built under its rules
     for (let attempt = 0; rules && attempt < 8; attempt++) {
         const hole = makeBanHole(rand, { par, perfect, hues, sats, band: BIRDIE_LINE[difficulty], rules, think });

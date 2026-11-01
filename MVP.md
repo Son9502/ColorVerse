@@ -245,6 +245,8 @@ Seven account-only courses after Royal Indigo, each built around one gimmick, th
 - **Holes that make you think** (all courses but Prism Point, regenerated): the swatches that land closest to the pin never keep the perfect score (the closest 2 on Standard, 3 on Expert and expansion courses), and a perfect route plays like golf (putts only near the pin, no Driver or Woods into the hole). Greedy "closest swatch" play now makes perfect only on the aces.
 - **Tester accounts:** `tester: true` on a user's Firestore record opens every course and a "Test a hole" card; nothing is sent.
 
+**Done:** v1.8.3 Saffron Whirlwind: 18 turning-wind holes (30°–65°), par 72, perfect 49 (par 5s are eagle holes: three strokes of turning wind reach nearly every color). The cycle lives in `hole.rules.windCycle`; the solver tracks the wind's place in it, so it stays exact. The hole line shows the whole cycle, the map badge this stroke's wind and the next. No water or black holes on this course (penalty strokes turn the wind too).
+
 **Order:** one course per release, each playable and committed before the next: v1.8.0 hole rules + Portals (Violet Vortex), v1.8.1 Mirror greens (Silverglass Greens), v1.8.2 Club bans (Caddie Strike), v1.8.3 Turning wind (Saffron Whirlwind), v1.8.4 Roulette (Scarlet Roulette), v1.8.5 Flip (Hexflip Hollow), v1.8.6 Survival (The Obsidian Gauntlet).
 
 ### v2.0: 1-D and 2-D Modes

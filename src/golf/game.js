@@ -1,7 +1,7 @@
 import { strike, PUTTER, clubId } from "./clubs.js";
 import { hslDistance, IN_THE_HOLE } from "./oklab.js";
 import { hazardMap } from "./hazards.js";
-import { ruleAllows } from "./rules.js";
+import { ruleAllows, windFor } from "./rules.js";
 
 // ----------------------------------
 // Color Golf round: strokes, undo, score card
@@ -83,7 +83,7 @@ export class GolfRound {
         this.history.push({ current: this.current, strokes: this.strokes, trail: this.trail.length });
         this.clubs.push(clubId(club));
 
-        const landing = strike(this.current, club, this.hole.wind);
+        const landing = strike(this.current, club, windFor(this.hole, this.strokes)); // a turning wind (v1.8.3) goes by the stroke
         const landed = this.hazards.at(landing);
         const landedIn = landed ? this.hazards.which(landing) : null;
         if (landed === "water") {

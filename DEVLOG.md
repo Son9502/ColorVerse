@@ -9,6 +9,26 @@ Each entry is tagged with how it was produced:
 
 ---
 
+## Milestone 28 — Turning wind: Saffron Whirlwind (v1.8.3) `[ai-assisted]`
+**2026-10-31**
+
+The fourth expansion course, from the agreed v1.8 spec; implementation `[ai-assisted]`.
+
+**Added**
+- Turning wind (`rules.js`: `windCycle`, `windFor`, `windOptions`): a cycle of 2–3 winds (at most one calm), one per stroke counting from the tee, penalties included; putts stay sheltered. The round plays each stroke in `windFor(hole, strokes)`, so the server's replay does too
+- Solver: a search state is a color and the wind's place in the cycle ("node" = code × turns + phase), so it stays exact; the tables grow by the cycle's length. `dist` and `reached` stay per color, so `parFor` is unchanged; `pathTo` follows nodes. `reachesWithin` takes `played` (strokes before the start). With no cycle every course solves exactly as before
+- `makeWindHole` (`holeMaker.js`): random cycle (hue 6–12°, light 3–6%, either way), pin first reached in exactly the perfect score in that wind, and the wind must matter (a tee swatch that keeps the perfect score in calm air doesn't in this wind); birdie line 1–4, think and golf-like checks. Birdie lines and the think check use the first stroke's wind, then the cycle
+- Saffron Whirlwind (`generateCourses.mjs`, seed 9, 30°–65°, par 72, perfect 49): every hole turning, the tutorial's a two-wind cycle. Par 5s are perfect 3 (eagle chances): three strokes of turning wind reach nearly every color, so a pin that truly needs four was too rare (one par 5 took 2 minutes and 2,977 tries without one). No water or black holes, since their penalty strokes would turn the wind and the solver skips them
+- Panel: "Turning wind, one per stroke: … → …, then again (putts aren't affected). This stroke: …"; the map badge shows "now … · next …" and updates every stroke; portal and mirror outlines and the perfect-route replay use each stroke's wind; yellow tutorial box; How to play
+- Unlock: Saffron Whirlwind needs −6 or better on Caddie Strike (provisional)
+
+**Verified**
+- Every hole: perfect matches the solver in its wind cycle, the round plays the perfect route to the perfect score, and `replayRound` of a perfect round is 49; think (3) and golf-like checks pass; courses 1–8 unchanged byte for byte
+- In this wind the calm perfect route misses on 15 of 18 holes; a greedy closest-swatch player is +31
+- Headless Chrome: holes 1–3 played to birdies; the wind line and badge turn with each stroke; no console errors
+
+---
+
 ## Milestone 27 — Club bans: Caddie Strike (v1.8.2) `[ai-assisted]`
 **2026-10-31**
 
