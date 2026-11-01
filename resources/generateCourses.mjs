@@ -87,11 +87,18 @@ const BANS = {
 };
 // "No putter" is only on par 4s and 5s: on a par 3 the putter never saves a stroke. A wedges-only ban
 // was dropped (wedge moves go in any order, so it leaves far too many perfect lines), and so was
-// "No Iron" (one short row rarely costs a stroke).
+// "No Iron" (one short row rarely costs a stroke). With the think check (v1.8.2), "No Wedges" works
+// only on the ace and "No putter" only once (without them the obvious swatches keep winning), and par
+// 5s only take "No Tints or Shades" or "Hybrids, Iron and putter only".
 const CADDIE_HOLES = [
-    "noLong", "noPutter", "noHybrids", "noWedges", "noLongIron", "noTintsShades", "noLong", "noWoodsWedges", "hybridsIrons",
-    "noPutter", "noWedges", "noHybrids", "noLongIron", "noLong", "noTintsShades", "noWedges", "hybridsIrons", "noWoodsWedges",
+    "noLong", "noPutter", "noHybrids", "hybridsIrons", "noLongIron", "noTintsShades", "noLong", "noWoodsWedges", "hybridsIrons",
+    "noLongIron", "noTintsShades", "noHybrids", "noLongIron", "noLong", "noTintsShades", "noWedges", "hybridsIrons", "noWoodsWedges",
 ];
+
+// "Make you think" (v1.8.2, holeMaker.js: thinks): on each hole but the ace, none of this many tee
+// shots closest to the pin keeps the perfect score, and a perfect route plays like golf (putts only
+// near the pin, no Driver or Woods into the hole). The beginner course is left as it is.
+const THINK = { Beginner: 0, Standard: 2, Expert: 3, Expansion: 3 };
 
 // Each course keeps its tees and targets inside a hue range [from, to) in degrees (wrapping past 360),
 // and optionally a saturation range `sats` [min, max], so the name says how it plays. Routes may still pass through other hues.
@@ -107,22 +114,22 @@ const COURSES = [
         wind: null, // calm
     },
     {
-        id: "ember", name: "Ember Dunes", seed: 2, rev: 2, hues: [345, 60], difficulty: "Standard", layout: [EMBER_FRONT, BACK], // par 73, reds, oranges, yellows
+        id: "ember", name: "Ember Dunes", seed: 2, rev: 3, hues: [345, 60], difficulty: "Standard", layout: [EMBER_FRONT, BACK], // par 73, reds, oranges, yellows
         hazards: (i, par, perfect) => (perfect === 1 ? null : { greenside: par === 5 ? 2 : 1, route: i % 3 === 0 ? 1 : 0 }), // the sand course
         wind: { hue: [4, 8], light: [2, 4] }, // steady breezes
     },
     {
-        id: "verdant", name: "Verdant Pines", seed: 3, rev: 2, hues: [75, 165], difficulty: "Standard", layout: [FRONT_35, VERDANT_BACK], // par 70, greens
+        id: "verdant", name: "Verdant Pines", seed: 3, rev: 3, hues: [75, 165], difficulty: "Standard", layout: [FRONT_35, VERDANT_BACK], // par 70, greens
         hazards: (i, par, perfect) => (perfect > 1 && i % 3 === 1 ? { greenside: 1 } : null), // light sand
         wind: { hue: [2, 4] }, // light
     },
     {
-        id: "cobalt", name: "Cobalt Bay", seed: 4, rev: 2, hues: [180, 250], difficulty: "Expert", layout: [FRONT, BACK_35], layup: 8, // par 71, blues
+        id: "cobalt", name: "Cobalt Bay", seed: 4, rev: 3, hues: [180, 250], difficulty: "Expert", layout: [FRONT, BACK_35], layup: 8, // par 71, blues
         hazards: (i, par, perfect) => (perfect === 1 ? null : { water: "band" }), // lakes until only 1–3 birdie lines remain
         wind: { hue: [8, 12], light: [4, 6] }, // strong
     },
     {
-        id: "indigo", name: "Royal Indigo", seed: 5, rev: 3, hues: [250, 320], difficulty: "Expert", layout: [FRONT_35, BACK_35], layup: 10, // par 70, purples
+        id: "indigo", name: "Royal Indigo", seed: 5, rev: 4, hues: [250, 320], difficulty: "Expert", layout: [FRONT_35, BACK_35], layup: 10, // par 70, purples
         hazards: (i, par, perfect) => (perfect === 1 ? null : { water: "band", greenside: 1, route: i % 2 }),
         wind: { hue: [8, 12], light: [4, 6] }, // strong
     },
@@ -130,7 +137,7 @@ const COURSES = [
     // line shown on its card). Hole 1 teaches it: `tutorial` is shown there, and the hole is built
     // so the gimmick is the way to par.
     {
-        id: "vortex", name: "Violet Vortex", seed: 6, rev: 3, hues: [250, 300], difficulty: "Expansion",
+        id: "vortex", name: "Violet Vortex", seed: 6, rev: 4, hues: [250, 300], difficulty: "Expansion",
         gimmick: "Portals warp the ball to their exit color; black holes send it back to the tee.",
         tutorial: "A swatch with a dotted outline lands in a portal; its label shows where the ball comes out (yds from the pin). You need one to make par here.",
         portals: (i, par, perfect) => VORTEX_PLAN[VORTEX_HOLES[i]]?.(perfect) ?? null,
@@ -160,7 +167,7 @@ const courses = COURSES.map(({ id, name, seed, rev, hues, sats, difficulty, gimm
     const holes = layout.flat().map(([par, layoutPerfect], i) => {
         const perfect = difficulty === "Expert" && layoutPerfect > 1 && layup !== i ? expertPerfect(par) : layoutPerfect;
         const hole = buildHole({ rand, hazardRand, windRand }, {
-            par, perfect, hues, sats, difficulty, plan: planFor?.(i, par, perfect), windPlan, layup: layup === i, portals: portalsFor?.(i, par, perfect), mirrors: mirrorsFor?.(i, perfect), rules: rulesFor?.(i),
+            par, perfect, hues, sats, difficulty, think: THINK[difficulty], plan: planFor?.(i, par, perfect), windPlan, layup: layup === i, portals: portalsFor?.(i, par, perfect), mirrors: mirrorsFor?.(i, perfect), rules: rulesFor?.(i),
             log: (message) => console.log(`  (hole ${i + 1}: ${message})`),
         });
         const summary = [(hole.hazards ?? []).map(h => h.type).join(", ") || "clear", hole.wind ? `wind ${JSON.stringify(hole.wind)}` : "calm", hole.rules?.name].filter(Boolean).join("; ");

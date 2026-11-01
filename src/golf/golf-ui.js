@@ -235,8 +235,10 @@ async function starterHole({ difficulty, par, hazards }) {
 const isExpert = (difficulty) => difficulty === "Expert";
 
 // Test mode (`npm run dev:unlocked`): every course open, and rounds stay out of the account.
-// Never on in a normal build; the score server keeps its own locks either way.
+// Never on in a normal build; the score server keeps its own locks either way. A tester account
+// (v1.8.2: `tester: true` on users/{uid}, set in the Firebase console) gets the same on the live site.
 const TEST_UNLOCKED = import.meta.env.VITE_UNLOCK_ALL === "1";
+const testing = () => TEST_UNLOCKED || !!cloud.currentAccount()?.tester;
 
 // Sign-in problems in words (Firebase error codes); anything else gets a general "try again"
 const MIN_PASSWORD = 8;
@@ -276,7 +278,7 @@ export function setupGolf() {
     let timer = null;
     let mapState = null; // last state sent to the map; the replay draws on top of it
     let replayToken = 0; // bumped to stop a replay in progress
-    let mode = "course"; // "course" | "daily" | "practice"
+    let mode = "course"; // "course" | "daily" | "practice" | "test"
     let daily = null; // { day, scored, started } during a daily round
     let practice = null; // { settings, next } — the next practice hole, built while you play
 
@@ -308,7 +310,25 @@ export function setupGolf() {
         heading.prepend(type);
     }
 
-    if (TEST_UNLOCKED) $("golf-test-mode").hidden = false;
+    // Testing (test mode or a tester account): every course open, a hole picker, nothing sent
+    const testCourse = $("golf-test-course");
+    const testHole = $("golf-test-hole");
+    testCourse.replaceChildren(...courses.map((course, i) => new Option(course.name, i)));
+    const fillTestHoles = () => {
+        const course = courses[testCourse.value];
+        testHole.replaceChildren(...course.holes.map((hole, i) => new Option(`Hole ${i + 1} · par ${hole.par}`, i)));
+    };
+    testCourse.addEventListener("change", fillTestHoles);
+    fillTestHoles();
+    const renderTesting = () => {
+        $("golf-test-mode").hidden = !testing();
+        $("golf-test-mode").textContent = TEST_UNLOCKED
+            ? "Test mode: every course is unlocked, and rounds aren't sent to your account."
+            : "Tester account: every course is unlocked, and rounds aren't sent to your account.";
+        $("golf-test-holes").hidden = !testing();
+    };
+    renderTesting();
+    $("golf-test-play").addEventListener("click", () => startRound(courses[testCourse.value], "test", { from: Number(testHole.value) }));
 
     // ---- Account (v1.6): only when Firebase is configured ----
     if (cloud.cloudAvailable) {
@@ -472,6 +492,8 @@ export function setupGolf() {
         if (account && !account.nickname) $("golf-settings").open = true; // the nickname form is in Settings
         $("golf-account").hidden = !!account; // signed in: the account is under Settings
         settingsSummary();
+        renderTesting(); // a tester account opens every course
+        renderCourses();
         if (account) {
             try {
                 const scores = await cloud.loadMyScores();
@@ -569,7 +591,7 @@ export function setupGolf() {
     // Courses after the first few need an account and a good round on the one before (unlocks.js).
     // Without a Firebase config there are no accounts, so nothing is locked.
     const lockText = (index) => {
-        if (!cloud.cloudAvailable || TEST_UNLOCKED) return null;
+        if (!cloud.cloudAvailable || testing()) return null;
         const lock = courseLock(courses, index, { signedIn: !!owner, bests: load(scoped(BEST_KEY), {}) });
         if (lock === "account") return "Sign in to unlock";
         if (lock === "score") return `Score ${formatToPar(unlockToPar(courses[index]))} or better on ${courses[index - 1].name} to unlock`;
@@ -633,7 +655,7 @@ export function setupGolf() {
         const day = dateKey();
         const hole = await todaysHole(day);
         if (!hole || setup.hidden) return; // none today, or left the setup screen meanwhile
-        daily = { day, scored: !loadDaily()[day], started: false };
+        daily = { day, scored: !loadDaily()[day] && !testing(), started: false }; // a tester's daily is never scored
         startRound({ id: "daily", name: "Daily hole", difficulty: WEEK[weekday(day)].difficulty, holes: [hole] }, "daily");
     };
 
@@ -691,9 +713,12 @@ export function setupGolf() {
     };
 
     // ---- A round ----
-    const startRound = (course, newMode = "course") => {
+    // `from` (test rounds): start at that hole of the course
+    const startRound = (course, newMode = "course", { from = 0 } = {}) => {
         mode = newMode;
-        round = new GolfRound(course, undefined, mode === "practice" ? { undos: Infinity } : {});
+        const played = from ? { ...course, holes: course.holes.slice(from) } : course;
+        round = new GolfRound(played, undefined, ["practice", "test"].includes(mode) ? { undos: Infinity } : {});
+        round.firstHole = from;
         taught = new Set();
         round.expert = isExpert(course.difficulty);
         round.pro = proSwitch.checked || round.expert;
@@ -710,7 +735,7 @@ export function setupGolf() {
     const renderTutorials = () => {
         const { hole, holeIndex } = round;
         const lessons = [];
-        if (mode === "course" && holeIndex === 0 && round.course.tutorial) lessons.push([round.course.id, round.course.tutorial]);
+        if (["course", "test"].includes(mode) && round.firstHole + holeIndex === 0 && round.course.tutorial) lessons.push([round.course.id, round.course.tutorial]);
         const types = new Set((hole.hazards ?? []).map(h => h.type));
         const named = (hole.hazards ?? []).some(h => h.wedge);
         for (const type of ["sand", "water", "blackhole"]) {
@@ -750,8 +775,9 @@ export function setupGolf() {
             title = `Practice ${holeIndex + 1} · Par ${hole.par}`;
             info = [round.course.difficulty, length, summary, line, pro, holes && `thru ${holes}: ${formatToPar(toPar)}`];
         } else {
-            title = `Hole ${holeIndex + 1} · Par ${hole.par}`;
-            info = [round.course.name, `${round.nine === 0 ? "Front" : "Back"} 9`, length, summary, line, pro];
+            const number = round.firstHole + holeIndex + 1; // test rounds can start partway
+            title = `${mode === "test" ? "Test · " : ""}Hole ${number} · Par ${hole.par}`;
+            info = [round.course.name, `${number <= 9 ? "Front" : "Back"} 9`, length, summary, line, pro, mode === "test" && "not saved"];
         }
         $("golf-hole-title").textContent = title;
         $("golf-hole-info").textContent = info.filter(Boolean).join(" · ");
@@ -917,7 +943,7 @@ export function setupGolf() {
         $("golf-result").textContent = result.pickedUp ? "Picked up" : scoreName(result.strokes, result.par);
         $("golf-result-info").textContent =
             `${result.strokes} strokes · Par ${result.par} · Perfect ${result.perfect} · ${formatTime(result.time)}`;
-        $("golf-next").textContent = mode === "practice" || !round.finished ? "Next hole" : mode === "daily" ? "See result" : "See score card";
+        $("golf-next").textContent = mode === "practice" || !round.finished ? "Next hole" : mode === "course" ? "See score card" : "See result";
         $("golf-show-path").disabled = false;
         $("golf-show-path").hidden = false;
         holeEnd.hidden = false;
@@ -982,6 +1008,13 @@ export function setupGolf() {
                 daily.scored ? `Streak ${run}` : "Replay, not scored"}`;
             $("golf-card").hidden = true;
             $("golf-again").textContent = "Color Golf menu";
+        } else if (mode === "test") {
+            const first = round.firstHole + 1;
+            $("golf-round-title").textContent = `Test: ${round.course.name}, holes ${first}–${first + totals.holes - 1}`;
+            $("golf-round-message").hidden = true;
+            $("golf-round-info").textContent = `${totals.strokes} strokes (${formatToPar(totals.toPar)}) · Perfect ${totals.perfect} · ${formatTime(totals.time)}${pro} · not saved`;
+            $("golf-card").hidden = true;
+            $("golf-again").textContent = "Color Golf menu";
         } else {
             const isBest = saveBest(round.course, round.pro, totals);
             sendRound({ kind: "course", courseId: round.course.id, rev: round.course.rev ?? 1, pro: round.pro, holes: playedHoles(round.card) });
@@ -1004,7 +1037,7 @@ export function setupGolf() {
         const note = $("golf-round-saved");
         note.hidden = !cloud.cloudAvailable;
         if (!cloud.cloudAvailable) return;
-        if (TEST_UNLOCKED) {
+        if (testing()) {
             note.textContent = "Test mode: rounds aren't sent to your account.";
             return;
         }
@@ -1169,7 +1202,7 @@ export function setupGolf() {
     });
     $("golf-show-path").addEventListener("click", showPath);
     $("golf-quit").addEventListener("click", () => {
-        if (mode === "practice" || (mode === "daily" && !daily.started) || round.finished) openSetup();
+        if (["practice", "test"].includes(mode) || (mode === "daily" && !daily.started) || round.finished) openSetup();
         else if (mode === "daily") {
             if (confirm("Leave today's hole? It counts as a pick-up.")) openSetup();
         } else if (confirm("Quit this round? It won't be saved.")) openSetup();

@@ -284,6 +284,16 @@
 
                     <!-- What to play: scrolls in its own box, so the page doesn't grow with the courses -->
                     <div id="golf-picker">
+                    <!-- Test a hole (v1.8.2): tester accounts and test mode only -->
+                    <div id="golf-test-holes" class="golf-course" hidden>
+                        <h3>Test a hole</h3>
+                        <div class="golf-practice-options">
+                            <select id="golf-test-course" aria-label="Course"></select>
+                            <select id="golf-test-hole" aria-label="Hole"></select>
+                        </div>
+                        <span class="golf-best">Plays from that hole to the end of the course, unlimited undo, nothing saved</span>
+                        <button id="golf-test-play" class="btn btn-primary" type="button">Play</button>
+                    </div>
                     <!-- Daily hole: the same for everyone, one scored try (golf/daily.js) -->
                     <div id="golf-daily" class="golf-course">
                         <h3>Daily hole <span id="golf-daily-date" class="golf-sub"></span></h3>

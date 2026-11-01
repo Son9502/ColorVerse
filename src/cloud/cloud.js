@@ -92,12 +92,15 @@ export function loadCloud() {
             }
             store.set(SIGNED_IN_KEY, account.uid);
             let nickname = null;
+            let tester = false; // set by hand in the Firebase console (players can't write their own record)
             try {
-                nickname = (await store_.getDoc(store_.doc(db, "users", account.uid))).get("nickname") ?? null;
+                const profile = await store_.getDoc(store_.doc(db, "users", account.uid));
+                nickname = profile.get("nickname") ?? null;
+                tester = profile.get("tester") === true;
             } catch { /* offline: no nickname yet */ }
             // hasPassword: signs in with an email address (a password, or a link that hasn't set one yet)
             const hasPassword = account.providerData.some(provider => provider.providerId === "password");
-            user = { uid: account.uid, email: account.email, nickname, hasPassword };
+            user = { uid: account.uid, email: account.email, nickname, hasPassword, tester };
             notify();
             flushQueue();
         });

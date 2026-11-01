@@ -18,12 +18,19 @@ import { clubMask } from "./rules.js";
 // blocked, for the "can't make par without a portal" check on black-hole holes. A mirror (v1.8.1)
 // sends the ball to its color with the hex reversed, which depends only on the landing, so that's
 // exact too. Water and black holes are judged where the ball lands, not where a warp puts it (as the
-// round does). `rules` (v1.8.2, rules.js) leaves out the clubs a hole bans.
+// round does). `rules` (v1.8.2, rules.js) leaves out the clubs a hole bans. `golf` (v1.8.2, the pin)
+// only finds routes that play like golf: the putter only near the pin (within PUTT_RANGE), and no
+// Driver or Woods into the hole; the hole builder checks one of those makes the perfect score, and
+// "Show perfect route" shows it.
 
 const UNSEEN = 255;
 
 const WEDGE_CLUB = CLUBS.map(isWedge);
 const CLUB_ROW = CLUBS.map(club => club.row);
+const PUTT_RANGE = 0.08; // OKLab: about as far as two putts go
+const PUTTER_CLUB = CLUBS.map(club => club.row === "putter");
+const LONG_CLUB = CLUBS.map(club => club.row === "complementary" || club.row === "split-complementary");
+
 // Whether club `i` can be played from a state whose sand rule is `wedge` (null: any wedge)
 const sandAllows = (i, wedge) => (wedge ? CLUB_ROW[i] === wedge : WEDGE_CLUB[i]);
 
@@ -37,9 +44,10 @@ function rough(hazards, landing, hsl, code, avoidHazards) {
 
 
 // Strokes from `tee` to every state reachable within `maxDepth`, plus how each was first reached
-export function searchFrom(tee, maxDepth = 7, hazards = null, { avoidHazards = false, avoidPortals = false, wind = null, rules = null } = {}) {
+export function searchFrom(tee, maxDepth = 7, hazards = null, { avoidHazards = false, avoidPortals = false, wind = null, rules = null, golf = null } = {}) {
     const blocked = hazards && !hazards.empty;
     const allowed = clubMask(rules);
+    const pin = golf && hslToOklab(golf);
     const dist = new Uint8Array(STATE_COUNT).fill(UNSEEN);
     const parent = new Int32Array(STATE_COUNT).fill(-1);
     const club = new Uint8Array(STATE_COUNT);
@@ -56,14 +64,17 @@ export function searchFrom(tee, maxDepth = 7, hazards = null, { avoidHazards = f
             const lie = blocked ? hazards.at(from, code) : null;
             const inSand = lie === "sand";
             const wedge = inSand ? hazards.wedgeAt(from, code) : null;
+            const nearPin = !pin || oklabDistance(hslToOklab(from), pin) < PUTT_RANGE;
             allStrikes(from, wind).forEach((landing, clubIndex) => {
                 if (allowed && !allowed[clubIndex]) return;
                 if (inSand && !sandAllows(clubIndex, wedge)) return;
+                if (PUTTER_CLUB[clubIndex] && !nearPin) return;
                 if (avoidPortals && blocked && hazards.portalAt(landing)) return;
                 const hsl = blocked ? hazards.land(landing) : landing; // through a portal or a mirror, if it's in one
                 const to = encode(hsl);
                 if (dist[to] !== UNSEEN) return;
                 if (blocked && rough(hazards, landing, hsl, to, avoidHazards)) return;
+                if (pin && LONG_CLUB[clubIndex] && oklabDistance(hslToOklab(hsl), pin) < IN_THE_HOLE) return;
                 dist[to] = depth;
                 parent[to] = code;
                 club[to] = clubIndex;

@@ -242,6 +242,8 @@ Seven account-only courses after Royal Indigo, each built around one gimmick, th
 - Tutorial boxes take the course's or the hazard's color, and bunkers, water and black holes get one on their first hole of a round.
 
 **Done:** v1.8.2 Caddie Strike: 18 club-ban holes (full spectrum), par 72, perfect 51. `hole.rules` and `rules.js` now hold rules that aren't regions, shared by the round, solver, builder and server. Every ban costs at least a stroke; the line under the hole info names it and the banned rows grey out. No bunkers on this course (one could need a banned wedge).
+- **Holes that make you think** (all courses but Prism Point, regenerated): the swatches that land closest to the pin never keep the perfect score (the closest 2 on Standard, 3 on Expert and expansion courses), and a perfect route plays like golf (putts only near the pin, no Driver or Woods into the hole). Greedy "closest swatch" play now makes perfect only on the aces.
+- **Tester accounts:** `tester: true` on a user's Firestore record opens every course and a "Test a hole" card; nothing is sent.
 
 **Order:** one course per release, each playable and committed before the next: v1.8.0 hole rules + Portals (Violet Vortex), v1.8.1 Mirror greens (Silverglass Greens), v1.8.2 Club bans (Caddie Strike), v1.8.3 Turning wind (Saffron Whirlwind), v1.8.4 Roulette (Scarlet Roulette), v1.8.5 Flip (Hexflip Hollow), v1.8.6 Survival (The Obsidian Gauntlet).
 

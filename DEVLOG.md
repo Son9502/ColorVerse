@@ -24,8 +24,17 @@ The third expansion course, from the agreed v1.8 spec; implementation `[ai-assis
 **Tried and dropped**
 - "Wedges and putter only": wedge moves go in any order, so 11–16 first shots keep the perfect score, far over the 1–4 band. "No Iron": one short row rarely costs a stroke. "No putter" and "No Wedges" on par 3s: the putter never saves a stroke on a par 3, and a no-wedge par 3 only cost one when putts alone could hole it
 
+**After review** (the developer: a tester account; holes that make you think instead of rewarding the closest swatch; putts only near the green and no driver into the hole; difficulty and gimmicks should mean something)
+- Tester accounts: `tester: true` on `users/{uid}` (set in the Firebase console; players can't write their record) opens every course on the live site, as `npm run dev:unlocked` does locally. Either way a "Test a hole" card plays any course from any hole (unlimited undo, nothing sent, no confirm on quit), and dailies aren't scored
+- "Make you think" (`thinks`, `holeMaker.js`): on every hole but the ace, none of the closest tee shots to the pin (after portals and mirrors, allowed clubs only) keeps the perfect score: 2 on Standard courses, 3 on Expert and expansion courses, none on Prism Point. Measured first: the closest swatch led the perfect route on up to 9 of 18 holes (Caddie Strike), and at least one of the closest 3 kept the perfect score on 7–16 holes per course
+- Golf-like routes (`searchFrom`'s `golf`, `playsLikeGolf`): a perfect route must exist with the putter only near the pin (within 80 yds, about two putts) and no Driver or Woods into the hole; "Show perfect route" shows that one
+- `buildHole` rebuilds a hole (up to 80 tries) until it passes, when the course asks (`THINK` in `generateCourses.mjs`); the daily holes and practice don't, so they build exactly as before
+- Regenerated: Ember Dunes and Verdant Pines (rev 3), Cobalt Bay (rev 3), Royal Indigo (rev 4), Violet Vortex (rev 4), Silverglass Greens, Caddie Strike. Prism Point unchanged. A player who always takes the swatch closest to the pin now makes perfect only on the aces (before: 2–8 holes per course) and plays Verdant Pines at +35 (before +5), Royal Indigo at +50 (before +33)
+- Caddie Strike's bans moved to fit: "No Wedges" only on the ace, "No putter" once, par 5s "No Tints or Shades" or "Hybrids, Iron and putter only"
+
 **Verified**
-- Every hole: perfect matches the solver under its ban; without the ban the perfect score is lower; no perfect route uses a banned club; courses 1–7 unchanged byte for byte
+- Every hole: perfect matches the solver under its ban; without the ban the perfect score is lower; no perfect route uses a banned club
+- After the regeneration: every course's stored perfect matches the solver and its perfect round replays exactly through `replayRound`; every hole passes its course's think check and has a golf-like perfect route; portals and mirrors are still needed (par 3s and 4s over par without them, the ace aside), and every ban still costs a stroke
 - `replayRound`: a perfect round is 51; a banned club is refused
 - Headless Chrome: holes 1–4 played to birdies; a double-click on a banned swatch plays nothing; no console errors
 

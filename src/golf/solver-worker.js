@@ -9,8 +9,13 @@ import { hazardMap } from "./hazards.js";
 
 self.addEventListener("message", ({ data: { id, tee, target, perfect, hazards = [], wind = null, rules = null } }) => {
     try {
-        const search = searchFrom(tee, perfect, hazardMap(hazards), { wind, rules });
-        const best = parFor(search, target);
+        // A route that plays like golf if there is one (v1.8.2), or any perfect route
+        let search = searchFrom(tee, perfect, hazardMap(hazards), { wind, rules, golf: target });
+        let best = parFor(search, target);
+        if (best?.par !== perfect) {
+            search = searchFrom(tee, perfect, hazardMap(hazards), { wind, rules });
+            best = parFor(search, target);
+        }
         self.postMessage({ id, route: best ? pathTo(search, best.end) : [] });
     } catch (error) {
         self.postMessage({ id, error: String(error) });
