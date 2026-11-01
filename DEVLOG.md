@@ -9,6 +9,32 @@ Each entry is tagged with how it was produced:
 
 ---
 
+## Milestone 30 — Flip: Hexflip Hollow (v1.8.5) `[ai-assisted]`
+**2026-11-01**
+
+The sixth expansion course, from the agreed v1.8 spec; implementation `[ai-assisted]`.
+
+**Added**
+- Flip clubs (`clubs.js`): five clubs (ids 45–49, after the roulette) that move the hex digits left by 1–5 places (`flipOf`; `mirrorOf` shares its hex-to-HSL step); full shots (wind blows them). On holes with `hole.rules.flip`; `ruleAllows` refuses them elsewhere, so the server's replay does too. `allStrikes(hsl, wind, roulette, flip)` keeps index = club id, with null in the roulette's places on a flip hole without one
+- Solver: `searchFrom` / `reachesWithin` take `flip`; the worker passes it from the hole's rules
+- `makeFlipHole` (`holeMaker.js`), sharing `makeExtraClubHole` with `makeRouletteHole`: pin first reached in exactly the perfect score with the flips, and without them the hole is two strokes longer; think and golf-like checks; birdie line out of 46
+- Hexflip Hollow (`generateCourses.mjs`, seed 11, full spectrum, `EAGLE_LAYOUT`, par 72, perfect 49): par needs a flip on every par 3 and 4 (the ace included), and under par needs one on the par 5s
+- Panel: a Flip row (on flip holes) of five swatches labeled ← 1 … ← 5, teal tutorial box, "flip" term, "perfect line … of 46"
+- Unlock: Hexflip Hollow needs −4 or better on Scarlet Roulette (provisional)
+
+**Fixed**
+- v1.8.4: the panel worked out every club's landing, the roulette keys included, so on any hole without a roulette `strike` threw and the hole never finished drawing (every course but Scarlet Roulette). Rows a hole doesn't have are now skipped
+- v1.8.4: a click on the roulette wheel focused it and opened the four keys, so a mouse could pick any shift without timing it; the keys now open only for keyboard focus. A strip beside the wheel lists the four shifts in order with the one showing highlighted (not clickable)
+
+**Notes**
+- Flips 2 and 4 turn the channels round (about ±120° of hue, like Triadic); 1, 3 and 5 are the wild jumps, and every perfect route uses one of them
+
+**Verified**
+- Every hole: perfect matches the solver with the flips; the round plays the perfect route to the perfect score; without flips each hole takes two more strokes (the ace three); think and golf-like checks pass; courses 1–10 unchanged byte for byte
+- `replayRound`: a perfect round is 49; a flip club on a hole without flips, and a roulette club on a flip hole, are refused
+
+---
+
 ## Milestone 29 — Roulette: Scarlet Roulette (v1.8.4) `[ai-assisted]`
 **2026-10-31**
 

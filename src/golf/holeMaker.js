@@ -115,18 +115,19 @@ function birdieLines(hole, perfect, map = null) {
     });
 }
 // (only clubs the hole's rules allow, v1.8.2; with a turning wind, v1.8.3, the first stroke's wind,
-// then the cycle from stroke 2; with a roulette, v1.8.4, its four shots too)
+// then the cycle from stroke 2; with a roulette, v1.8.4, its four shots too, and with flips, v1.8.5, their five)
 const birdieLineCount = (hole, perfect, map, wind = null) => {
     const rules = hole.rules ?? null;
     const allowed = clubMask(rules);
     const cycle = rules?.windCycle ?? null;
     const roulette = rules?.roulette ?? null;
+    const flip = !!rules?.flip;
     let count = 0;
-    allStrikes(hole.tee, cycle ? cycle[0] : wind, roulette).forEach((landing, i) => { // counts clubs, like the selection check
-        if (allowed && !allowed[i]) return;
+    allStrikes(hole.tee, cycle ? cycle[0] : wind, roulette, flip).forEach((landing, i) => { // counts clubs, like the selection check
+        if (!landing || (allowed && !allowed[i])) return;
         const shot = map.land(landing); // through a portal (v1.8) or a mirror (v1.8.1)
         if (map.at(landing) === "water") return;
-        if (reachesWithin(shot, hole.target, perfect - 1, map, { wind, cycle, played: 1, roulette, rules })) count++;
+        if (reachesWithin(shot, hole.target, perfect - 1, map, { wind, cycle, played: 1, roulette, flip, rules })) count++;
     });
     return count;
 };
@@ -139,8 +140,8 @@ export function thinks(hole, count) {
     const map = hazardMap(hole.hazards ?? []);
     const options = { ...windOptions(hole), played: 1, rules: hole.rules ?? null };
     const seen = new Set();
-    const closest = allStrikes(hole.tee, windFor(hole, 0), options.roulette)
-        .filter((landing, i) => ruleAllows(options.rules, CLUBS[i]) && map.at(landing) !== "water")
+    const closest = allStrikes(hole.tee, windFor(hole, 0), options.roulette, options.flip)
+        .filter((landing, i) => landing && ruleAllows(options.rules, CLUBS[i]) && map.at(landing) !== "water")
         .map(landing => map.land(landing))
         .filter(end => !seen.has(encode(end)) && seen.add(encode(end)))
         .sort((a, b) => hslDistance(a, hole.target) - hslDistance(b, hole.target))
@@ -585,17 +586,30 @@ export function makeWindHole(rand, { par, perfect, hues, sats, band, think = 0, 
 // Birdie line in `band` (out of 45 first shots); `think` as in buildHole.
 // Returns { tee, target, par, perfect, rules }, or null if 300 tries find nothing.
 const HARMONY_SHIFTS = [20, 40, 60, 90, 120, 150, 180, 210, 240, 270, 300, 320, 340];
-export function makeRouletteHole(rand, { par, perfect, hues, sats, band, think = 0, skip = 1 }) {
+export function makeRouletteHole(rand, options) {
     const fresh = (shift) => HARMONY_SHIFTS.every(h => Math.abs(((shift - h + 540) % 360) - 180) > 4);
-    for (let tries = 0; tries < 300; tries++) {
+    return makeExtraClubHole(rand, options, () => {
         const roulette = [];
         while (roulette.length < 4) {
             const shift = (10 + Math.floor(rand() * 161)) * (rand() < 0.5 ? -1 : 1);
             if (fresh(shift) && roulette.every(s => Math.abs(s - shift) > 15)) roulette.push(shift);
         }
-        const rules = { roulette };
+        return { roulette };
+    });
+}
+
+// A flip hole (v1.8.5, Hexflip Hollow): the five flip clubs (rules.js: flip), built like a roulette
+// hole: the pin is first reached in exactly `perfect` strokes with them, and without them the hole is
+// at least `skip` strokes longer. Flips 2 and 4 turn the channels round (about ±120°, like Triadic),
+// so the ones that matter are the odd ones, the wild jumps. Birdie line out of 46 first shots.
+export const makeFlipHole = (rand, options) => makeExtraClubHole(rand, options, () => ({ flip: true }));
+
+// A hole built round clubs only it has (the roulette or the flips): `makeRules()` gives each try's rules
+function makeExtraClubHole(rand, { par, perfect, hues, sats, band, think = 0, skip = 1 }, makeRules) {
+    for (let tries = 0; tries < 300; tries++) {
+        const rules = makeRules();
         const tee = randomColor(rand, hues, sats);
-        const search = searchFrom(tee, perfect, null, { roulette });
+        const search = searchFrom(tee, perfect, null, { roulette: rules.roulette ?? null, flip: !!rules.flip });
         const fits = (pin) => {
             const yards = yardsBetween(tee, pin);
             return inRange(pin, hues, sats) && yards >= LENGTH[par][0] && yards <= LENGTH[par][1] && hslDistance(tee, pin) >= ON_THE_GREEN * 2;
@@ -606,7 +620,7 @@ export function makeRouletteHole(rand, { par, perfect, hues, sats, band, think =
         for (let n = 0; n < 12 && pins.length; n++) {
             const target = pins.splice(Math.floor(rand() * pins.length), 1)[0];
             if (parFor(search, target)?.par !== perfect) continue;
-            if (reachesWithin(tee, target, perfect + skip - 1)) continue; // without the roulette: `skip` strokes longer
+            if (reachesWithin(tee, target, perfect + skip - 1)) continue; // without the extra clubs: `skip` strokes longer
             const hole = { tee, target, par, perfect, rules };
             if (perfect > 1) {
                 const line = birdieLineCount(hole, perfect, hazardMap([]));
@@ -638,7 +652,16 @@ export function buildHole(rands, options) {
 // (separate sequences, so adding hazards or wind never changes which tee and target are chosen).
 // `plan` is { water, greenside, route } counts or null; `windPlan` is { hue: [min, max], light: [min, max] }
 // or null. `layup` makes a par 5 whose birdie lines are all under water. `log` reports a hole left clear.
-function buildOnce({ rand, hazardRand, windRand }, { par, perfect, hues, sats, difficulty, plan = null, windPlan = null, layup = false, portals = null, mirrors = null, rules = null, turning = null, roulette = null, think = 0, log = () => {} }) {
+function buildOnce({ rand, hazardRand, windRand }, { par, perfect, hues, sats, difficulty, plan = null, windPlan = null, layup = false, portals = null, mirrors = null, rules = null, turning = null, roulette = null, flip = null, think = 0, log = () => {} }) {
+    // Flip (v1.8.5): the hole is built round the five flip clubs
+    for (let attempt = 0; flip && attempt < 8; attempt++) {
+        const hole = makeFlipHole(rand, { par, perfect, hues, sats, band: BIRDIE_LINE[difficulty], think, ...flip });
+        if (hole) {
+            hole.lines = birdieLineCount(hole, hole.perfect, hazardMap([]));
+            return hole;
+        }
+        if (attempt === 7) log("no flip hole passed the checks; built without one");
+    }
     // Roulette (v1.8.4): the hole is built round its four shifts
     for (let attempt = 0; roulette && attempt < 8; attempt++) {
         const hole = makeRouletteHole(rand, { par, perfect, hues, sats, band: BIRDIE_LINE[difficulty], think, ...roulette });

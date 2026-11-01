@@ -575,7 +575,8 @@ Color Categories + Squares
 #tones,
 #saturate,
 #putter,
-#roulette {
+#roulette,
+#flip {
     display: flex;
     align-items: flex-start; /* a name or portal label makes a swatch taller: keep the squares in line */
     gap: clamp(6px, 1vw, 18px);
@@ -1646,6 +1647,12 @@ body.golf-pro .square-wrapper::after {
     border-left-color: #e0a100;
     background: #fff6d6;
     color: #6b4c00;
+}
+
+.golf-tutorial.hexflip {
+    border-left-color: #0e8a7e;
+    background: #def4f1;
+    color: #0a4f48;
 }
 
 .golf-tutorial.scarlet {

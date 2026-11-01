@@ -108,6 +108,11 @@ const EAGLE_LAYOUT = [FRONT, BACK].map(nine => nine.map(([par, perfect]) => [par
 // score needs it (holeMaker.js: makeRouletteHole). Needing it for par too (two strokes saved) turned
 // out to be out of reach: the harmony clubs get to any hue within a few strokes anyway.
 
+// Hexflip Hollow (v1.8.5): every hole has the flip row (five clubs that move the hex digits left by
+// 1–5), built so that without it the hole is two strokes longer (holeMaker.js: makeFlipHole): par
+// needs a flip on the par 3s and 4s, and going under par needs one on the par 5s. Flips are wild
+// enough that two strokes is within reach, unlike the roulette's hue shifts.
+
 // "Make you think" (v1.8.2, holeMaker.js: thinks): on each hole but the ace, none of this many tee
 // shots closest to the pin keeps the perfect score, and a perfect route plays like golf (putts only
 // near the pin, no Driver or Woods into the hole). The beginner course is left as it is.
@@ -179,12 +184,18 @@ const COURSES = [
         tutorial: "The Roulette row's swatch spins through this hole's four hue shifts, one a second, and a stroke plays whichever is showing (with the keyboard, Tab to the row for all four). The perfect score here needs it.",
         roulette: () => ({ skip: 1 }),
     },
+    {
+        id: "hexflip", name: "Hexflip Hollow", seed: 11, hues: [0, 360], difficulty: "Expansion", layout: EAGLE_LAYOUT, // full spectrum
+        gimmick: "Flip clubs move your color's hex digits left: #A23432 flips to #23432A, #3432A2, …",
+        tutorial: "The Flip row moves your color's hex digits left by 1 to 5 places (#A23432 → #23432A by 1). Flips 2 and 4 just turn the hue about 120°; 1, 3 and 5 jump somewhere new. You need one to make par here.",
+        flip: () => ({ skip: 2 }),
+    },
 ];
 
 const only = process.argv.slice(2); // optional: course ids to generate (others are kept from the current file)
 const existing = only.length ? JSON.parse(readFileSync(new URL("../src/golf/courses.json", import.meta.url))) : [];
 
-const courses = COURSES.map(({ id, name, seed, rev, hues, sats, difficulty, gimmick, tutorial, layout = [FRONT, BACK], hazards: planFor, layup, wind: windPlan, portals: portalsFor, mirrors: mirrorsFor, rules: rulesFor, turning: turningFor, roulette: rouletteFor }) => {
+const courses = COURSES.map(({ id, name, seed, rev, hues, sats, difficulty, gimmick, tutorial, layout = [FRONT, BACK], hazards: planFor, layup, wind: windPlan, portals: portalsFor, mirrors: mirrorsFor, rules: rulesFor, turning: turningFor, roulette: rouletteFor, flip: flipFor }) => {
     if (only.length && !only.includes(id)) return existing.find(course => course.id === id);
     const rand = rng(seed);
     const hazardRand = rng(seed * 7919); // separate sequence: hazards don't change which holes are chosen
@@ -192,10 +203,10 @@ const courses = COURSES.map(({ id, name, seed, rev, hues, sats, difficulty, gimm
     const holes = layout.flat().map(([par, layoutPerfect], i) => {
         const perfect = difficulty === "Expert" && layoutPerfect > 1 && layup !== i ? expertPerfect(par) : layoutPerfect;
         const hole = buildHole({ rand, hazardRand, windRand }, {
-            par, perfect, hues, sats, difficulty, think: THINK[difficulty], plan: planFor?.(i, par, perfect), windPlan, layup: layup === i, portals: portalsFor?.(i, par, perfect), mirrors: mirrorsFor?.(i, perfect), rules: rulesFor?.(i), turning: turningFor?.(i), roulette: rouletteFor?.(i, par, perfect),
+            par, perfect, hues, sats, difficulty, think: THINK[difficulty], plan: planFor?.(i, par, perfect), windPlan, layup: layup === i, portals: portalsFor?.(i, par, perfect), mirrors: mirrorsFor?.(i, perfect), rules: rulesFor?.(i), turning: turningFor?.(i), roulette: rouletteFor?.(i, par, perfect), flip: flipFor?.(i, par, perfect),
             log: (message) => console.log(`  (hole ${i + 1}: ${message})`),
         });
-        const summary = [(hole.hazards ?? []).map(h => h.type).join(", ") || "clear", hole.wind ? `wind ${JSON.stringify(hole.wind)}` : "calm", hole.rules?.name, hole.rules?.windCycle && `turning ${JSON.stringify(hole.rules.windCycle)}`, hole.rules?.roulette && `roulette ${hole.rules.roulette.join(" ")}`].filter(Boolean).join("; ");
+        const summary = [(hole.hazards ?? []).map(h => h.type).join(", ") || "clear", hole.wind ? `wind ${JSON.stringify(hole.wind)}` : "calm", hole.rules?.name, hole.rules?.windCycle && `turning ${JSON.stringify(hole.rules.windCycle)}`, hole.rules?.roulette && `roulette ${hole.rules.roulette.join(" ")}`, hole.rules?.flip && "flip"].filter(Boolean).join("; ");
         console.log(`${name} hole ${i + 1}: par ${par}, perfect ${hole.perfect}, ${Math.round(yardsBetween(hole.tee, hole.target))} yds, ${summary}`);
         return hole;
     });

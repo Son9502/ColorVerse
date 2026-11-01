@@ -29,14 +29,19 @@ export const PUTTER = [
 // each. Only on holes that have them, so they're not among allStrikes' usual 41.
 export const ROULETTE_SLOTS = 4;
 
-// Every club as { row, index }: harmony rows in panel order, then the putter, then the roulette
-// (new clubs go at the end, so recorded rounds keep their club ids)
+// Flip (v1.8.5, Hexflip Hollow): five clubs that move the color's hex digits left by 1–5 places
+// (#A23432 → #23432A), a full shot each. Only on holes whose rules have `flip`.
+export const FLIPS = 5;
+
+// Every club as { row, index }: harmony rows in panel order, then the putter, the roulette and the
+// flip (new clubs go at the end, so recorded rounds keep their club ids)
 export const CLUBS = [
     ...HARMONY_ROWS.flatMap(row => harmonyDict({ h: 0, s: 0, l: 0 })[row].map((_, index) => ({ row, index }))),
     ...PUTTER.map((_, index) => ({ row: "putter", index })),
     ...Array.from({ length: ROULETTE_SLOTS }, (_, index) => ({ row: "roulette", index })),
+    ...Array.from({ length: FLIPS }, (_, index) => ({ row: "flip", index })),
 ];
-export const STANDARD_CLUBS = CLUBS.filter(club => club.row !== "roulette"); // every hole's 41
+export const STANDARD_CLUBS = CLUBS.filter(club => club.row !== "roulette" && club.row !== "flip"); // every hole's 41
 
 // A club as one small number (its place in CLUBS) and back, for recorded rounds (v1.6)
 export const clubId = ({ row, index }) => CLUBS.findIndex(club => club.row === row && club.index === index);
@@ -57,13 +62,16 @@ export const CALM = null;
 const blow = (hsl, wind) => (wind ? { h: hsl.h + (wind.hue ?? 0), s: hsl.s, l: hsl.l + (wind.light ?? 0) } : hsl);
 
 // All results from one position, in CLUBS order: the 41 harmony and putter shots, then a hole's
-// roulette shifts (`roulette`: 4 hue shifts in degrees) if it has them
-export function allStrikes(hsl, wind = CALM, roulette = null) {
+// roulette shifts (`roulette`: 4 hue shifts in degrees) if it has them, then the five flips if `flip`.
+// Index i is always CLUBS[i]'s landing: on a flip hole without a roulette, the roulette's places are null.
+export function allStrikes(hsl, wind = CALM, roulette = null, flip = false) {
     const harmonies = harmonyDict(hsl);
+    const shifts = roulette ?? (flip ? Array(ROULETTE_SLOTS).fill(null) : []);
     return [
         ...HARMONY_ROWS.flatMap(row => harmonies[row].map(landing => roundHSL(blow(roundHSL(landing), wind)))),
         ...PUTTER.map(club => roundHSL(club.apply(hsl))),
-        ...(roulette ?? []).map(shift => roundHSL(blow({ h: hsl.h + shift, s: hsl.s, l: hsl.l }, wind))),
+        ...shifts.map(shift => (shift === null ? null : roundHSL(blow({ h: hsl.h + shift, s: hsl.s, l: hsl.l }, wind)))),
+        ...(flip ? Array.from({ length: FLIPS }, (_, index) => roundHSL(blow(flipOf(hsl, index + 1), wind))) : []),
     ];
 }
 
@@ -71,14 +79,24 @@ export function allStrikes(hsl, wind = CALM, roulette = null) {
 // A roulette club needs the hole's shifts.
 export function strike(hsl, { row, index }, wind = CALM, roulette = null) {
     if (row === "roulette") return roundHSL(blow({ h: hsl.h + roulette[index], s: hsl.s, l: hsl.l }, wind));
+    if (row === "flip") return roundHSL(blow(flipOf(hsl, index + 1), wind));
     if (row === "putter") return roundHSL(PUTTER[index].apply(hsl));
     return roundHSL(blow(roundHSL(harmonyDict(hsl)[row][index]), wind));
 }
 
 // The color whose hex is this one's backwards (#234243 → #342432), as whole-number HSL: where a
 // mirror (v1.8.1) sends a ball that lands on it
-export function mirrorOf(hsl) {
-    const hex = [...hslToHex(hsl).slice(1)].reverse().join("");
+export const mirrorOf = (hsl) => hexToHSL([...hslToHex(hsl).slice(1)].reverse().join(""));
+
+// The color whose hex is this one's moved left by `places` digits (#A23432 by 1 → #23432A), as
+// whole-number HSL: a flip club's landing (v1.8.5)
+export function flipOf(hsl, places) {
+    const hex = hslToHex(hsl).slice(1);
+    return hexToHSL(hex.slice(places) + hex.slice(0, places));
+}
+
+// Six hex digits (no #) as whole-number HSL
+function hexToHSL(hex) {
     const [r, g, b] = [0, 2, 4].map(i => parseInt(hex.slice(i, i + 2), 16) / 255);
     const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2, d = max - min;
     const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));

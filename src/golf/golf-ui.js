@@ -1,6 +1,6 @@
 import courses from "./courses.json";
 import { GolfRound, scoreName, compareRounds, UNDOS_PER_ROUND, UNDOS_DAILY } from "./game.js";
-import { PUTTER, strike } from "./clubs.js";
+import { PUTTER, ROULETTE_SLOTS, FLIPS, strike } from "./clubs.js";
 import { IN_THE_HOLE, hslDistance, hslToHex } from "./oklab.js";
 import { harmonySets, selectBaseColor, clearBaseColor, addNameLabel } from "../harmony.js";
 import { describeColor, colorNamesOn } from "../color-names.js";
@@ -40,9 +40,10 @@ const HUE_SHIFTS = {
 let rouletteShifts = null;
 const shiftText = (shift) => `${shift > 0 ? "+" : "−"}${Math.abs(shift)}°`;
 
-// "Tints 60%", "Triadic +120°", "Putter Sat +", "Roulette +95°"
+// "Tints 60%", "Triadic +120°", "Putter Sat +", "Roulette +95°", "Flip ← 3"
 function clubName({ row, index }) {
     if (row === "putter") return `Putt ${PUTTER[index].label}`;
+    if (row === "flip") return `Flip ← ${index + 1}`;
     if (row === "roulette") return `Roulette ${shiftText(rouletteShifts?.[index] ?? 0)}`;
     if (HUE_SHIFTS[row]) {
         const shift = HUE_SHIFTS[row][index];
@@ -71,6 +72,7 @@ const HAZARD_LESSONS = {
 function proLabel({ row, index }) {
     if (row === "putter") return PUTTER[index].label;
     if (row === "roulette") return clubName({ row, index }).slice("Roulette ".length);
+    if (row === "flip") return `← ${index + 1}`;
     return clubName({ row, index }).slice(ROW_NAMES[row].length + 1);
 }
 
@@ -311,6 +313,10 @@ export function setupGolf() {
     rouletteKeys.forEach((box, index) => clubs.set(box, { row: "roulette", index }));
     const rouletteNames = rouletteKeys.map(addNameLabel);
     const wheel = $("roulette-wheel");
+    // Flip (v1.8.5): five clubs that move the hex digits left by 1–5 places
+    const flipBoxes = Array.from({ length: FLIPS }, (_, index) => $(`flip${index + 1}`));
+    flipBoxes.forEach((box, index) => clubs.set(box, { row: "flip", index }));
+    const flipNames = flipBoxes.map(addNameLabel);
     let spin = 0; // the shift the wheel shows
     const wheelClub = () => ({ row: "roulette", index: spin });
     // The keys show while one of them has keyboard focus (index.css); a click focuses the wheel too,
@@ -792,7 +798,8 @@ export function setupGolf() {
         const length = !round.expert && `${yards(hole.tee, hole.target)} yds`; // Expert: no yardage
         const summary = hazardSummary(hole.hazards);
         const pro = round.pro && "Pro";
-        const line = hole.lines !== undefined && `perfect line ${hole.lines} of ${hole.rules?.roulette ? 45 : 41}`;
+        const firstShots = 41 + (hole.rules?.roulette ? ROULETTE_SLOTS : 0) + (hole.rules?.flip ? FLIPS : 0);
+        const line = hole.lines !== undefined && `perfect line ${hole.lines} of ${firstShots}`;
         let title, info;
         if (mode === "daily") {
             title = `Daily hole · Par ${hole.par}`;
@@ -811,6 +818,7 @@ export function setupGolf() {
         renderTutorials();
         rouletteShifts = hole.rules?.roulette ?? null;
         $("roulette-row").hidden = !rouletteShifts;
+        $("flip-row").hidden = !hole.rules?.flip;
         wheel.tabIndex = -1; // the keys are the keyboard's way in
         // Club bans (v1.8.2): the banned rows grey out like a bunker's (renderHazards)
         const ban = hole.rules?.ban && hole.rules.name;
@@ -835,6 +843,13 @@ export function setupGolf() {
             box.style.backgroundColor = css(landing);
             box.dataset.name = putterNames[index].textContent = describeColor(landing);
         });
+        if (round.hole.rules?.flip) {
+            flipBoxes.forEach((box, index) => {
+                const landing = strike(current, { row: "flip", index });
+                box.style.backgroundColor = css(landing);
+                box.dataset.name = flipNames[index].textContent = describeColor(landing);
+            });
+        }
         // Roulette keys show their calm landings and shifts; the wheel shows the one it's on
         if (rouletteShifts) {
             rouletteKeys.forEach((box, index) => {
@@ -855,6 +870,7 @@ export function setupGolf() {
         // A swatch that lands on a mirror (v1.8.1) gets a dotted silver outline, labeled with how far
         // from the pin the flip leaves you ("Mirror" on Expert), next to a chip of that color.
         for (const [box, club] of clubs) {
+            if ((club.row === "roulette" && !rouletteShifts) || (club.row === "flip" && !round.hole.rules?.flip)) continue; // rows the hole doesn't have (hidden)
             const landing = strike(current, club, windFor(round.hole, round.strokes), rouletteShifts);
             const portal = round.holeDone ? null : round.hazards.portalAt(landing);
             const mirror = !round.holeDone && round.hazards.at(landing) === "mirror";
