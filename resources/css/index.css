@@ -1659,12 +1659,35 @@ body.golf-pro .square-wrapper::after {
 body.golf .roulette-wheel .square {
     width: 56px;
     height: 56px;
+    margin: 10px; /* room for the ring (and the hover zoom), which the row would otherwise clip */
     outline: 3px solid #d6204f;
     outline-offset: 2px;
 }
 
 body.golf .roulette-wheel .square-label {
+    margin-top: 3px; /* clear of the ring */
     color: #a3123a;
+    font-weight: 700;
+}
+
+/* The shifts in order under the wheel; not clickable, so a stroke still has to be timed */
+.roulette-order {
+    display: flex;
+    align-self: center;
+    gap: 6px;
+    margin: 0 0 0 8px; /* clear of the ring */
+    font-size: 0.8rem;
+    color: #7a3a4c;
+    white-space: nowrap;
+    pointer-events: none;
+    user-select: none;
+}
+
+.roulette-order .now {
+    color: #fff;
+    background: #d6204f;
+    border-radius: 4px;
+    padding: 0 4px;
     font-weight: 700;
 }
 

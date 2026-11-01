@@ -313,9 +313,12 @@ export function setupGolf() {
     const wheel = $("roulette-wheel");
     let spin = 0; // the shift the wheel shows
     const wheelClub = () => ({ row: "roulette", index: spin });
-    // The keys show while one of them has focus (index.css)
+    // The keys show while one of them has keyboard focus (index.css); a click focuses the wheel too,
+    // and opening them then would let a mouse pick any shift without timing it
     const rouletteRow = $("roulette");
-    rouletteRow.addEventListener("focusin", () => rouletteRow.classList.add("keys-open"));
+    rouletteRow.addEventListener("focusin", ({ target }) => {
+        if (target.matches(":focus-visible")) rouletteRow.classList.add("keys-open");
+    });
     rouletteRow.addEventListener("focusout", ({ relatedTarget }) => {
         if (!rouletteRow.contains(relatedTarget)) rouletteRow.classList.remove("keys-open");
     });
@@ -928,6 +931,12 @@ export function setupGolf() {
         wheel.style.backgroundColor = css(landing);
         const wrapper = wheel.closest(".square-wrapper");
         wrapper.querySelector(".square-label").textContent = shiftText(rouletteShifts[spin]);
+        $("roulette-order").replaceChildren(...rouletteShifts.map((shift, index) => {
+            const item = document.createElement("span");
+            item.textContent = shiftText(shift);
+            item.classList.toggle("now", index === spin);
+            return item;
+        }));
         wrapper.dataset.club = proLabel(wheelClub());
         wrapper.classList.toggle("golf-blocked", round.holeDone || !round.canPlay(wheelClub()));
     };
