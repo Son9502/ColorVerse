@@ -528,17 +528,17 @@ export function makeBanHole(rand, { par, perfect, hues, sats, band, rules, think
 
 // A turning-wind hole (v1.8.3, Saffron Whirlwind): a cycle of 2–3 winds (`length`, or either), one
 // per stroke (rules.js: windCycle), from `{ hue: [min, max], light: [min, max] }` strengths either
-// way, and at most one calm. The pin is a color first reached in exactly `perfect` strokes in that
+// way, and at most one calm (none with `calm: false`). The pin is a color first reached in exactly `perfect` strokes in that
 // wind, and the wind has to matter: some tee swatch that would keep the perfect score in calm air
 // doesn't in this one. Birdie line in `band`; `think` as in buildHole.
 // Returns { tee, target, par, perfect, rules }, or null if 300 tries find nothing.
-export function makeWindHole(rand, { par, perfect, hues, sats, band, think = 0, strengths, length = null }) {
+export function makeWindHole(rand, { par, perfect, hues, sats, band, think = 0, strengths, length = null, calm = true }) {
     const between = ([min, max]) => (min + Math.floor(rand() * (max - min + 1))) * (rand() < 0.5 ? -1 : 1);
     const randomCycle = () => {
         const n = length ?? (rand() < 0.5 ? 2 : 3);
         const winds = [];
         for (let i = 0; i < n; i++) {
-            const kind = winds.includes(null) ? (rand() < 0.5 ? "hue" : "light") : ["hue", "light", "calm"][Math.floor(rand() * 3)];
+            const kind = !calm || winds.includes(null) ? (rand() < 0.5 ? "hue" : "light") : ["hue", "light", "calm"][Math.floor(rand() * 3)];
             winds.push(kind === "calm" ? null : { [kind]: between(strengths[kind]) });
         }
         return winds;

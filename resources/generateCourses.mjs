@@ -96,9 +96,9 @@ const CADDIE_HOLES = [
 ];
 
 // Saffron Whirlwind (v1.8.3): every hole's wind turns each stroke in a cycle of 2–3 (holeMaker.js:
-// makeWindHole), stronger than Ember Dunes' breezes; the tutorial's is two winds. No water or black
+// makeWindHole), much stronger than Ember Dunes' breezes; the tutorial's is two winds, neither calm. No water or black
 // holes: their penalty strokes would turn the wind too, which the solver doesn't follow.
-const WHIRL = { hue: [6, 12], light: [3, 6] };
+const WHIRL = { hue: [12, 24], light: [6, 10] };
 // Par 5s are all perfect 3 here: three strokes of turning wind reach nearly every color, so a pin that
 // truly needs four is too rare to find
 const WHIRL_LAYOUT = [FRONT, BACK].map(nine => nine.map(([par, perfect]) => [par, par === 5 ? 3 : perfect]));
@@ -164,9 +164,9 @@ const COURSES = [
     },
     {
         id: "saffron", name: "Saffron Whirlwind", seed: 9, hues: [30, 65], difficulty: "Expansion", layout: WHIRL_LAYOUT, // yellows and oranges
-        gimmick: "The wind turns every stroke, in a cycle you know before you tee off.",
-        tutorial: "The wind turns every stroke here, in a cycle shown under the hole info (now, then next). Swatches show where a calm shot lands, so aim off for this stroke's wind.",
-        turning: (i) => ({ strengths: WHIRL, ...(i === 0 && { length: 2 }) }),
+        gimmick: "The wind turns every stroke, in a cycle you know before you tee off; putts aren't affected.",
+        tutorial: "The wind turns every stroke here, in the cycle shown under the hole info; putts aren't affected. Swatches show where a calm shot lands, so aim off for this stroke's wind.",
+        turning: (i) => ({ strengths: WHIRL, ...(i === 0 && { length: 2, calm: false }) }),
     },
 ];
 

@@ -1,5 +1,5 @@
 import courses from "./courses.json";
-import { GolfRound, scoreName, compareRounds } from "./game.js";
+import { GolfRound, scoreName, compareRounds, UNDOS_PER_ROUND, UNDOS_DAILY } from "./game.js";
 import { PUTTER, strike } from "./clubs.js";
 import { IN_THE_HOLE, hslDistance, hslToHex } from "./oklab.js";
 import { harmonySets, selectBaseColor, clearBaseColor, addNameLabel } from "../harmony.js";
@@ -9,6 +9,7 @@ import { WEEK, dateKey, daysBetween, dayLabel, weekday, streak } from "./daily.j
 import { poolKey, PARS } from "./practice.js";
 import { courseLock, unlockToPar } from "./unlocks.js";
 import { windFor } from "./rules.js";
+import { termify, setupTerms } from "./terms.js";
 import * as cloud from "../cloud/cloud.js";
 import { lastPointerType } from "../pointer.js";
 
@@ -310,6 +311,8 @@ export function setupGolf() {
         type.textContent = CLUB_TYPES[row];
         heading.prepend(type);
     }
+
+    setupTerms();
 
     // Testing (test mode or a tester account): every course open, a hole picker, nothing sent
     const testCourse = $("golf-test-course");
@@ -615,13 +618,13 @@ export function setupGolf() {
             item.innerHTML = `
                 <h3>${course.name}</h3>
                 <div class="golf-hues" style="background: linear-gradient(to right, ${stops.join(", ")})"></div>
-                <span class="golf-best">${course.difficulty} · ${course.holes.length} holes · par ${par} · ${length.toLocaleString()} yds${record ? ` · ${pro ? "Pro best" : "best"} ${record.strokes} (${formatToPar(record.toPar)}), ${formatTime(record.time)}` : ""}</span>
-                ${course.gimmick ? `<span class="golf-best golf-gimmick">${course.gimmick}</span>` : ""}
+                <span class="golf-best">${termify(course.difficulty)} · ${course.holes.length} holes · par ${par} · ${length.toLocaleString()} yds${record ? ` · ${pro ? "Pro best" : "best"} ${record.strokes} (${formatToPar(record.toPar)}), ${formatTime(record.time)}` : ""}</span>
+                ${course.gimmick ? `<span class="golf-best golf-gimmick">${termify(course.gimmick)}</span>` : ""}
                 ${locked ? `<span class="golf-best golf-lock">🔒 ${locked}</span>` : ""}
                 <button class="btn btn-primary" type="button"${locked ? " disabled" : ""}>Play</button>`;
             // The button spans every line of the card
-            item.querySelector("button").style.gridRow = `1 / span ${3 + !!course.gimmick + !!locked}`;
-            item.querySelector("button").addEventListener("click", () => startRound(course));
+            item.querySelector("button.btn-primary").style.gridRow = `1 / span ${3 + !!course.gimmick + !!locked}`;
+            item.querySelector("button.btn-primary").addEventListener("click", () => startRound(course));
             return item;
         }));
     };
@@ -640,8 +643,8 @@ export function setupGolf() {
             return;
         }
         const summary = hazardSummary(hole.hazards);
-        $("golf-daily-info").textContent = [name, difficulty, isExpert(difficulty) && "Pro", `par ${hole.par}`, `${yards(hole.tee, hole.target)} yds`, summary, hole.wind && "wind"]
-            .filter(Boolean).join(" · ");
+        $("golf-daily-info").innerHTML = termify([name, difficulty, isExpert(difficulty) && "Pro", `par ${hole.par}`, `${yards(hole.tee, hole.target)} yds`, summary, hole.wind && "wind"]
+            .filter(Boolean).join(" · "));
         const results = loadDaily();
         const result = results[day];
         const run = streak(results, day);
@@ -718,7 +721,8 @@ export function setupGolf() {
     const startRound = (course, newMode = "course", { from = 0 } = {}) => {
         mode = newMode;
         const played = from ? { ...course, holes: course.holes.slice(from) } : course;
-        round = new GolfRound(played, undefined, ["practice", "test"].includes(mode) ? { undos: Infinity } : {});
+        const undos = ["practice", "test"].includes(mode) ? Infinity : mode === "daily" ? UNDOS_DAILY : UNDOS_PER_ROUND;
+        round = new GolfRound(played, undefined, { undos });
         round.firstHole = from;
         taught = new Set();
         round.expert = isExpert(course.difficulty);
@@ -781,12 +785,12 @@ export function setupGolf() {
             info = [round.course.name, `${number <= 9 ? "Front" : "Back"} 9`, length, summary, line, pro, mode === "test" && "not saved"];
         }
         $("golf-hole-title").textContent = title;
-        $("golf-hole-info").textContent = info.filter(Boolean).join(" · ");
+        $("golf-hole-info").innerHTML = termify(info.filter(Boolean).join(" · ")); // gimmick words explain themselves (terms.js)
         renderTutorials();
         // Club bans (v1.8.2): the banned rows grey out like a bunker's (renderHazards)
         const ban = hole.rules?.ban && hole.rules.name;
         $("golf-rule").hidden = !ban;
-        $("golf-rule").textContent = ban ? `Caddie strike: ${ban} on this hole` : "";
+        $("golf-rule").innerHTML = ban ? termify(`Caddie strike: ${ban} on this hole`) : "";
         $("golf-target").style.backgroundColor = css(hole.target);
         $("golf-target-name").textContent = describeColor(hole.target);
         holeEnd.hidden = true;
@@ -845,7 +849,7 @@ export function setupGolf() {
         }
 
         $("golf-strokes").textContent = round.strokes;
-        const undosLeft = round.undosLeft[round.nine];
+        const { undosLeft } = round;
         undoButton.textContent = undosLeft === Infinity ? "Undo" : `Undo (${undosLeft})`;
         undoButton.disabled = !round.canUndo;
         refreshLiveCard();
@@ -891,9 +895,9 @@ export function setupGolf() {
         const now = windFor(hole, strokes);
         const say = (wind) => windText(wind) ?? "calm";
         $("golf-wind").hidden = !cycle && !now;
-        $("golf-wind").textContent = cycle
-            ? `Turning wind, one per stroke: ${cycle.map(say).join(" → ")}, then again (putts aren't affected). This stroke: ${say(now)}`
-            : now ? `Wind ${say(now)} on every full shot (putts aren't affected)` : "";
+        $("golf-wind").innerHTML = cycle
+            ? `${termify(`Wind (per stroke): ${cycle.map(say).join(" → ")}`)}<br>This stroke: ${termify(say(now))}`
+            : now ? termify(`Wind: ${say(now)} on every full shot`) : "";
         $("golf-wind-badge").hidden = !cycle && !now;
         $("golf-wind-badge").textContent = cycle ? `🌬 now ${say(now)} · next ${say(windFor(hole, strokes + 1))}` : now ? `🌬 ${say(now)}` : "";
     };

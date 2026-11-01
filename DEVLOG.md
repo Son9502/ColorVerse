@@ -22,6 +22,14 @@ The fourth expansion course, from the agreed v1.8 spec; implementation `[ai-assi
 - Panel: "Turning wind, one per stroke: … → …, then again (putts aren't affected). This stroke: …"; the map badge shows "now … · next …" and updates every stroke; portal and mirror outlines and the perfect-route replay use each stroke's wind; yellow tutorial box; How to play
 - Unlock: Saffron Whirlwind needs −6 or better on Caddie Strike (provisional)
 
+**After review** (the developer: windier, the wind line as "Wind (per stroke)" / "This stroke", more undos, and a shorter How to play with gimmick words that explain themselves)
+- Stronger turning wind: hue 12–24° (was 6–12°), light 6–10% (was 3–6%); the tutorial's two winds are never calm. Regenerated: in this wind the calm perfect route misses on all 18 holes; greedy play +43. "Putts aren't affected" moved to the course card and tutorial
+- Wind line: "Wind (per stroke): … → …" then "This stroke: …"; a fixed wind reads "Wind: … on every full shot"
+- Undos: 5 for a whole round (was 1 per nine), 1 on the daily hole, unlimited in practice and test rounds (`UNDOS_PER_ROUND`, `UNDOS_DAILY` in `game.js`). The server replays only the strokes kept, so it doesn't count them; 5 rather than 10 for that reason
+- Terms (`terms.js`): gimmick and difficulty words in the hole info, the rule and wind lines, the course cards and the daily card are buttons with a dotted underline; hover or focus shows a short explanation, a click or tap pins it with an example (Esc, a click elsewhere or a scroll closes). Bunker, lake, portal, black hole, mirror, Caddie strike / bans, wind, turning wind, perfect line, Pro, Beginner, Standard, Expert, Expansion
+- How to play keeps the clubs, the meter, par and undos; the gimmick, daily, practice and difficulty paragraphs are gone (terms and the cards say it now). The daily card says what the daily hole is, the practice card that you choose the difficulty
+- Fixed: course Play buttons stopped working once their cards held term buttons (`renderCourses` took the card's first button)
+
 **Verified**
 - Every hole: perfect matches the solver in its wind cycle, the round plays the perfect route to the perfect score, and `replayRound` of a perfect round is 49; think (3) and golf-like checks pass; courses 1–8 unchanged byte for byte
 - In this wind the calm perfect route misses on 15 of 18 holes; a greedy closest-swatch player is +31

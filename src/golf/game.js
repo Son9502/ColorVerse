@@ -8,7 +8,10 @@ import { ruleAllows, windFor } from "./rules.js";
 // ----------------------------------
 // No DOM access: the UI calls play()/undo()/nextHole() and renders what comes back.
 
-export const UNDOS_PER_NINE = 1;
+// Free undos for a whole round (v1.8.3; was 1 per nine). The daily hole gets 1, practice unlimited.
+// The score server replays only the strokes kept, so it doesn't count them.
+export const UNDOS_PER_ROUND = 5;
+export const UNDOS_DAILY = 1;
 
 const SCORE_NAMES = { "-3": "Albatross", "-2": "Eagle", "-1": "Birdie", "0": "Par", "1": "Bogey", "2": "Double bogey", "3": "Triple bogey" };
 
@@ -39,8 +42,8 @@ export function puttsToHole(hsl, target, hazards = NO_HAZARDS, rules = null) {
 }
 
 export class GolfRound {
-    // `undos`: free undos per nine (practice passes Infinity)
-    constructor(course, now = () => performance.now(), { undos = UNDOS_PER_NINE } = {}) {
+    // `undos`: free undos for the round (practice passes Infinity)
+    constructor(course, now = () => performance.now(), { undos = UNDOS_PER_ROUND } = {}) {
         this.course = course;
         this.now = now;
         this.undos = undos;
@@ -55,7 +58,7 @@ export class GolfRound {
     get finished() { return this.card.length === this.course.holes.length; }
     get holeDone() { return this.card.length > this.holeIndex; }
     get inSand() { return this.hazards.at(this.current) === "sand"; }
-    get canUndo() { return !this.holeDone && this.history.length > 0 && this.undosLeft[this.nine] > 0; }
+    get canUndo() { return !this.holeDone && this.history.length > 0 && this.undosLeft > 0; }
 
     // Clubs allowed from here: wedges only in a bunker (just one, in an Expert bunker that names it),
     // and none the hole bans (v1.8.2)
@@ -103,7 +106,7 @@ export class GolfRound {
         return { hsl: this.current, ...lie, landed, landedIn };
     }
 
-    // Take back the last stroke, penalty included (doesn't count as a stroke); one per 9 holes
+    // Take back the last stroke, penalty included (doesn't count as a stroke); `undos` per round
     undo() {
         if (!this.canUndo) return false;
         const before = this.history.pop();
@@ -111,7 +114,7 @@ export class GolfRound {
         this.strokes = before.strokes;
         this.trail.length = before.trail;
         this.clubs.pop();
-        this.undosLeft[this.nine]--;
+        this.undosLeft--;
         return true;
     }
 
@@ -119,7 +122,7 @@ export class GolfRound {
         if (this.holeIndex >= 0 && !this.holeDone) return false;
         if (this.holeIndex + 1 >= this.course.holes.length) return false;
         this.holeIndex++;
-        this.undosLeft ??= [this.undos, this.undos];
+        this.undosLeft ??= this.undos;
         this.current = { ...this.hole.tee };
         this.trail = []; // colors before each stroke that moved the ball, for the map's trail
         this.history = []; // snapshots before each stroke, for undo
