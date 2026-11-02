@@ -670,6 +670,7 @@ export function setupGolf() {
         document.body.classList.add("golf");
         document.body.classList.remove("golf-pro");
         mergeLongShots(true);
+        document.dispatchEvent(new CustomEvent("golfshowcase", { detail: "menu" })); // 3d-mode.js: the full-color surface, turning
         // A layer typed but not jumped to would leave its preview over the map: clear the box (3d-mode.js hides it)
         const layerBox = $("layer-input");
         if (layerBox.value) {
@@ -694,6 +695,7 @@ export function setupGolf() {
         setMapState(null);
         document.body.classList.remove("golf", "golf-pro", "golf-menu");
         mergeLongShots(false);
+        document.dispatchEvent(new CustomEvent("golfshowcase", { detail: "explore" })); // back to the explore layer
         if (exploringSpace !== null) setSpaceToggle(exploringSpace);
         exploringSpace = null;
         panel.hidden = true;
@@ -876,6 +878,7 @@ export function setupGolf() {
         const played = from ? { ...course, holes: course.holes.slice(from) } : course;
         // No undos on a survival course (v1.8.6): taking back the shot that would go over par defeats it
         const undos = ["practice", "test"].includes(mode) ? Infinity : mode === "daily" ? UNDOS_DAILY : course.survival ? 0 : UNDOS_PER_ROUND;
+        document.dispatchEvent(new CustomEvent("golfshowcase", { detail: "play" }));
         round = new GolfRound(played, undefined, { undos });
         undoButton.hidden = undos === 0;
         round.firstHole = from;
@@ -1261,8 +1264,7 @@ export function setupGolf() {
             renderCard($("golf-card"));
         }
         clearBaseColor();
-        setMapState(null);
-        show(roundEnd);
+        show(roundEnd); // the last hole stays on the map beside the score card
     };
 
     // Send a finished round to the score server (or queue it for sign-in) and say what happened

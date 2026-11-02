@@ -12,6 +12,8 @@ import { THREE } from "./three-setup.js";
 
 // Layer carried over when switching shapes (saved on dispose)
 let lastLayer = 127;
+// The explore layer while Color Golf's menu shows the full-color surface (null when not in golf)
+let exploreLayer = null;
 
 export const create3DEnvironment = async (objectType = "cube") => {
     // --- Loading Elements ---
@@ -352,6 +354,23 @@ export const create3DEnvironment = async (objectType = "cube") => {
     document.addEventListener("golfmapchange", (event) => golfMap.update(event.detail), { signal });
     golfMap.update(getMapState()); // a game may already be on (shape rebuilt or still loading)
 
+    // Color Golf's menu (golf-ui.js sends "golfshowcase"): the full-color surface, turning slowly.
+    // "menu" remembers the explore layer and peels to 0, "play" stops the turn (the map takes over),
+    // "explore" puts the remembered layer back.
+    let showcase = document.body.classList.contains("golf-menu") && !getMapState();
+    document.addEventListener("golfshowcase", ({ detail }) => {
+        showcase = detail === "menu";
+        if (detail === "menu") {
+            exploreLayer ??= mainObject.layerTarget;
+            mainObject.peelTo(0);
+            showLayer(0);
+        } else if (detail === "explore" && exploreLayer !== null) {
+            mainObject.peelTo(exploreLayer);
+            showLayer(exploreLayer);
+            exploreLayer = null;
+        }
+    }, { signal });
+
     // --- Double-click reset with smooth animation ---
     container.addEventListener("dblclick", () => {
         mainObject.resetObject();
@@ -372,6 +391,7 @@ export const create3DEnvironment = async (objectType = "cube") => {
         if (!renderReady) return;
 
         mainObject.update(); // keyboard, mouse, auto-rotation
+        if (showcase && mainObject.object && !mainObject.isUserInteracting) mainObject.object.rotation.y += 0.003;
         golfMap.tick(); // hazard ripples and landing flash
         if (previewObject?.object) previewObject.syncRotation();
 
