@@ -12,6 +12,8 @@ import { THREE } from "./three-setup.js";
 
 // Layer carried over when switching shapes (saved on dispose)
 let lastLayer = 127;
+// The explore layer while Color Golf's menu shows the full-color surface (null when not in golf)
+let exploreLayer = null;
 
 export const create3DEnvironment = async (objectType = "cube") => {
     // --- Loading Elements ---
@@ -97,10 +99,16 @@ export const create3DEnvironment = async (objectType = "cube") => {
     // --- UI Elements ---
     const threeDText = document.getElementById("layer-input");
     const canvasText = document.getElementById("ui-canvas-text");
+    const layerRange = document.getElementById("layer-range");
 
     let currentLayer = startLayer;
     threeDText.value = "";
-    canvasText.textContent = `Layer ${currentLayer}`;
+    // The layer shown over the canvas and on the slider, whatever changed it
+    const showLayer = (layer) => {
+        canvasText.textContent = `Layer ${layer}`;
+        layerRange.value = String(layer);
+    };
+    showLayer(currentLayer);
 
     // --- Layer Input Logic ---
     const validLayer = (input) => Number.isInteger(input) && input >= 0 && input <= 127;
@@ -141,13 +149,33 @@ export const create3DEnvironment = async (objectType = "cube") => {
             alert("Please enter a valid layer number between 0 and 127.");
             return;
         }
-
+        jumpTo(layerNum);
+    }, { signal });
+    const jumpTo = (layerNum) => {
         previewObject?.hide();
         currentLayer = layerNum;
         mainObject.peelTo(currentLayer);
         threeDText.value = "";
-        canvasText.textContent = `Layer ${currentLayer}`;
+        showLayer(currentLayer);
+    };
+    // A phone's number pad has no Enter: leaving the box (Done) with a valid layer jumps there too
+    threeDText.addEventListener("change", () => {
+        const layerNum = parseInt(threeDText.value);
+        if (validLayer(layerNum)) jumpTo(layerNum);
     }, { signal });
+
+    // Slider and − / + (the [ ] keys for touch screens): peel live, as the keys do
+    const stepTo = (layer) => {
+        mainObject.layerTarget = Math.max(0, Math.min(127, layer));
+        if (threeDText.value) {
+            threeDText.value = "";
+            previewObject?.hide();
+        }
+        showLayer(mainObject.layerTarget);
+    };
+    layerRange.addEventListener("input", () => stepTo(Number(layerRange.value)), { signal });
+    document.getElementById("layer-out").addEventListener("click", () => stepTo(mainObject.layerTarget - 1), { signal });
+    document.getElementById("layer-in").addEventListener("click", () => stepTo(mainObject.layerTarget + 1), { signal });
 
     // --- Color Space Toggle ---
     toggleColorSpace.addEventListener("click", async () => {
@@ -173,26 +201,49 @@ export const create3DEnvironment = async (objectType = "cube") => {
         const isTyping = activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA" || activeEl.isContentEditable;
         if (!isTyping) {
             if (faceMap[e.key] !== undefined) mainObject.rotateTo(faceMap[e.key]);
-            if (e.key === "]") {
-                mainObject.layerTarget = Math.min(127, mainObject.layerTarget + 1);
-                canvasText.textContent = `Layer ${mainObject.layerTarget}`;
-            }
-            if (e.key === "[") {
-                mainObject.layerTarget = Math.max(0, mainObject.layerTarget - 1);
-                canvasText.textContent = `Layer ${mainObject.layerTarget}`;
-            }
+            if (e.key === "]") stepTo(mainObject.layerTarget + 1);
+            if (e.key === "[") stepTo(mainObject.layerTarget - 1);
             if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
                 miniObject.activateFade();
             }
         }
     }, { signal });
 
+    const zoomTo = (z) => { camera.position.z = Math.max(1, Math.min(20, z)); };
     container.addEventListener("wheel", (event) => {
         event.preventDefault();
         const zoomSpeed = 0.3;
-        camera.position.z += (event.deltaY > 0 ? 1 : -1) * zoomSpeed;
-        camera.position.z = Math.max(1, Math.min(20, camera.position.z));
+        zoomTo(camera.position.z + (event.deltaY > 0 ? 1 : -1) * zoomSpeed);
     }, { signal });
+
+    // Pinch (two fingers): the camera distance follows how far apart the fingers are
+    const touches = new Map(); // pointerId → { x, y }
+    let pinch = null; // { spread, z } when the second finger went down
+    const spread = () => {
+        const [a, b] = [...touches.values()];
+        return Math.hypot(a.x - b.x, a.y - b.y) || 1;
+    };
+    container.addEventListener("pointerdown", (event) => {
+        if (event.pointerType !== "touch") return;
+        touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+        if (touches.size === 2) pinch = { spread: spread(), z: camera.position.z };
+    }, { signal });
+    container.addEventListener("pointermove", (event) => {
+        if (!touches.has(event.pointerId)) return;
+        touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+        if (pinch && touches.size === 2) zoomTo(pinch.z * (pinch.spread / spread()));
+    }, { signal });
+    const lift = (event) => {
+        touches.delete(event.pointerId);
+        if (touches.size < 2) pinch = null;
+    };
+    window.addEventListener("pointerup", lift, { signal });
+    window.addEventListener("pointercancel", lift, { signal });
+
+    // A drag (or pinch) that ends over the shape isn't a click: only a still press picks a color
+    let pressAt = null;
+    container.addEventListener("pointerdown", (event) => { pressAt = { x: event.clientX, y: event.clientY }; }, { signal });
+    const wasDrag = (event) => pressAt && Math.hypot(event.clientX - pressAt.x, event.clientY - pressAt.y) > 6;
 
     // --- Raycasting for color picker ---
     const raycaster = new THREE.Raycaster();
@@ -207,7 +258,7 @@ export const create3DEnvironment = async (objectType = "cube") => {
 
     container.addEventListener("click", (event) => {
         // Color Golf: the shape is a map, not a picker (picking would solve any hole)
-        if (document.body.classList.contains("golf")) return;
+        if (document.body.classList.contains("golf") || wasDrag(event)) return;
         const rect = renderer.domElement.getBoundingClientRect();
         mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
         mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -299,11 +350,26 @@ export const create3DEnvironment = async (objectType = "cube") => {
     document.addEventListener("basecolorclear", () => miniObject.clearHighlight(), { signal });
 
     // --- Color Golf map: ball, pin and trail on the shape (null state clears them) ---
-    const golfMap = new GolfMapView(mainObject, objectType, () => colorSpace, (layer) => {
-        canvasText.textContent = `Layer ${layer}`;
-    });
+    const golfMap = new GolfMapView(mainObject, objectType, () => colorSpace, showLayer);
     document.addEventListener("golfmapchange", (event) => golfMap.update(event.detail), { signal });
     golfMap.update(getMapState()); // a game may already be on (shape rebuilt or still loading)
+
+    // Color Golf's menu (golf-ui.js sends "golfshowcase"): the full-color surface, turning slowly.
+    // "menu" remembers the explore layer and peels to 0, "play" stops the turn (the map takes over),
+    // "explore" puts the remembered layer back.
+    let showcase = document.body.classList.contains("golf-menu") && !getMapState();
+    document.addEventListener("golfshowcase", ({ detail }) => {
+        showcase = detail === "menu";
+        if (detail === "menu") {
+            exploreLayer ??= mainObject.layerTarget;
+            mainObject.peelTo(0);
+            showLayer(0);
+        } else if (detail === "explore" && exploreLayer !== null) {
+            mainObject.peelTo(exploreLayer);
+            showLayer(exploreLayer);
+            exploreLayer = null;
+        }
+    }, { signal });
 
     // --- Double-click reset with smooth animation ---
     container.addEventListener("dblclick", () => {
@@ -325,6 +391,7 @@ export const create3DEnvironment = async (objectType = "cube") => {
         if (!renderReady) return;
 
         mainObject.update(); // keyboard, mouse, auto-rotation
+        if (showcase && mainObject.object && !mainObject.isUserInteracting) mainObject.object.rotation.y += 0.003;
         golfMap.tick(); // hazard ripples and landing flash
         if (previewObject?.object) previewObject.syncRotation();
 

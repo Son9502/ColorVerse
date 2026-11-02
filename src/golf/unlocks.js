@@ -8,9 +8,12 @@
 
 export const FREE_COURSES = 3;
 
-// Score against par needed on the previous course, by the course it unlocks; to tune once the
-// courses have been played by hand. Cobalt Bay's perfect round is −6, so Royal Indigo asks less.
-const UNLOCK_TO_PAR = { cobalt: -6, indigo: -3 };
+// Score against par needed on the previous course, by the course it unlocks. Set in v1.8.2 after the
+// courses were regenerated to make you think: a bit better than a simulated player who plans one shot
+// ahead scores (Verdant Pines −4, Cobalt Bay +17, Royal Indigo +23, Violet Vortex +2, Silverglass
+// Greens +6), well short of perfect, with extra room on the Expert courses (played Pro, no yardage).
+// Saffron Whirlwind (v1.8.3) asks −6 on Caddie Strike (planner −11). To tune once they've been played by hand.
+const UNLOCK_TO_PAR = { cobalt: -4, indigo: 2, vortex: 4, silverglass: -3, caddie: -2, saffron: -6, scarlet: -4, hexflip: -4, gauntlet: -4 };
 const DEFAULT_TO_PAR = -6;
 export const unlockToPar = (course) => UNLOCK_TO_PAR[course.id] ?? DEFAULT_TO_PAR;
 

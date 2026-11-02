@@ -1,5 +1,7 @@
 import { harmonyDict } from "./harmonyMath.js";
 import { THREE } from "./three-setup.js";
+import { lastPointerType } from "./pointer.js";
+import { describeColor } from "./color-names.js";
 export { harmonyDict, setHue } from "./harmonyMath.js";
 export const harmonySets = {
     "complementary": ["comp1"],
@@ -22,7 +24,7 @@ for (const type in harmonySets) {
     harmonySets[type] = harmonySets[type].map(id => {
         const box = document.getElementById(id);
         const label = box?.parentElement.querySelector(".square-label");
-        return { box, label };
+        return { box, label, name: addNameLabel(box) };
     });
 }
 
@@ -30,6 +32,15 @@ for (const type in harmonySets) {
 // `source` is passed through to the "basecolorchange" event (sliders ignore their own updates)
 // `exactHSL` (whole-number {h, s, l}) skips re-deriving HSL from RGB; Color Golf uses it so the
 // swatches match its strokes exactly
+// A swatch's color in words, under its hex label (shown with "Color names" on, color-names.js)
+export function addNameLabel(box) {
+    if (!box) return null;
+    const name = document.createElement("p");
+    name.className = "square-name";
+    box.parentElement.append(name);
+    return name;
+}
+
 export function selectBaseColor(color, name = "", source = "", exactHSL = null) {
     const baseCircle = document.getElementById("base-circle");
     const colorName = document.getElementById("color-name");
@@ -51,15 +62,61 @@ export function clearBaseColor() {
     resetColors(); // dispatches "basecolorclear"
 }
 
-// Double-click a harmony swatch to make it the base color
+// The swatch an arrow key moves to: along the row, or the nearest place in the row above or below.
+// Hidden and collapsed rows are skipped.
+export function swatchNeighbour(square, key) {
+    const rows = [...document.querySelectorAll("#ui-container .colors-row:not(.collapsed) .swatch-row")]
+        .map(row => [...row.querySelectorAll(".square")].filter(swatch => swatch.offsetParent !== null))
+        .filter(row => row.length);
+    const r = rows.findIndex(row => row.includes(square));
+    if (r < 0) return null;
+    const i = rows[r].indexOf(square);
+    const inRow = (row) => (row ? row[Math.min(i, row.length - 1)] : null);
+    switch (key) {
+        case "ArrowLeft": return rows[r][i - 1] ?? null;
+        case "ArrowRight": return rows[r][i + 1] ?? null;
+        case "ArrowUp": return inRow(rows[r - 1]);
+        case "ArrowDown": return inRow(rows[r + 1]);
+        default: return null;
+    }
+}
+
+// Choose a harmony swatch as the base color: double-click with a mouse, tap on a touch screen, or
+// Enter / Space with the keyboard (arrow keys move between swatches). In a Color Golf game the same
+// gestures play a stroke instead (golf-ui.js).
 export function setupSwatchSelection() {
     const container = document.getElementById("ui-container");
-    container?.addEventListener("dblclick", (event) => {
-        const square = event.target.closest(".square");
+    if (!container) return;
+    const choose = (square) => {
         // Swatches are transparent until a base color is picked
-        if (!square || !document.getElementById("base-color")?.classList.contains("show")) return;
+        if (!square || document.body.classList.contains("golf") || !document.getElementById("base-color")?.classList.contains("show")) return;
         const color = square.style.backgroundColor;
         if (color) selectBaseColor(color);
+    };
+    container.addEventListener("dblclick", (event) => {
+        if (lastPointerType() !== "touch") choose(event.target.closest(".square"));
+    });
+    container.addEventListener("click", (event) => {
+        if (lastPointerType() === "touch") choose(event.target.closest(".square"));
+    });
+
+    container.querySelectorAll(".square").forEach(square => {
+        square.tabIndex = 0;
+        square.setAttribute("role", "button");
+    });
+    container.addEventListener("keydown", (event) => {
+        const square = event.target.closest?.(".square");
+        if (!square) return;
+        if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            choose(square);
+            return;
+        }
+        const next = swatchNeighbour(square, event.key);
+        if (next) {
+            event.preventDefault();
+            next.focus();
+        }
     });
 }
 
@@ -81,6 +138,8 @@ export function resetColors() {
             if (element.label) {
                 element.label.textContent = "#xxxxxx"
             }
+            if (element.name) element.name.textContent = "";
+            element.box?.removeAttribute("aria-label");
         });
     }
     document.dispatchEvent(new CustomEvent("basecolorclear"));
@@ -116,6 +175,8 @@ export function setBaseColors(color, source = "", exactHSL = null) {
     if (hslInfo) {
         hslInfo.textContent = `HSL(${newHSL.h}º,${newHSL.s}%,${newHSL.l}%)`;
     }
+    const description = document.getElementById("color-description");
+    if (description) description.textContent = describeColor(newHSL);
 
     for (const [type, elements] of Object.entries(harmonySets)) {
         const set = harmonies[type];
@@ -126,10 +187,12 @@ export function setBaseColors(color, source = "", exactHSL = null) {
 
             element.box.style.backgroundColor = colour;
 
-            if (element.label) {
-                const hexText = "#" + new THREE.Color(colour).getHexString().toUpperCase();
-                element.label.textContent = hexText;
-            }
+            const hexText = "#" + new THREE.Color(colour).getHexString().toUpperCase();
+            const name = describeColor({ h: Math.round(h), s: Math.round(s), l: Math.round(l) });
+            if (element.label) element.label.textContent = hexText;
+            if (element.name) element.name.textContent = name;
+            element.box.dataset.name = name; // golf-ui.js adds it to the club's label
+            element.box.setAttribute("aria-label", `${hexText}, ${name}`);
         });
     };
     // Lets other UI (e.g. sliders) follow the selected color

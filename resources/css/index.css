@@ -161,8 +161,47 @@ input:checked+.slider:before {
     display: none;
 }
 
+/* Layer stepper: − [slider] + under the layer box */
+.layer-stepper {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.layer-stepper input[type="range"] {
+    flex: 1;
+    min-width: 0;
+    accent-color: #333;
+}
+
+.layer-stepper button {
+    flex: none;
+    width: 32px;
+    height: 32px; /* big enough to tap */
+    border: 1px solid #d6d6d6;
+    border-radius: 6px;
+    background: #fff;
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
 .hidden {
     display: none !important;
+}
+
+/* Help written for the device: touch screens (no hover, a finger for a pointer) get .for-touch,
+   everything else .for-mouse. Only ever hides, so each element keeps its own display (a grid list) */
+@media not ((hover: none) and (pointer: coarse)) {
+    .for-touch {
+        display: none !important;
+    }
+}
+
+@media (hover: none) and (pointer: coarse) {
+    .for-mouse {
+        display: none !important;
+    }
 }
 
 /* -----------------------------------------------
@@ -574,9 +613,12 @@ Color Categories + Squares
 #tints,
 #tones,
 #saturate,
-#putter {
+#putter,
+#roulette,
+#flip,
+#long {
     display: flex;
-    align-items: center;
+    align-items: flex-start; /* a name or portal label makes a swatch taller: keep the squares in line */
     gap: clamp(6px, 1vw, 18px);
 }
 
@@ -886,11 +928,13 @@ Above the loader (9999) so it can show while textures load
 
 /* ID selectors so this beats #welcome { display: flex } */
 #welcome[hidden],
+#golf-welcome[hidden],
 #tour[hidden] {
     display: none;
 }
 
-#welcome {
+#welcome,
+#golf-welcome {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1049,6 +1093,44 @@ body.golf .golf-only {
     display: block; /* same as .colors-row */
 }
 
+body.golf .golf-only[hidden] {
+    display: none;
+}
+
+/* Rows whose swatches golf moves into the Long shots row (golf-ui.js), and the copies left behind */
+body.golf .explore-only {
+    display: none;
+}
+
+#long {
+    flex-wrap: wrap; /* eight swatches: a second line on narrow screens */
+    row-gap: 8px;
+}
+
+/* Long shots (v1.8.5): each swatch's hue shift above it (Pro already labels them with it) */
+.long-shift {
+    display: none;
+}
+
+#long .long-shift {
+    display: block;
+    order: -1;
+    margin-bottom: 2px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #555;
+    white-space: nowrap;
+}
+
+body.golf-pro #long .long-shift {
+    display: none;
+}
+
+/* The course screen and the score card: no clubs (golf-ui.js: show) */
+body.golf.golf-menu #ui-container {
+    display: none;
+}
+
 /* Swatches are clubs in a game: double-click to play */
 body.golf .square {
     cursor: pointer;
@@ -1101,6 +1183,37 @@ body.golf .square:hover {
     line-height: 1.4;
 }
 
+/* Daily hole, practice and the courses scroll together in their own box, so the page doesn't
+   grow with every new course. On a wide screen the box takes whatever height the panel has left
+   (less with Settings open), so its bottom is always on screen; on a phone it's a fixed height. */
+#golf-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: min(560px, 65vh);
+    overflow-y: auto;
+    padding-right: 4px; /* room for the scrollbar */
+    scrollbar-gutter: stable;
+}
+
+@media (min-width: 761px) {
+    body.golf.golf-menu #ui-info {
+        min-height: 0;
+    }
+
+    body.golf.golf-menu #golf-panel:has(> #golf-setup:not([hidden])),
+    body.golf.golf-menu #golf-setup {
+        flex: 1 1 auto;
+        min-height: 0;
+    }
+
+    body.golf.golf-menu #golf-picker {
+        flex: 1 1 auto;
+        max-height: none;
+        min-height: 220px;
+    }
+}
+
 /* Course picker: one card per course, with a strip of its hues */
 #golf-courses {
     list-style: none;
@@ -1141,6 +1254,54 @@ body.golf .square:hover {
     grid-row: 1 / span 3;
 }
 
+#golf-daily-play,
+#golf-weekly-play {
+    grid-row: 1 / span 4; /* one more line than the others: what the daily hole is */
+}
+
+/* Words that explain themselves (terms.js): dotted underline, highlighted when hovered or open */
+.golf-term {
+    padding: 0 1px;
+    border: 0;
+    border-bottom: 1px dotted currentColor;
+    border-radius: 3px;
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: help;
+}
+
+.golf-term:hover,
+.golf-term:focus-visible,
+.golf-term[aria-expanded="true"] {
+    background: #fff0b3;
+    color: #222;
+}
+
+#golf-term-pop {
+    position: fixed;
+    z-index: 1000;
+    max-width: min(280px, calc(100vw - 16px));
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: #222;
+    color: #fff;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+}
+
+#golf-term-pop[hidden] {
+    display: none;
+}
+
+#golf-term-pop em {
+    display: block;
+    margin-top: 4px;
+    color: #ffd977;
+    font-style: normal;
+}
+
 /* Daily hole and practice cards sit above the courses, in the same card style */
 .golf-course h3 .golf-sub {
     font-weight: 400;
@@ -1171,6 +1332,31 @@ body.golf .square:hover {
 }
 
 /* Account (v1.6): sign-in, nickname */
+/* Settings (v1.8.1): account, color names and Pro, folded away */
+.golf-settings {
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    background: #fff;
+}
+
+.golf-settings summary {
+    padding: 8px 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.golf-settings summary .golf-sub {
+    margin-left: 6px;
+    font-weight: 400;
+}
+
+.golf-settings-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 0 12px 12px;
+}
+
 .golf-account,
 #golf-signin {
     display: flex;
@@ -1232,13 +1418,78 @@ body.golf .square:hover {
 .golf-leaderboard {
     width: 100%;
     margin: 0;
-    padding-left: 1.4em;
     font-size: 0.8rem;
-    line-height: 1.6;
 }
 
-.golf-leaderboard .me {
+/* The toggle: a small pill with an arrow that turns when the board is open */
+.golf-leaderboard-toggle.btn {
+    padding: 0.25rem 0.75rem;
+    border: 1px solid #c8c8c8;
+    border-radius: 999px;
+    background: #fff;
+    color: #222;
+    font-size: 0.8rem;
+    text-decoration: none;
+}
+
+.golf-leaderboard-toggle::after {
+    content: " ▾";
+}
+
+.golf-leaderboard-toggle[aria-expanded="true"]::after {
+    content: " ▴";
+}
+
+/* Top 10 as a table: rank, player (with a Pro tag), then the board's columns */
+.golf-board {
+    width: 100%;
+    border-collapse: collapse;
+    font-variant-numeric: tabular-nums;
+}
+
+.golf-board th,
+.golf-board td {
+    padding: 3px 6px;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.golf-board th:nth-child(2),
+.golf-board td:nth-child(2) {
+    width: 100%;
+    text-align: left;
+    white-space: normal;
+}
+
+.golf-board th {
+    border-bottom: 1px solid #ccc;
+    color: #666;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.golf-board tr:nth-child(even) td {
+    background: #f4f4f4;
+}
+
+.golf-board .me td {
     font-weight: 700;
+}
+
+.golf-board-pro {
+    margin-left: 6px;
+    padding: 0 5px;
+    border-radius: 4px;
+    background: #222;
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+}
+
+.golf-board-note {
+    color: #666;
 }
 
 /* Colors [toggle] Clubs, styled like the RGB / HSL switch */
@@ -1478,11 +1729,179 @@ body.golf-pro .square-wrapper::after {
     color: #1f5fd6;
 }
 
+.golf-card .portal,
+#golf-hazards .portal::before {
+    color: #6a2bc2;
+}
+
+.golf-card .blackhole,
+#golf-hazards .blackhole::before {
+    color: #111;
+}
+
+.golf-card .mirror,
+#golf-hazards .mirror::before {
+    color: #8c96a3;
+}
+
+/* Tutorial boxes (v1.8): a gimmick course's first hole, and each hazard's first hole in a round
+   (v1.8.1), in the course's or the hazard's color */
+#golf-tutorials {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+#golf-tutorials:empty {
+    display: none;
+}
+
+.golf-tutorial {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 8px 10px;
+    border-left: 4px solid #6a2bc2;
+    border-radius: 6px;
+    background: #f3ecfc;
+    color: #2e1257;
+    font-size: 0.82rem;
+}
+
+.golf-tutorial.silverglass {
+    border-left-color: #8c96a3;
+    background: #eef1f4;
+    color: #2f3742;
+}
+
+.golf-tutorial.caddie {
+    border-left-color: #d9822b;
+    background: #fdf0e1;
+    color: #6b3a07;
+}
+
+.golf-tutorial.saffron {
+    border-left-color: #e0a100;
+    background: #fff6d6;
+    color: #6b4c00;
+}
+
+.golf-tutorial.hexflip {
+    border-left-color: #0e8a7e;
+    background: #def4f1;
+    color: #0a4f48;
+}
+
+.golf-tutorial.scarlet {
+    border-left-color: #d6204f;
+    background: #fde8ee;
+    color: #6e0c27;
+}
+
+/* Roulette (v1.8.4): the wheel is a bigger swatch with a red ring; the four keys only show while one
+   has keyboard focus (they're the keyboard and screen-reader way to play a shift) */
+body.golf .roulette-wheel .square {
+    width: 56px;
+    height: 56px;
+    margin: 10px; /* room for the ring (and the hover zoom), which the row would otherwise clip */
+    outline: 3px solid #d6204f;
+    outline-offset: 2px;
+}
+
+body.golf .roulette-wheel .square-label {
+    margin-top: 3px; /* clear of the ring */
+    color: #a3123a;
+    font-weight: 700;
+}
+
+/* The shifts in order under the wheel; not clickable, so a stroke still has to be timed */
+.roulette-order {
+    display: flex;
+    align-self: center;
+    gap: 6px;
+    margin: 0 0 0 8px; /* clear of the ring */
+    font-size: 0.8rem;
+    color: #7a3a4c;
+    white-space: nowrap;
+    pointer-events: none;
+    user-select: none;
+}
+
+.roulette-order .now {
+    color: #fff;
+    background: #d6204f;
+    border-radius: 4px;
+    padding: 0 4px;
+    font-weight: 700;
+}
+
+.roulette-key {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+}
+
+#roulette.keys-open .roulette-key {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip-path: none;
+}
+
+.golf-tutorial.sand {
+    border-left-color: #c9a24f;
+    background: #f6ecd2;
+    color: #6b4f16;
+}
+
+.golf-tutorial.water {
+    border-left-color: #1f5fd6;
+    background: #dde8fb;
+    color: #123f8f;
+}
+
+.golf-tutorial.blackhole {
+    border-left-color: #ff7a1a;
+    background: #222;
+    color: #ffb27a;
+}
+
+.golf-tutorial p {
+    margin: 0;
+    flex: 1;
+}
+
+/* `npm run dev:unlocked` only */
+.golf-test-mode {
+    padding: 6px 10px;
+    border: 1px dashed #b07a00;
+    border-radius: 8px;
+    background: #fff6dc;
+    color: #6b4a00;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+/* An expansion course's gimmick, on its card */
+.golf-course .golf-gimmick {
+    color: #5b1f9e;
+    font-weight: 600;
+}
+
 /* Wind: line in the panel, badge over the map */
 #golf-wind {
     font-size: 0.82rem;
     font-weight: 600;
     color: #2b5d7a;
+}
+
+#golf-rule {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #8a4b08;
 }
 
 #golf-wind-badge {
@@ -1513,6 +1932,21 @@ body.golf-pro .square-wrapper::after {
 #golf-hazard-note.water {
     background: #dde8fb;
     color: #123f8f;
+}
+
+#golf-hazard-note.portal {
+    background: #ece0fb;
+    color: #4b1a8a;
+}
+
+#golf-hazard-note.blackhole {
+    background: #222;
+    color: #ffb27a;
+}
+
+#golf-hazard-note.mirror {
+    background: #e9edf2;
+    color: #3b4552;
 }
 
 #golf-hazard-note.sand {
@@ -1562,6 +1996,312 @@ body.golf .golf-blocked {
     opacity: 0.4;
 }
 
-.golf-course.locked .btn {
-    grid-row: 1 / span 4;
+
+
+/* -----------------------------------------------
+   Touch, keyboard and phones (v1.7)
+----------------------------------------------- */
+/* The canvas takes drags and pinches itself (MainBase.js, 3d-mode.js) instead of scrolling the page */
+#ui-canvas {
+    touch-action: none;
+}
+
+/* Swatches can be reached with Tab and moved between with the arrow keys (harmony.js) */
+.square:focus-visible {
+    outline: 3px solid #2d6cdf;
+    outline-offset: 3px;
+}
+
+/* Lands in a portal (v1.8): a dotted purple outline, with where the ball comes out below it
+   (a chip of the exit color, --exit from golf-ui.js, then the yardage) */
+body.golf .golf-portal .square {
+    outline: 2px dotted #8b4fe0;
+    outline-offset: 2px;
+    margin-bottom: 4px;
+}
+
+/* Under the swatch's label (flex order), so the swatches in a row stay lined up */
+body.golf .golf-portal::before {
+    order: 3;
+    margin-top: 2px;
+    padding-left: 11px;
+    background: linear-gradient(var(--exit), var(--exit)) no-repeat left center / 8px 8px;
+    content: attr(data-portal);
+    color: #6a2bc2;
+    font-size: 0.6rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+/* Lands on a mirror (v1.8.1): a dotted silver outline, with where the flip leaves you
+   go below it (a chip of that color, --reflect from golf-ui.js, then the yardage), like a portal */
+body.golf .golf-to-mirror .square {
+    outline: 2px dotted #7d8794;
+    outline-offset: 2px;
+    margin-bottom: 4px;
+}
+
+body.golf .golf-to-mirror::before {
+    order: 3;
+    margin-top: 2px;
+    padding-left: 11px;
+    background: linear-gradient(var(--reflect), var(--reflect)) no-repeat left center / 8px 8px;
+    content: attr(data-mirror);
+    color: #4a5360;
+    font-size: 0.6rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+/* Expert on a touch screen: the first tap aims, a second tap plays (golf-ui.js) */
+.golf-aimed .square {
+    outline: 3px solid #f1c40f;
+    outline-offset: 3px;
+}
+
+.golf-aimed::before {
+    content: "Tap again";
+    font-size: 0.6rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+/* Color names (color-names.js): only with the switch on, and never on Pro's blank swatches */
+.square-name,
+.color-names-only {
+    display: none;
+}
+
+body.color-names .square-name,
+body.color-names .color-names-only {
+    display: block;
+}
+
+body.golf-pro .square-name {
+    display: none;
+}
+
+/* Names wrap to different heights: keep the swatches themselves in line */
+body.color-names .swatch-row {
+    align-items: start;
+}
+
+.square-name {
+    max-width: 9ch;
+    margin-top: 2px;
+    font-size: 0.65rem;
+    line-height: 1.2;
+    text-align: center;
+    color: #555;
+}
+
+#color-description {
+    font-size: 0.85rem;
+    color: #555;
+}
+
+.golf-swatches figcaption .color-names-only {
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+/* Phones and narrow windows: one column. The 3-D view stays at the top while the controls,
+   the golf panel and the harmonies scroll under it (#ui-info's parts join #ui's column). */
+@media (max-width: 760px) {
+    html,
+    body {
+        height: auto;
+    }
+
+    body {
+        display: block;
+    }
+
+    #ui {
+        flex-direction: column;
+        height: auto;
+        min-height: 100svh;
+    }
+
+    #ui-info {
+        display: contents;
+    }
+
+    #ui-title {
+        order: 0;
+        padding: 0.6rem 1rem;
+    }
+
+    #ui-title h1 {
+        font-size: 1.4rem;
+    }
+
+    /* The ? panel: against the screen, not inside the short 3-D view (which would cut off its end) */
+    #help-panel {
+        position: fixed;
+        top: 60px;
+        left: 12px;
+        width: calc(100vw - 24px);
+        max-height: calc(100svh - 72px);
+    }
+
+    #ui-canvas {
+        order: 1;
+        flex: none;
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        height: 42svh;
+        border-bottom: 0.7vh solid #000;
+    }
+
+    #ui-combo {
+        order: 2;
+    }
+
+    #golf-panel {
+        order: 3;
+    }
+
+    #ui-container {
+        order: 4;
+        overflow: visible;
+        border-top: none;
+    }
+
+    /* Bigger swatches: easier to tap */
+    .square {
+        width: 40px;
+        height: 40px;
+    }
+
+    .swatch-row {
+        grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+    }
+}
+
+/* Phones turned sideways (wide but short): the page never scrolls, so the 3-D view stays put.
+   Exploring, the left column scrolls by itself under a smaller title. During a hole the left
+   side splits in two, the hole on one side and the swatches on the other, each scrolling,
+   so the colors, the clubs and the map are all in view. */
+@media (min-width: 761px) and (max-height: 520px) {
+    html,
+    body,
+    #ui {
+        height: 100svh;
+    }
+
+    #ui-info {
+        overflow-y: auto;
+    }
+
+    #help-panel {
+        max-height: calc(100svh - 60px);
+    }
+
+    #ui-info > * {
+        flex: none; /* each part keeps its height; the column scrolls instead */
+    }
+
+    #ui-container {
+        overflow: visible;
+    }
+
+    #ui-title {
+        padding: 0.35rem 0.8rem;
+        border-bottom-width: 3px;
+    }
+
+    #ui-title h1 {
+        font-size: 1.3rem;
+    }
+
+    #golf-play {
+        padding: 0.3rem 0.7rem;
+        font-size: 0.85rem;
+    }
+
+    #ui-right,
+    #ui-container {
+        border-width: 3px;
+    }
+
+    .square {
+        width: 36px;
+        height: 36px; /* big enough to tap */
+    }
+
+    /* During a hole: hole | swatches | map */
+    body.golf:not(.golf-menu) #ui-info {
+        flex: 0 0 58%;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: 100%;
+        overflow: hidden;
+    }
+
+    body.golf:not(.golf-menu) #ui-title {
+        display: none;
+    }
+
+    body.golf:not(.golf-menu) #golf-panel,
+    body.golf:not(.golf-menu) #ui-container {
+        min-height: 0;
+        overflow-y: auto;
+        padding: 10px;
+    }
+
+    body.golf:not(.golf-menu) #ui-container {
+        border-top: none;
+        border-left: 3px solid #000;
+    }
+
+    body.golf #golf-panel {
+        gap: 8px;
+    }
+
+    #golf-hud {
+        gap: 6px;
+    }
+
+    .golf-heading h2 {
+        font-size: 1rem;
+    }
+
+    .golf-tools .btn {
+        padding: 0.2rem 0.55rem;
+        font-size: 0.8rem;
+    }
+
+    .golf-swatch {
+        height: 40px;
+    }
+
+    /* What you need every stroke first (colors, meter, strokes, then Next hole), notes and lessons after */
+    #golf-hud > .golf-heading { order: 0; }
+    #golf-hud > .golf-swatches { order: 1; }
+    #golf-hud > .golf-meter { order: 2; }
+    #golf-hud > .golf-stats { order: 3; }
+    #golf-hud > #golf-hole-end { order: 4; }
+    #golf-hud > * { order: 5; }
+
+    .golf-tutorial {
+        font-size: 0.8rem;
+    }
+
+    .golf-stats span,
+    .golf-stats .btn {
+        white-space: nowrap;
+    }
+
+    .golf-stats .btn {
+        padding: 0.2rem 0.6rem;
+    }
+
+    /* The swatch column is narrow: rows of four or more wrap rather than clip */
+    .swatch-row {
+        flex-wrap: wrap;
+        row-gap: 6px;
+    }
 }

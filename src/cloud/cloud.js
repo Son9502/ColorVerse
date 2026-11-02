@@ -92,12 +92,15 @@ export function loadCloud() {
             }
             store.set(SIGNED_IN_KEY, account.uid);
             let nickname = null;
+            let tester = false; // set by hand in the Firebase console (players can't write their own record)
             try {
-                nickname = (await store_.getDoc(store_.doc(db, "users", account.uid))).get("nickname") ?? null;
+                const profile = await store_.getDoc(store_.doc(db, "users", account.uid));
+                nickname = profile.get("nickname") ?? null;
+                tester = profile.get("tester") === true;
             } catch { /* offline: no nickname yet */ }
             // hasPassword: signs in with an email address (a password, or a link that hasn't set one yet)
             const hasPassword = account.providerData.some(provider => provider.providerId === "password");
-            user = { uid: account.uid, email: account.email, nickname, hasPassword };
+            user = { uid: account.uid, email: account.email, nickname, hasPassword, tester };
             notify();
             flushQueue();
         });
@@ -242,6 +245,15 @@ export async function loadMyScores() {
         bests: profile.get("bests") ?? {},
         daily: Object.fromEntries(days.docs.map(day => [day.id, day.data()])),
     };
+}
+
+// A survival course's all-time top 10 (v1.8.6; board from game.js: survivalBoard):
+// [{ uid, nickname, survived, strokes, toPar, time, pro }]
+export async function survivalLeaderboard(board) {
+    const { db, sdk } = await loadCloud();
+    const { getDocs, query, collection, orderBy, limit } = sdk.store;
+    const top = await getDocs(query(collection(db, "survival", board, "scores"), orderBy("survived", "desc"), orderBy("strokes"), orderBy("time"), limit(10)));
+    return top.docs.map(entry => ({ uid: entry.id, ...entry.data() }));
 }
 
 // Today's top 10 on the daily hole: [{ uid, nickname, strokes, toPar, time, pro }]

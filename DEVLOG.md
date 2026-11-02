@@ -9,6 +9,247 @@ Each entry is tagged with how it was produced:
 
 ---
 
+## Milestone 31 — Survival: The Obsidian Gauntlet (v1.8.6) `[ai-assisted]`
+**2026-11-01**
+
+The last expansion course, from the agreed v1.8 spec; implementation `[ai-assisted]`.
+
+**Added**
+- `lights` (`holeMaker.js`): a lightness range beside `sats`, default 22–78% (the old fixed range), so every other course regenerates byte for byte (checked on seven covering every hole maker)
+- The Obsidian Gauntlet (`generateCourses.mjs`, seed 12, full spectrum, lightness 15–50%, `EAGLE_LAYOUT`, par 72, perfect 49): portal, mirror, ban, turning wind, roulette and flip holes in turn, three each, built with their own courses' makers (`GAUNTLET_HOLES`, `mix`); `survival: true` on the course
+- Survival (`game.js`): `GolfRound` ends at the first hole finished over par or picked up (`over`; `finished`; `nextHole` refuses), and its totals carry `survived`. `compareRounds` ranks holes survived first. `replayRound(holes, played, { survival })` returns `over` and refuses holes after the failure
+- Score server: a survival round may stop at the hole that ended it (any other short round is still refused); bests carry `survived`; a public board per course version, `survival/{course}-r{rev}/scores/{uid}` (`survivalBoard`), keeps each player's best, Pro or not, and follows nickname changes. Firestore rules let anyone read it; a composite index (survived desc, strokes, time) serves the top 10
+- Panel: no undos on the Gauntlet (the button hides); "Survival" in the hole info and as a term; "Round over: …" at the failing hole; the result says holes survived; the course card shows the survival best and an "All-time top 10"
+- Score card: more than three of one hazard on a hole shows one dot and the count (a portal maze has twelve), so the column stays narrow (Violet Vortex too)
+- Unlock: the Gauntlet needs −4 or better on Hexflip Hollow (provisional)
+
+**Added after playtesting on a phone**
+- The Gauntlet plays easiest first: holes sorted by how many tee shots still leave par reachable (`parLine`, `holeMaker.js`), then by the perfect line (`easiestFirst`, `resources/gimmicks.mjs`). The holes are the same; the old hole 2 (par reachable from 7 tee shots) is now 16
+- Weekly Gauntlet: nine survival holes a week, the same for everyone, new each Monday by the player's local date (`WEEKLY_START`, `weekOf`, `daily.js`). `resources/generateWeekly.mjs` (`npm run weekly`) builds each week from its date into `weekly.json` (62 weeks, to 27 Dec 2027): every gimmick once plus three more at random, normal colors, easiest first. A card on the golf screen (best run this week, days until new holes, this week's top 10); no undos; opens with The Obsidian Gauntlet. Server: `kind: "weekly"` (only the week that's on now), each player's best on `survival/weekly-<Monday>-r1/scores/{uid}`
+- The gimmick plans (`BANS`, `WHIRL`, `skipFor`, `gimmickHole`) moved to `resources/gimmicks.mjs`, shared by both generators (Caddie Strike and Saffron Whirlwind regenerate byte for byte)
+- Survival's end message says what happened: "Over par on hole N, so the run ends here. Holes survived: …" (or "Picked up")
+- Layers on touch screens: a − / slider / + row under the layer box steps and drags through the layers live (the `[` `]` keys' job), and leaving the box (Done on a phone's number pad, which has no Enter) jumps to a typed layer
+- A layer typed but not jumped to no longer leaves its preview over the golf map: opening Color Golf clears the box
+- Survival's end message is just where it ended: "Picked up on hole 4 (survived 3 holes)" (or "Over par …")
+- Phones sideways (`@media (min-width: 761px) and (max-height: 520px)`): the page no longer scrolls (the 3-D view stays put; the left column scrolls by itself), a smaller title, 36 px swatches, and during a hole the left side splits into the hole and the swatches, each scrolling, beside the map. The hole puts the colors, meter, strokes and Next hole first; notes and lessons follow. Before, the hole filled all 390 px and the swatches got a 20 px strip
+- Help written for the device: on touch screens (`(hover: none) and (pointer: coarse)`) the ? panel, the tour and Color Golf's how-to say drag / pinch / tap, the layer slider and Done, and tap a swatch, instead of keys, Enter and double-click (`.for-touch` / `.for-mouse`, `touch` text on tour steps)
+- The golf menu shows the full-color surface (layer 0) turning slowly (`golfshowcase` events, `3d-mode.js`) instead of whatever exploring left (often the gray core); the end of a round keeps the last hole on the map beside the score card; leaving golf puts the explore layer back
+- Google sign-in failing on a phone pointed at the dev server turned out to be `auth/unauthorized-domain` (a computer's Wi-Fi address isn't one of the Firebase project's authorized domains); the sign-in box now says so, and says when the browser blocks the Google window, instead of "Couldn't sign in"
+- The ? panel scrolls to its end on phones (it was inside the 3-D view, 42% of the screen tall, which cut it off); it now sits against the screen
+- Color Golf is described in the ? panel and gets a step in the tour
+- First visit to Color Golf asks "First time playing Color Golf?": "Show me around" tours the golf screen (how it plays, daily, weekly, practice, courses), then walks through hole 1 of the first course (You and Target, the map, the clubs, the putter, the meter, strokes and undo, the hole info); "I've played before" skips both. `runTour` (`welcome.js`) runs any list of steps with the same spotlight, skipping targets that aren't showing, bringing a target to the middle of the screen and putting the card beside, below or above it
+- Leaderboards (daily, survival courses, weekly Gauntlet) are tables: rank, player with a Pro tag, then score or holes / strokes, and time, your row in bold (`showBoard`). Their toggles are outlined pills with an arrow
+
+**Verified**
+- Every hole: perfect matches the solver with its gimmick; the round plays the perfect route to the perfect score; think and golf-like checks pass; tees and pins all at lightness 15–50%; courses 1–11 unchanged byte for byte
+- `replayRound` (survival): a pick-up on hole 2 ends the round with 1 survived; a hole after it is refused; a perfect round is 18 survived, 49 strokes
+- Emulators: locked until the chain is unlocked; a round out on hole 3 saved (2 survived); a hole after the failure, and a round stopped without failing, refused; a worse round isn't a best; a second player's 6 survived ranks below 18; the board takes a new nickname
+- Headless Chrome: the card, "Survival" in the hole info, no undo, a pick-up ends the round ("0 of 18 holes survived"), the best on the card; no console errors
+- Weekly: all 62 weeks have every gimmick, no hole without its gimmick, easiest first, and a perfect round that replays (9 survived, perfect 25 in week 1). Emulators: locked until the Gauntlet is; a run out on hole 4 saved (3 survived); a worse run isn't a best; a past week refused. Phone-width Chrome: the card, a run, the result
+- Layers: slider, − / + and Done keep the canvas label and slider in step; a typed preview is gone once golf opens
+
+---
+
+## Milestone 30 — Flip: Hexflip Hollow (v1.8.5) `[ai-assisted]`
+**2026-11-01**
+
+The sixth expansion course, from the agreed v1.8 spec; implementation `[ai-assisted]`.
+
+**Added**
+- Flip clubs (`clubs.js`): five clubs (ids 45–49, after the roulette) that move the hex digits left by 1–5 places (`flipOf`; `mirrorOf` shares its hex-to-HSL step); full shots (wind blows them). On holes with `hole.rules.flip`; `ruleAllows` refuses them elsewhere, so the server's replay does too. `allStrikes(hsl, wind, roulette, flip)` keeps index = club id, with null in the roulette's places on a flip hole without one
+- Solver: `searchFrom` / `reachesWithin` take `flip`; the worker passes it from the hole's rules
+- `makeFlipHole` (`holeMaker.js`), sharing `makeExtraClubHole` with `makeRouletteHole`: pin first reached in exactly the perfect score with the flips, and without them the hole is two strokes longer; think and golf-like checks; birdie line out of 46
+- Hexflip Hollow (`generateCourses.mjs`, seed 11, full spectrum, `EAGLE_LAYOUT`, par 72, perfect 49): par needs a flip on every par 3 and 4 (the ace included), and under par needs one on the par 5s
+- Panel: a Flip row (on flip holes) of five swatches labeled ← 1 … ← 5, teal tutorial box, "flip" term, "perfect line … of 46"
+- Unlock: Hexflip Hollow needs −4 or better on Scarlet Roulette (provisional)
+
+**Fixed**
+- v1.8.4: the panel worked out every club's landing, the roulette keys included, so on any hole without a roulette `strike` threw and the hole never finished drawing (every course but Scarlet Roulette). Rows a hole doesn't have are now skipped
+- v1.8.4: a click on the roulette wheel focused it and opened the four keys, so a mouse could pick any shift without timing it; the keys now open only for keyboard focus. A strip beside the wheel lists the four shifts in order with the one showing highlighted (not clickable)
+
+**Changed (after a club audit)**
+- An audit of every hole (solver, one club taken away at a time) found three clubs that always land where another does: Tetradic +180° and Double-comp. +180° (Complementary) and Double-comp. +240° (Triadic −120°). `COPIES` (`clubs.js`) lists them; they stay in `CLUBS` so recorded rounds replay
+- Golf shows a Long shots row (Driver · Woods · Hybrids) instead of the five long harmony rows: their eight distinct clubs by hue shift, +60° to +270°, each captioned with its shift (the swatch elements move there on entering golf and back on leaving, so exploring is unchanged). Caddie Strike's bans grey out swatches in it; its texts and the "ban" term say which shifts are the Driver, Woods and Hybrids
+- The perfect line counts distinct clubs: "of 38" (42 with a roulette, 43 with flips). `perfectLine` sets `hole.lines`; the stored counts in `courses.json`, `daily.json` and `practice.json` were rewritten in place (13, 133 and 33 holes changed). The generator's birdie-line bands still count every club, so the holes don't change (Prism Point and Hexflip Hollow regenerate byte for byte)
+- Audit results, for later trimming: reaching the perfect score on every course needs 36 of the 38 distinct clubs (Putter Sat − and Sat + are never needed); par needs 29. Cobalt Bay and Royal Indigo (Expert par) leave the least slack
+
+**Notes**
+- Flips 2 and 4 turn the channels round (about ±120° of hue, like Triadic); 1, 3 and 5 are the wild jumps, and every perfect route uses one of them
+
+**Verified**
+- Every hole: perfect matches the solver with the flips; the round plays the perfect route to the perfect score; without flips each hole takes two more strokes (the ace three); think and golf-like checks pass; courses 1–10 unchanged byte for byte
+- `replayRound`: a perfect round is 49; a flip club on a hole without flips, and a roulette club on a flip hole, are refused
+
+---
+
+## Milestone 29 — Roulette: Scarlet Roulette (v1.8.4) `[ai-assisted]`
+**2026-10-31**
+
+The fifth expansion course, from the agreed v1.8 spec; implementation `[ai-assisted]`.
+
+**Added**
+- Roulette clubs (`clubs.js`): four hue shifts per hole (`hole.rules.roulette`), clubs 41–44 after the putter so recorded rounds keep their ids; full shots (wind blows them). `allStrikes` and `strike` take the hole's shifts; `STANDARD_CLUBS` are every hole's 41. `ruleAllows` refuses a roulette club on a hole without one, so the server's replay does too
+- Solver: `searchFrom` / `reachesWithin` take `roulette` (45 shots from each state)
+- `makeRouletteHole` (`holeMaker.js`): four shifts 10–170° either way, none within 4° of a harmony shift and 15° apart; pin first reached in exactly the perfect score with them; without the roulette the hole is a stroke longer; think and golf-like checks; birdie line counted out of 45
+- Scarlet Roulette (`generateCourses.mjs`, seed 10, 330°–20°, par 72, perfect 49, par 5s eagle holes as on Saffron Whirlwind, `EAGLE_LAYOUT`)
+- Panel: a Roulette row (on roulette holes) whose wheel spins through the four shifts, one a second, showing each one's calm landing and shift; a click or tap plays whichever is showing (Expert: tap to aim, tap again). Four keys, the same shifts as separate swatches, open while one has keyboard focus, for keyboard and screen-reader players. Red tutorial box, "roulette" term, "perfect line … of 45"
+- Unlock: Scarlet Roulette needs −4 or better on Saffron Whirlwind (provisional)
+
+**Tried and dropped**
+- Needing the roulette for par (two strokes saved, as on Violet Vortex): 0 holes in 300 tries; the harmony clubs reach any hue within a few strokes, so a hue shift saves one stroke at most. The roulette is the way to the perfect score instead
+- Par 5s with a perfect score of 4 (as with Saffron Whirlwind: four extra shifts make nearly every color reachable in three)
+
+**Verified**
+- Every hole: perfect matches the solver with its roulette; the round plays the perfect route to the perfect score; every perfect route uses the roulette once and without it each hole takes one more stroke; think and golf-like checks pass; courses 1–9 unchanged byte for byte
+- `replayRound`: a perfect round is 49; a roulette club on a hole without one is refused
+- Headless Chrome: the wheel turns each second and a click plays the shift showing (You becomes the wheel's color); the keys open on focus; hole 1 played to a birdie; no console errors
+
+---
+
+## Milestone 28 — Turning wind: Saffron Whirlwind (v1.8.3) `[ai-assisted]`
+**2026-10-31**
+
+The fourth expansion course, from the agreed v1.8 spec; implementation `[ai-assisted]`.
+
+**Added**
+- Turning wind (`rules.js`: `windCycle`, `windFor`, `windOptions`): a cycle of 2–3 winds (at most one calm), one per stroke counting from the tee, penalties included; putts stay sheltered. The round plays each stroke in `windFor(hole, strokes)`, so the server's replay does too
+- Solver: a search state is a color and the wind's place in the cycle ("node" = code × turns + phase), so it stays exact; the tables grow by the cycle's length. `dist` and `reached` stay per color, so `parFor` is unchanged; `pathTo` follows nodes. `reachesWithin` takes `played` (strokes before the start). With no cycle every course solves exactly as before
+- `makeWindHole` (`holeMaker.js`): random cycle (hue 6–12°, light 3–6%, either way), pin first reached in exactly the perfect score in that wind, and the wind must matter (a tee swatch that keeps the perfect score in calm air doesn't in this wind); birdie line 1–4, think and golf-like checks. Birdie lines and the think check use the first stroke's wind, then the cycle
+- Saffron Whirlwind (`generateCourses.mjs`, seed 9, 30°–65°, par 72, perfect 49): every hole turning, the tutorial's a two-wind cycle. Par 5s are perfect 3 (eagle chances): three strokes of turning wind reach nearly every color, so a pin that truly needs four was too rare (one par 5 took 2 minutes and 2,977 tries without one). No water or black holes, since their penalty strokes would turn the wind and the solver skips them
+- Panel: "Turning wind, one per stroke: … → …, then again (putts aren't affected). This stroke: …"; the map badge shows "now … · next …" and updates every stroke; portal and mirror outlines and the perfect-route replay use each stroke's wind; yellow tutorial box; How to play
+- Unlock: Saffron Whirlwind needs −6 or better on Caddie Strike (provisional)
+
+**After review** (the developer: windier, the wind line as "Wind (per stroke)" / "This stroke", more undos, and a shorter How to play with gimmick words that explain themselves)
+- Stronger turning wind: hue 12–24° (was 6–12°), light 6–10% (was 3–6%); the tutorial's two winds are never calm. Regenerated: in this wind the calm perfect route misses on all 18 holes; greedy play +43. "Putts aren't affected" moved to the course card and tutorial
+- Wind line: "Wind (per stroke): … → …" then "This stroke: …"; a fixed wind reads "Wind: … on every full shot"
+- Undos: 5 for a whole round (was 1 per nine), 1 on the daily hole, unlimited in practice and test rounds (`UNDOS_PER_ROUND`, `UNDOS_DAILY` in `game.js`). The server replays only the strokes kept, so it doesn't count them; 5 rather than 10 for that reason
+- Terms (`terms.js`): gimmick and difficulty words in the hole info, the rule and wind lines, the course cards and the daily card are buttons with a dotted underline; hover or focus shows a short explanation, a click or tap pins it with an example (Esc, a click elsewhere or a scroll closes). Bunker, lake, portal, black hole, mirror, Caddie strike / bans, wind, turning wind, perfect line, Pro, Beginner, Standard, Expert, Expansion
+- How to play keeps the clubs, the meter, par and undos; the gimmick, daily, practice and difficulty paragraphs are gone (terms and the cards say it now). The daily card says what the daily hole is, the practice card that you choose the difficulty
+- Fixed: course Play buttons stopped working once their cards held term buttons (`renderCourses` took the card's first button)
+
+**Verified**
+- Every hole: perfect matches the solver in its wind cycle, the round plays the perfect route to the perfect score, and `replayRound` of a perfect round is 49; think (3) and golf-like checks pass; courses 1–8 unchanged byte for byte
+- In this wind the calm perfect route misses on 15 of 18 holes; a greedy closest-swatch player is +31
+- Headless Chrome: holes 1–3 played to birdies; the wind line and badge turn with each stroke; no console errors
+
+---
+
+## Milestone 27 — Club bans: Caddie Strike (v1.8.2) `[ai-assisted]`
+**2026-10-31**
+
+The third expansion course, from the agreed v1.8 spec; implementation `[ai-assisted]`.
+
+**Added**
+- Hole rules (`rules.js`): gimmicks that aren't regions live in `hole.rules`, read by one module the round, the solver, the hole builder and the server's replay share. First rule: club bans, `{ ban: [row, …], name }`. `ruleAllows` (the round's `canPlay`, so the replay refuses a banned club too), `clubMask` (the solver's loops: `searchFrom` / `reachesWithin` take `rules`). With the putter banned, "on the green" only counts a ball already in
+- `makeBanHole` (`holeMaker.js`): the pin is a color the allowed clubs reach in exactly the perfect score while every club together reaches it in fewer, so each ban costs at least a stroke (two on hole 4); putts alone can't hole it; birdie line 1–4 counting allowed clubs
+- Caddie Strike (`generateCourses.mjs`, seed 8, full spectrum, par 72, perfect 51, no hazards: a bunker would need wedges a hole might ban). Bans: No Driver or Woods (1, 7, 14), No putter (2, 10), No Hybrids (3, 12), No Wedges (4, 11, 16), No Driver, Woods or Iron (5, 13), No Tints or Shades (6, 15), No Woods or Wedges (8, 18), Hybrids, Iron and putter only (9, 17)
+- Panel: "Caddie strike: … on this hole" under the hole info; banned rows grey out as in a bunker, and blocked swatches are `aria-disabled`; orange tutorial box on hole 1; How to play
+- Unlock: Caddie Strike needs −4 or better on Silverglass Greens
+
+**Tried and dropped**
+- "Wedges and putter only": wedge moves go in any order, so 11–16 first shots keep the perfect score, far over the 1–4 band. "No Iron": one short row rarely costs a stroke. "No putter" and "No Wedges" on par 3s: the putter never saves a stroke on a par 3, and a no-wedge par 3 only cost one when putts alone could hole it
+
+**After review** (the developer: a tester account; holes that make you think instead of rewarding the closest swatch; putts only near the green and no driver into the hole; difficulty and gimmicks should mean something)
+- Tester accounts: `tester: true` on `users/{uid}` (set in the Firebase console; players can't write their record) opens every course on the live site, as `npm run dev:unlocked` does locally. Either way a "Test a hole" card plays any course from any hole (unlimited undo, nothing sent, no confirm on quit), and dailies aren't scored
+- "Make you think" (`thinks`, `holeMaker.js`): on every hole but the ace, none of the closest tee shots to the pin (after portals and mirrors, allowed clubs only) keeps the perfect score: 2 on Standard courses, 3 on Expert and expansion courses, none on Prism Point. Measured first: the closest swatch led the perfect route on up to 9 of 18 holes (Caddie Strike), and at least one of the closest 3 kept the perfect score on 7–16 holes per course
+- Golf-like routes (`searchFrom`'s `golf`, `playsLikeGolf`): a perfect route must exist with the putter only near the pin (within 80 yds, about two putts) and no Driver or Woods into the hole; "Show perfect route" shows that one
+- `buildHole` rebuilds a hole (up to 80 tries) until it passes, when the course asks (`THINK` in `generateCourses.mjs`); the daily holes and practice don't, so they build exactly as before
+- Regenerated: Ember Dunes and Verdant Pines (rev 3), Cobalt Bay (rev 3), Royal Indigo (rev 4), Violet Vortex (rev 4), Silverglass Greens, Caddie Strike. Prism Point unchanged. A player who always takes the swatch closest to the pin now makes perfect only on the aces (before: 2–8 holes per course) and plays Verdant Pines at +35 (before +5), Royal Indigo at +50 (before +33)
+- Unlock scores reset for the harder courses (`unlocks.js`), from a simulated player who plans one shot ahead: Cobalt Bay −4 on Verdant Pines (was −6), Royal Indigo +2 on Cobalt Bay (was −3), Violet Vortex +4 on Royal Indigo (was −2), Silverglass Greens −3 on Violet Vortex (was −4), Caddie Strike −2 on Silverglass Greens (was −4)
+- Caddie Strike's bans moved to fit: "No Wedges" only on the ace, "No putter" once, par 5s "No Tints or Shades" or "Hybrids, Iron and putter only"
+
+**Verified**
+- Every hole: perfect matches the solver under its ban; without the ban the perfect score is lower; no perfect route uses a banned club
+- After the regeneration: every course's stored perfect matches the solver and its perfect round replays exactly through `replayRound`; every hole passes its course's think check and has a golf-like perfect route; portals and mirrors are still needed (par 3s and 4s over par without them, the ace aside), and every ban still costs a stroke
+- `replayRound`: a perfect round is 51; a banned club is refused
+- Headless Chrome: holes 1–4 played to birdies; a double-click on a banned swatch plays nothing; no console errors
+
+---
+
+## Milestone 26 — Mirrors: Silverglass Greens (v1.8.1) `[ai-assisted]`
+**2026-10-31**
+
+The second expansion course. The mirror went through three designs with the developer; the last is the developer's: land on a mirror and your color's hex flips. Implementation `[ai-assisted]`.
+
+**Added**
+- Mirrors (`hazards.js`): a region type that works like a portal, but the ball comes out at its own color with the hex reversed (#234243 → #342432, `mirrorOf` in `clubs.js`, back to whole-number HSL), once, for no extra stroke. `land` covers portals and mirrors, so the round, the solver, the birdie-line count and the server's replay all follow it. Every other region wins over a mirror. Water and black holes are judged where a ball lands, not where a warp puts it, in the round and the solver alike
+- `makeMirrorHole` (`holeMaker.js`): the hole is built round its mirrors, as Violet Vortex's are round their portals. A mirror sits where a tee shot lands; the pin is the rest of the perfect score from the reflection; without mirrors par 3s and 4s take two more strokes (par needs a mirror) and par 5s one more. `chain`: a shot from the reflection lands on a second mirror, and neither alone makes the perfect score. `decoy`: a mirror on another tee shot reflecting 200+ yds from the pin. `tutorial`: a bigger mirror that 3+ tee shots land on. Each flip on the route lands at most 75% of the hole's length from the pin, so its label reads as progress. `makeHole` / `buildHole` take a saturation range (`sats`)
+- Silverglass Greens (`generateCourses.mjs`, seed 7, any hue, saturation 12–45% for tees and pins, par 72, perfect 51): tutorial 1; chains 5, 11, 14; decoys 3, 6, 8, 10, 13, 17; the ace (16) flips into the hole
+- Panel: swatches that land on a mirror get a dotted silver outline and a "⇄ N yds" label (where the flip leaves you, with a chip of that color; "Mirror" on Expert), also in the tooltip and aria-label; "Mirror! Your color's hex flipped: #… → #…"; list, summary, score-card dots, How to play. Map: solid silver footprint with a dark rim and a ⇄ icon; the trail jumps at a flip
+- Tutorial boxes take the course's or the hazard's color (Violet Vortex purple, Silverglass silver), and the first hole of a round with a bunker, water or a black hole gets its own box explaining it (Expert bunkers: only the named wedge)
+- "Last shot" after a portal, black hole or mirror measures the shot, not the jump
+- Unlock: Silverglass Greens needs −4 or better on Violet Vortex
+
+**Tried and dropped**
+- The spec's mirror: hit from inside one and every hue move flips (swatches unflipped, ⇄ marks on the ones that change). It only reshuffles which swatch goes where, so it can't shorten or block a route: 0 of 36 muted holes could make one unavoidable
+- A Mirror club playable only on a mirror (+1 stroke to reverse the hex). It worked (chains included) but the developer preferred the flip happening on landing, like a portal
+
+**Verified**
+- Every hole: stored perfect matches the solver and the game; every perfect route flips (chains twice); without mirrors each par 3 and 4 is over par; courses 1–6 unchanged byte for byte
+- `replayRound`: a perfect round is 51 strokes; Violet Vortex, Royal Indigo and Ember Dunes still replay to their perfect scores
+- Headless Chrome: hole 1 (3 outlined swatches, tutorial, flip note), holes 1–2 played to birdies, no console errors
+
+---
+
+## Milestone 25 — Portals: Violet Vortex (v1.8.0) `[ai-assisted]`
+**2026-10-30**
+
+The first expansion course. Spec agreed with the developer (7 gimmick courses, names with colors, unlock chain from Royal Indigo, one course per release); implementation `[ai-assisted]`.
+
+**Added**
+- Portals (`hazards.js`): a hazard type whose landing warps the ball to its `exit`; `portalAt` and `land` used by the round, the solver (`searchFrom`, `reachesWithin`), the birdie-line count and the map
+- `placePortals` (`holeMaker.js`): the hole is built one stroke longer, then a shortcut portal on a tee shot exits two strokes along its best route, so the perfect score needs the portal; with `trap`, a second portal on the obvious line exits 250+ yds from the hole. Re-checked: perfect, finishable within par, birdie line 1–4 (new `Expansion` difficulty)
+- Violet Vortex (`generateCourses.mjs`, seed 6, 250°–300°, par 72): 17 portal holes, 5 with traps, plus the ace; `gimmick` line on its course card
+- Map: violet swirl footprint and icon (turning), exit ring, and the trail breaks at a portal (the ball jumps); the perfect-route replay jumps too
+- Panel: "Portal! The ball warped to its exit.", "Portal: N yds from you", portal dots on the score card, "2 portals" in the hole summary; How to play section on expansion courses
+- Unlock: Violet Vortex needs −2 or better on Royal Indigo
+
+**Verified**
+- Every hole: stored perfect matches the solver; without portals each portal hole needs one more stroke; every perfect route warps; tee, pin and exits outside every portal; courses 1–5 unchanged byte for byte
+- `replayRound` of a perfect Violet Vortex round: 51 strokes (−21), so the score server accepts it
+- Headless Chrome: hole 1 played on its perfect route (warp note, jump on the map, birdie); no console errors
+
+**After the first play-test** (the developer: portals felt like a lucky guess; outline the swatches that reach one, add black holes that make portals necessary, and make hole 1 a tutorial)
+- Swatches whose landing is in a portal get a dashed violet outline and a "→ N yds" label (where the ball comes out, from the pin; just "Portal" on Expert), also read out in the swatch's aria-label
+- Black holes (`hazards.js`): +1 stroke and back to the tee; the solver skips them like water; drawn as a dark swirl with an orange rim; note, list, summary and score-card dots
+- `placePortals` takes `skip` (how many strokes the shortcut saves) and `tutorial` (bigger portal, no trap); `placeBlackHoles` puts 1–2 on the portal-free route; `searchFrom` gains `avoidPortals`
+- Violet Vortex regenerated (rev 2): par 3s and 4s are built two strokes long, so par needs the portal; traps on 4, 7, 10, 13; black holes on 3, 6, 9, 12, 15, 18. Blocking every portal-free route with black holes instead was tried and dropped: 8 black holes still left a way round
+- Course `tutorial` text, shown on hole 1 of a course round with a Got it button
+- Swatch rows line up by their tops (a label makes one swatch taller)
+- Verified: perfect matches the solver on every hole; without portals each par 3 and 4 takes par + 1 or more; perfect replay 51 strokes, 17 warps; a black-hole landing costs 2 and returns to the tee, and undo restores it; headless Chrome: tutorial and outlines on hole 1, black hole on hole 3, no console errors
+
+**Second play-test** (the developer: shorter tutorial, a dotted outline that doesn't cover the yardage, more menacing black holes, holes with several portals in a row or mostly portals; asked how exits are chosen and about showing the exit's hex)
+- Outline: 2 px dotted purple with room below it; the label gets a chip of the exit color (not in Pro); hex in the tooltip and aria-label (`hslToHex` in `oklab.js`). A full hex beside the yardage doesn't fit under a 40–60 px swatch
+- `placeChain`: `wanted` − 1 portals in a row, the last exiting one stroke from the pin; `placeMaze`: a shortcut plus decoys until half the 35 full shots go into a portal (the 6 putts and other short shots are too near the tee for a portal; 55% of all 41 couldn't be covered with 12 portals); decoy exits 40–160 yds from the pin that can't make the perfect score
+- `placeBlackHoles`: 35–55 yds, alternately on a tee shot and on the portal-free route
+- Violet Vortex rev 3 (hole plan `VORTEX_HOLES` in `generateCourses.mjs`); more than 3 portals list as one line ("13 portals: nearest 24 yds from you")
+- Portal and black-hole footprints are plain fills (no turning spiral or swirl), so a maze hole stays calm to look at
+- Verified: perfect matches the solver on every hole; chain holes' perfect routes take every portal in the chain; mazes: 18–19 of 41 tee swatches into portals; black-hole holes: 2–7 tee swatches into black holes; perfect replay 51; courses 1–5 unchanged; headless Chrome at desktop and 390 px: labels clear of the outline, no overlap, no console errors
+
+---
+
+## Milestone 24 — Mobile & Accessibility (v1.7.0) `[ai-assisted]`
+**2026-10-30**
+
+ColorVerse and Color Golf work on phones, from the keyboard and without telling colors apart. Scope from the roadmap (touch, colour-blind mode, keyboard play), with Expert's tap-to-aim from the spec; implementation `[ai-assisted]`.
+
+**Added**
+- Phone layout (`index.css`, under 760 px): one column with the 3-D view sticky at the top; viewport meta tag; 40 px swatches
+- `src/pointer.js`: the last pointer type, so a tap chooses or plays a swatch on touch screens while mice keep double-click
+- Pinch to zoom (`3d-mode.js`); a drag that ends over the shape no longer picks a color
+- Keyboard: swatches are focusable buttons; `swatchNeighbour` (harmony.js) moves with the arrow keys; Enter / Space chooses or plays
+- `src/color-names.js`: `describeColor` (shade + tone + hue family, with brown / olive / teal for dark oranges, yellows and cyans) and the "Color names" switch (explore and golf setup); names under swatches, the selected color and You / Target
+- Golf: tap to play, Expert tap to aim then tap again; swatch labels for screen readers (club, plus color name outside Pro)
+
+**Modified**
+- `MainBase.js`: pointer events instead of mouse events (one pointer drags; a second finger hands over to pinch); arrow keys ignored while a swatch has focus
+- Help, golf "How to play" and the tour mention taps, pinch and the keyboard
+
+**Verified**
+- Headless Chrome at 390×844 with touch: layout; taps play strokes; Expert's first tap aims, a tap elsewhere moves the aim, a second tap plays; pinch zooms; → moves focus between swatches and Enter plays; a tap in explore mode selects the swatch; names under swatches and You / Target, labels for screen readers; desktop layout unchanged; no console errors
+
+---
+
 ## Milestone 23 — Unique Nicknames, Change Password & Going Live (v1.6.2) `[ai-assisted]`
 **2026-10-30**
 

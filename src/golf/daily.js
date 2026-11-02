@@ -38,6 +38,11 @@ export const weekday = (key) => new Date(Date.parse(key)).getUTCDay();
 // Seeds for a day's three random sequences (tee/target, hazards, wind), from the date alone
 export const daySeed = (key) => Number(key.replaceAll("-", ""));
 
+// The weekly Gauntlet (v1.8.6): nine survival holes a week, Monday to Sunday by the player's local
+// date (resources/generateWeekly.mjs builds them into weekly.json, a week from each Monday)
+export const WEEKLY_START = "2026-10-26"; // a Monday (the week v1.8.6 was built)
+export const weekOf = (key) => addDays(WEEKLY_START, Math.floor(daysBetween(WEEKLY_START, key) / 7) * 7);
+
 // "Wed 28 Oct"
 export function dayLabel(key) {
     return new Date(Date.parse(key)).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });

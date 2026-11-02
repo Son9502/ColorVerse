@@ -3,6 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>ColorVerse</title>
     <link rel="stylesheet" href="resources/css/index.css">
     <script type="module" src="./main.js" defer></script>
@@ -46,6 +47,18 @@
                             <span class="space-hsl">HSL</span>
                         </div>
                     </div>
+                    <!-- Color names (v1.7): describes colors in words; the same setting as in Color Golf -->
+                    <div class="field">
+                        <span class="field-label">Color names</span>
+                        <div class="space-toggle">
+                            <span>Off</span>
+                            <label class="switch">
+                                <input type="checkbox" class="color-names-switch" aria-label="Show color names">
+                                <span class="slider"></span>
+                            </label>
+                            <span>On</span>
+                        </div>
+                    </div>
                     <!-- One-Dimension Content-->
                     <div id="info1D" class="dimension-info field">
                         <label for="Axis" class="field-label">Axis</label>
@@ -85,7 +98,13 @@
                     <!-- Three-Dimension Content-->
                     <div id="info3D" class="dimension-info field">
                         <label for="layer-input" class="field-label">Layer</label>
-                        <input type="text" id="layer-input" inputmode="numeric" placeholder="0–127, Enter to jump">
+                        <input type="text" id="layer-input" inputmode="numeric" enterkeyhint="go" placeholder="0–127, Enter to jump">
+                        <!-- Step or drag through the layers (the [ ] keys' job, for touch screens too) -->
+                        <div class="layer-stepper">
+                            <button id="layer-out" type="button" aria-label="Previous layer (outward)">−</button>
+                            <input type="range" id="layer-range" min="0" max="127" step="1" aria-label="Layer: 0 is the outer surface, 127 the gray core">
+                            <button id="layer-in" type="button" aria-label="Next layer (inward)">+</button>
+                        </div>
                     </div>
                 </div>
                 <div id="ui-right">
@@ -107,6 +126,7 @@
                         <div id="base-info">
                             <h2 id="hex">#xxxxxx</h2>
                             <h3 id="color-name">Color Name</h3>
+                            <p id="color-description" class="color-names-only"></p>
                             <h4 id="rgb">RGB(xxx,xxx,xxx)</h4>
                             <h4 id="hsl">HSL(xxx,xxx,xxx)</h4>
                         </div>
@@ -132,7 +152,10 @@
                         <button class="btn btn-link golf-help-toggle" type="button">Close</button>
                     </div>
                     <p>Make <strong>You</strong> match the <strong>Target</strong> in as few strokes as you can.
-                        A stroke is a double-click on any swatch below; each row is a club:</p>
+                        <span class="for-mouse">A stroke is a double-click on any swatch below (or <kbd>Enter</kbd> on a
+                        swatch reached with <kbd>Tab</kbd> and the arrow keys).</span><span class="for-touch">A stroke is a
+                        tap on any swatch below. On Expert, tap once to aim and again to play.</span>
+                        Each row is a club:</p>
                     <dl>
                         <dt>Driver</dt><dd>Complementary: the longest hue jump, straight across the wheel</dd>
                         <dt>Wood</dt><dd>Split-comp.: long jumps, just either side of the driver</dd>
@@ -144,16 +167,8 @@
                     </dl>
                     <p>The meter updates after each stroke. <strong>On the green</strong> means 2 putts or fewer will hole it.</p>
                     <p><strong>Par</strong> is a good score; <strong>perfect</strong> (shown after each hole) is the fewest possible.
-                        One under par is a birdie. You get 1 free undo per 9 holes, a hole ends at double par, and time breaks ties.</p>
-                    <p><strong>Daily hole:</strong> a new hole every day, the same for everyone, following a weekly rotation
-                        (Ace Sunday to Championship Saturday). Your first try is your score: once you've played a stroke,
-                        leaving counts as a pick-up. Play every day to build a streak.</p>
-                    <p><strong>Practice:</strong> endless random holes at the difficulty you choose. <strong>Pro:</strong>
-                        swatches show only the club (e.g. "+120°", "60%"), so you play on color theory alone.</p>
-                    <p><strong>Difficulty:</strong> the <em>perfect line</em> under each hole title counts the first shots (of 41)
-                        that can still make the perfect score: 6 or more on Beginner, 3–6 on Standard, 1–3 on Expert.
-                        <strong>Expert</strong> also plays as Pro, hides the yardage until you're on the green, and has tighter
-                        par (par = perfect on par 3s and 4s, so birdies only come on par 5s).</p>
+                        One under par is a birdie. You get 5 free undos per round (1 on the daily hole), a hole ends at double par, and time breaks ties.</p>
+                    <p>Highlighted words (a bunker, a portal, a difficulty…) explain themselves: hover over one, or tap it for an example.</p>
                 </div>
 
                 <!-- Course picker -->
@@ -166,7 +181,8 @@
                         </div>
                     </div>
                     <p class="golf-intro">Get from the tee color to the target in as few strokes as you can.
-                        Double-click a harmony swatch to play it; the putter row makes small nudges.</p>
+                        <span class="for-mouse">Double-click</span><span class="for-touch">Tap</span> a harmony swatch to play it; the putter row makes small nudges.</p>
+                    <p id="golf-test-mode" class="golf-test-mode" hidden>Test mode: every course is unlocked, and rounds aren't sent to your account.</p>
                     <!-- Account (v1.6): shown only when Firebase is configured (src/cloud/config.js) -->
                     <div id="golf-account" class="golf-account" hidden>
                         <div id="golf-account-out" class="golf-account-row">
@@ -194,55 +210,101 @@
                                 Other players only see your nickname and your daily-hole scores.</p>
                             <button id="golf-signin-cancel" class="btn btn-link" type="button">Cancel</button>
                         </div>
-                        <div id="golf-account-in" class="golf-account-row" hidden>
-                            <span class="golf-sub">Signed in as <strong id="golf-account-name"></strong></span>
-                            <span>
-                                <button id="golf-nickname-edit" class="btn btn-link" type="button">Change nickname</button>
-                                <button id="golf-password-edit" class="btn btn-link" type="button" hidden>Change password</button>
-                                <button id="golf-signout" class="btn btn-link" type="button">Sign out</button>
-                            </span>
-                        </div>
-                        <!-- Change password (v1.6.2): accounts that sign in with an email address -->
-                        <form id="golf-password-change" class="golf-signin-form" hidden>
-                            <input type="password" id="golf-password-current" placeholder="Current password" aria-label="Current password" autocomplete="current-password">
-                            <input type="password" id="golf-password-new" placeholder="New password (8+ characters)" aria-label="New password" autocomplete="new-password">
-                            <div class="golf-account-row">
-                                <button id="golf-password-save" class="btn btn-primary" type="submit">Change password</button>
-                                <button id="golf-password-cancel" class="btn btn-link" type="button">Cancel</button>
+                    </div>
+
+                    <!-- Settings (v1.8.1): account, color names and Pro, folded away so the courses fit;
+                         the summary line says what's set -->
+                    <details id="golf-settings" class="golf-settings">
+                        <summary>Settings <span id="golf-settings-summary" class="golf-sub"></span></summary>
+                        <div class="golf-settings-body">
+                            <div id="golf-account-settings" class="golf-account" hidden>
+                                <div id="golf-account-in" class="golf-account-row" hidden>
+                                    <span class="golf-sub">Signed in as <strong id="golf-account-name"></strong></span>
+                                    <span>
+                                        <button id="golf-nickname-edit" class="btn btn-link" type="button">Change nickname</button>
+                                        <button id="golf-password-edit" class="btn btn-link" type="button" hidden>Change password</button>
+                                        <button id="golf-signout" class="btn btn-link" type="button">Sign out</button>
+                                    </span>
+                                </div>
+                                <!-- Change password (v1.6.2): accounts that sign in with an email address -->
+                                <form id="golf-password-change" class="golf-signin-form" hidden>
+                                    <input type="password" id="golf-password-current" placeholder="Current password" aria-label="Current password" autocomplete="current-password">
+                                    <input type="password" id="golf-password-new" placeholder="New password (8+ characters)" aria-label="New password" autocomplete="new-password">
+                                    <div class="golf-account-row">
+                                        <button id="golf-password-save" class="btn btn-primary" type="submit">Change password</button>
+                                        <button id="golf-password-cancel" class="btn btn-link" type="button">Cancel</button>
+                                    </div>
+                                    <button id="golf-password-forgot" class="btn btn-link" type="button">Don't know your current password? Email me a reset link</button>
+                                </form>
+                                <p id="golf-password-status" class="golf-sub" aria-live="polite" hidden></p>
+                                <form id="golf-nickname" class="golf-account-row" hidden>
+                                    <label for="golf-nickname-input" id="golf-nickname-label" class="golf-sub">Welcome! Pick a nickname for the leaderboard (2–20 characters)</label>
+                                    <input id="golf-nickname-input" maxlength="20" aria-describedby="golf-nickname-error">
+                                    <button id="golf-nickname-save" class="btn btn-primary" type="submit">Save</button>
+                                    <p id="golf-nickname-error" class="golf-error" role="alert" hidden></p>
+                                </form>
                             </div>
-                            <button id="golf-password-forgot" class="btn btn-link" type="button">Don't know your current password? Email me a reset link</button>
-                        </form>
-                        <p id="golf-password-status" class="golf-sub" aria-live="polite" hidden></p>
-                        <form id="golf-nickname" class="golf-account-row" hidden>
-                            <label for="golf-nickname-input" id="golf-nickname-label" class="golf-sub">Welcome! Pick a nickname for the leaderboard (2–20 characters)</label>
-                            <input id="golf-nickname-input" maxlength="20" aria-describedby="golf-nickname-error">
-                            <button id="golf-nickname-save" class="btn btn-primary" type="submit">Save</button>
-                            <p id="golf-nickname-error" class="golf-error" role="alert" hidden></p>
-                        </form>
-                    </div>
-
-                    <!-- Pro: Clubs hides the swatch colors (always on for Expert) -->
-                    <div id="golf-swatch-mode" class="field">
-                        <span class="field-label">Swatches</span>
-                        <div class="space-toggle">
-                            <span class="mode-colors">Colors</span>
-                            <label class="switch">
-                                <input type="checkbox" id="golf-pro" aria-label="Pro: show club names instead of colors">
-                                <span class="slider"></span>
-                            </label>
-                            <span class="mode-clubs">Clubs (Pro)</span>
+                        <!-- Pro: Clubs hides the swatch colors (always on for Expert) -->
+                        <!-- Color names (v1.7): the same setting as on the explore screen -->
+                        <div class="field">
+                            <span class="field-label">Color names</span>
+                            <div class="space-toggle">
+                                <span>Off</span>
+                                <label class="switch">
+                                    <input type="checkbox" class="color-names-switch" aria-label="Show color names">
+                                    <span class="slider"></span>
+                                </label>
+                                <span>On</span>
+                            </div>
+                            <span class="golf-sub">Names every color in words ("dark muted teal"), for anyone who finds colors hard to tell apart. Pro still hides the swatches' colors.</span>
                         </div>
-                        <span class="golf-sub">Clubs shows only each club (e.g. "+120°", "60%"). Expert always plays with Clubs; Pro scores are kept separately.</span>
-                    </div>
 
+                        <div id="golf-swatch-mode" class="field">
+                            <span class="field-label">Swatches</span>
+                            <div class="space-toggle">
+                                <span class="mode-colors">Colors</span>
+                                <label class="switch">
+                                    <input type="checkbox" id="golf-pro" aria-label="Pro: show club names instead of colors">
+                                    <span class="slider"></span>
+                                </label>
+                                <span class="mode-clubs">Clubs (Pro)</span>
+                            </div>
+                            <span class="golf-sub">Clubs shows only each club (e.g. "+120°", "60%"). Expert always plays with Clubs; Pro scores are kept separately.</span>
+                        </div>
+                        </div>
+                    </details>
+
+                    <!-- What to play: scrolls in its own box, so the page doesn't grow with the courses -->
+                    <div id="golf-picker">
+                    <!-- Test a hole (v1.8.2): tester accounts and test mode only -->
+                    <div id="golf-test-holes" class="golf-course" hidden>
+                        <h3>Test a hole</h3>
+                        <div class="golf-practice-options">
+                            <select id="golf-test-course" aria-label="Course"></select>
+                            <select id="golf-test-hole" aria-label="Hole"></select>
+                        </div>
+                        <span class="golf-best">Plays from that hole to the end of the course, unlimited undo, nothing saved</span>
+                        <button id="golf-test-play" class="btn btn-primary" type="button">Play</button>
+                    </div>
                     <!-- Daily hole: the same for everyone, one scored try (golf/daily.js) -->
                     <div id="golf-daily" class="golf-course">
                         <h3>Daily hole <span id="golf-daily-date" class="golf-sub"></span></h3>
                         <span id="golf-daily-info" class="golf-best"></span>
+                        <span class="golf-best">The same hole for everyone, new each day (Ace Sunday to Championship Saturday). Your first try is your score: leaving after a stroke is a pick-up.</span>
                         <span id="golf-daily-status" class="golf-best"></span>
                         <button id="golf-daily-play" class="btn btn-primary" type="button">Play</button>
                         <button id="golf-leaderboard-toggle" class="btn btn-link golf-leaderboard-toggle" type="button" aria-expanded="false" hidden>Today's leaderboard</button>
-                        <ol id="golf-leaderboard" class="golf-leaderboard" hidden></ol>
+                        <div id="golf-leaderboard" class="golf-leaderboard" hidden></div>
+                    </div>
+                    <!-- Weekly Gauntlet (v1.8.6): nine survival holes, the same for everyone, new each Monday (golf/daily.js) -->
+                    <div id="golf-weekly" class="golf-course">
+                        <h3>Weekly Gauntlet <span id="golf-weekly-date" class="golf-sub"></span></h3>
+                        <span id="golf-weekly-info" class="golf-best"></span>
+                        <span class="golf-best">Nine holes of every gimmick, the same for everyone, new each Monday. Survival: finish a hole over par and the run ends. Your best run of the week counts.</span>
+                        <span id="golf-weekly-status" class="golf-best"></span>
+                        <button id="golf-weekly-play" class="btn btn-primary" type="button">Play</button>
+                        <button id="golf-weekly-board-toggle" class="btn btn-link golf-leaderboard-toggle" type="button" aria-expanded="false" hidden>This week's top 10</button>
+                        <div id="golf-weekly-board" class="golf-leaderboard" hidden></div>
                     </div>
 
                     <!-- Practice: endless random holes, nothing saved -->
@@ -262,12 +324,13 @@
                             </select>
                             <label><input type="checkbox" id="golf-practice-hazards" checked> Hazards &amp; wind</label>
                         </div>
-                        <span class="golf-best">Random holes, unlimited undo, nothing saved</span>
+                        <span class="golf-best">Endless random holes at the difficulty you choose, unlimited undo, nothing saved</span>
                         <button id="golf-practice-play" class="btn btn-primary" type="button">Play</button>
                     </div>
 
                     <h3 class="golf-section-title">Courses</h3>
                     <ul id="golf-courses"></ul>
+                    </div>
                 </div>
 
                 <!-- In play -->
@@ -281,10 +344,13 @@
                         </div>
                     </div>
                     <p id="golf-hole-info" class="golf-sub"></p>
+                    <!-- Tutorial boxes (golf-ui.js: renderTutorials) -->
+                    <div id="golf-tutorials"></div>
                     <p id="golf-wind" hidden></p>
+                    <p id="golf-rule" hidden></p>
                     <div class="golf-swatches">
-                        <figure><div id="golf-you" class="golf-swatch"></div><figcaption>You</figcaption></figure>
-                        <figure><div id="golf-target" class="golf-swatch"></div><figcaption>Target</figcaption></figure>
+                        <figure><div id="golf-you" class="golf-swatch"></div><figcaption>You<span id="golf-you-name" class="color-names-only"></span></figcaption></figure>
+                        <figure><div id="golf-target" class="golf-swatch"></div><figcaption>Target<span id="golf-target-name" class="color-names-only"></span></figcaption></figure>
                     </div>
                     <div class="golf-meter" aria-live="polite">
                         <div class="golf-meter-track"><div id="golf-meter-fill"></div></div>
@@ -334,6 +400,18 @@
                 </div>
             </div>
             <div id="ui-container">
+                <!-- Long shots: Color Golf only (v1.8.5). The Driver, Woods and Hybrids in one row by hue shift;
+                     golf-ui.js moves their swatches here from the harmony rows below (leaving out the copies) -->
+                <div class="colors-row golf-only">
+                    <div class="row-header">
+                        <h3><span class="club-type">Driver · Woods · Hybrids</span>Long shots</h3>
+                        <button class="row-toggle" aria-expanded="true">▾</button>
+                    </div>
+
+                    <div class="row-body">
+                        <div id="long" class="swatch-row"></div>
+                    </div>
+                </div>
                 <!-- Each row becomes a “coolors-row” -->
                 <div class="colors-row">
                     <div class="row-header">
@@ -640,6 +718,75 @@
                         </div>
                     </div>
                 </div>
+                <!-- Roulette: Color Golf, on holes with one (v1.8.4). The wheel spins through the hole's four hue
+                     shifts, one a second, and plays whichever is showing; the four keys are the same shifts as
+                     separate swatches for keyboard and screen-reader players (shown while one has keyboard focus). -->
+                <div id="roulette-row" class="colors-row golf-only" hidden>
+                    <div class="row-header">
+                        <h3>Roulette</h3>
+                        <button class="row-toggle" aria-expanded="true">▾</button>
+                    </div>
+
+                    <div class="row-body">
+                        <div id="roulette" class="swatch-row">
+                            <div class="square-wrapper roulette-wheel">
+                                <div id="roulette-wheel" class="square" aria-hidden="true"></div>
+                                <p class="square-label"></p>
+                            </div>
+                            <!-- All four shifts in order, the one showing highlighted: for planning, not clicking -->
+                            <p id="roulette-order" class="roulette-order" aria-hidden="true"></p>
+                            <div class="square-wrapper roulette-key">
+                                <div id="roul1" class="square"></div>
+                                <p class="square-label"></p>
+                            </div>
+                            <div class="square-wrapper roulette-key">
+                                <div id="roul2" class="square"></div>
+                                <p class="square-label"></p>
+                            </div>
+                            <div class="square-wrapper roulette-key">
+                                <div id="roul3" class="square"></div>
+                                <p class="square-label"></p>
+                            </div>
+                            <div class="square-wrapper roulette-key">
+                                <div id="roul4" class="square"></div>
+                                <p class="square-label"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Flip: Color Golf, on holes with it (v1.8.5). Each swatch moves the color's hex digits left
+                     by 1–5 places (#A23432 → #23432A by 1). -->
+                <div id="flip-row" class="colors-row golf-only" hidden>
+                    <div class="row-header">
+                        <h3>Flip</h3>
+                        <button class="row-toggle" aria-expanded="true">▾</button>
+                    </div>
+
+                    <div class="row-body">
+                        <div id="flip" class="swatch-row">
+                            <div class="square-wrapper">
+                                <div id="flip1" class="square"></div>
+                                <p class="square-label">← 1</p>
+                            </div>
+                            <div class="square-wrapper">
+                                <div id="flip2" class="square"></div>
+                                <p class="square-label">← 2</p>
+                            </div>
+                            <div class="square-wrapper">
+                                <div id="flip3" class="square"></div>
+                                <p class="square-label">← 3</p>
+                            </div>
+                            <div class="square-wrapper">
+                                <div id="flip4" class="square"></div>
+                                <p class="square-label">← 4</p>
+                            </div>
+                            <div class="square-wrapper">
+                                <div id="flip5" class="square"></div>
+                                <p class="square-label">← 5</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
             </div>
 
@@ -663,16 +810,27 @@
                     <button id="replay-tour" type="button">Replay the tour</button>
 
                     <h3>3-D controls</h3>
-                    <dl>
-                        <dt>Drag or <kbd>←</kbd><kbd>↑</kbd><kbd>→</kbd><kbd>↓</kbd></dt>
+                    <!-- Touch screens (no hover, coarse pointer) see their own list; index.css: .for-touch -->
+                    <dl class="for-touch">
+                        <dt>Drag (one finger)</dt>
                         <dd>Rotate the object</dd>
-                        <dt>Scroll</dt>
+                        <dt>Pinch</dt>
+                        <dd>Zoom in / out</dd>
+                        <dt>Tap</dt>
+                        <dd>Pick the color under your finger</dd>
+                        <dt>Layer slider, − / +</dt>
+                        <dd>Peel through the layers (in the panel, under Layer)</dd>
+                    </dl>
+                    <dl class="for-mouse">
+                        <dt>Drag or <kbd>←</kbd><kbd>↑</kbd><kbd>→</kbd><kbd>↓</kbd></dt>
+                        <dd>Rotate the object (one finger on a touch screen)</dd>
+                        <dt>Scroll or pinch</dt>
                         <dd>Zoom in / out</dd>
                         <dt><kbd>[</kbd> <kbd>]</kbd></dt>
                         <dd>Previous / next layer</dd>
                         <dt><kbd>1</kbd>–<kbd>6</kbd></dt>
                         <dd>Snap to a face / axis</dd>
-                        <dt>Click</dt>
+                        <dt>Click or tap</dt>
                         <dd>Pick the color under the cursor</dd>
                         <dt>Double-click</dt>
                         <dd>Reset rotation and zoom</dd>
@@ -689,25 +847,37 @@
                         <dt>Dimension</dt>
                         <dd>3-D now; 1-D and 2-D views are coming soon</dd>
                         <dt>Layer</dt>
-                        <dd>Type 0–127 to preview a layer, <kbd>Enter</kbd> to jump there. Layer 0 is the outer
-                            surface, 127 is the gray core</dd>
+                        <dd><span class="for-mouse">Type 0–127 to preview a layer, <kbd>Enter</kbd> to jump there, or
+                            drag the slider and click − / + to step.</span><span class="for-touch">Type 0–127 to preview a
+                            layer and tap Done to jump there, or drag the slider and tap − / + to step.</span> Layer 0 is
+                            the outer surface, 127 is the gray core</dd>
                         <dt>Color Search</dt>
-                        <dd>Find any of ~3,200 named colors. <kbd>Enter</kbd> completes the best match,
+                        <dd><span class="for-mouse">Find any of ~3,200 named colors. <kbd>Enter</kbd> completes the best match,
                             <kbd>Enter</kbd> again selects it. Or pick with <kbd>↑</kbd><kbd>↓</kbd> +
-                            <kbd>Enter</kbd>. Click the empty box to see your last 10 searches</dd>
+                            <kbd>Enter</kbd>. Click the empty box to see your last 10 searches</span><span class="for-touch">Find
+                            any of ~3,200 named colors and tap a match to select it. Tap the empty box to see your last 10
+                            searches</span></dd>
                         <dt>Color details</dt>
                         <dd>Replaces Color Search once a color is selected: hex, RGB, and HSL values, with the
-                            active color space bold and listed first. <kbd>← Search</kbd>, <kbd>Esc</kbd>, or
-                            clicking empty canvas goes back</dd>
+                            active color space bold and listed first. <kbd>← Search</kbd><span class="for-mouse">, <kbd>Esc</kbd>,
+                            or clicking empty canvas goes back</span><span class="for-touch"> or tapping empty canvas goes
+                            back</span></dd>
                         <dt>Sliders</dt>
                         <dd>Fine-tune the selected color: H/S/L when the HSL toggle is on, R/G/B when it's
                             off. Each track previews what that slider will do</dd>
                         <dt>Harmonies</dt>
-                        <dd>Complementary, triadic, analogous, tints, shades, tones, saturate and more. Double-click a swatch
-                            to make it the selected color; click ▾ to collapse a row</dd>
+                        <dd>Complementary, triadic, analogous, tints, shades, tones, saturate and more. <span class="for-mouse">Double-click
+                            a swatch to make it the selected color, or reach it with <kbd>Tab</kbd> and the arrow keys and
+                            press <kbd>Enter</kbd>; click ▾ to collapse a row</span><span class="for-touch">Tap a swatch to
+                            make it the selected color; tap ▾ to collapse a row</span></dd>
                         <dt>Mini shape</dt>
                         <dd>Bottom-right; shows the current orientation and where the picked color sits</dd>
                     </dl>
+
+                    <h3>Color Golf</h3>
+                    <p>A mini-game (⛳ Color Golf, top of the panel): make a color match a target in as few strokes
+                        as you can, playing the harmonies as clubs. Courses unlock as you score well, with a daily
+                        hole and a weekly Gauntlet on top. It has its own ? with the rules.</p>
                 </div>
             </div>
             <!-- Loading Text-->
@@ -726,6 +896,18 @@
         </div>
     </div>
     <!-- First-visit welcome (welcome.js) -->
+    <!-- Color Golf, first visit (golf-ui.js): offer a walk through the menu and the first hole -->
+    <div id="golf-welcome" class="overlay" hidden>
+        <div class="welcome-card" role="dialog" aria-modal="true" aria-labelledby="golf-welcome-title">
+            <h2 id="golf-welcome-title">First time playing Color Golf?</h2>
+            <p>Make a color match a target in as few strokes as you can, playing the harmonies as clubs.</p>
+            <p>We can show you around this screen, then walk you through your first hole.</p>
+            <div class="welcome-actions">
+                <button id="golf-welcome-skip" type="button" class="btn">I've played before</button>
+                <button id="golf-welcome-tour" type="button" class="btn btn-primary">Show me around</button>
+            </div>
+        </div>
+    </div>
     <div id="welcome" class="overlay" hidden>
         <div class="welcome-card" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
             <h2 id="welcome-title">Welcome to ColorVerse</h2>

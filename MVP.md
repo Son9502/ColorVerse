@@ -56,8 +56,8 @@ Someone can open ColorVerse, explore RGB and HSL as an interactive **3-D** color
 | **v1.4** | Golf variety: peeling, named-wedge bunkers on Expert, themed par layouts ✅ (v1.4.0) | Makes courses and layer changes feel distinct |
 | **v1.5** | Engine cleanup: Three.js r128 → npm package; delete ShaderCache ✅ (v1.5.0) | Ends the r128 API gaps before v2.0's new renderers |
 | **v1.6** | Accounts + score database, daily leaderboard, account-only courses 4–5 ✅ (v1.6.0–v1.6.2; Firebase project `colorverse-9efa3`) | Gives the daily hole real stakes; the only backend work, best done before the codebase grows |
-| **v1.7** | Mobile and accessibility | Golf needs double-clicks, drags and color vision today; fix that before adding more views |
-| **v1.8** | Expansion pack: 3–4 account-only courses with gimmicks, ending in a survival course | Reuses accounts, unlocks and the generator; new rules stay solver-exact |
+| **v1.7** | Mobile and accessibility ✅ (v1.7.0) | Golf needs double-clicks, drags and color vision today; fix that before adding more views |
+| **v1.8** | Expansion pack: 7 account-only courses (portals, mirror greens, club bans, turning wind, roulette, flip, survival) | Reuses accounts, unlocks and the generator; new rules stay solver-exact |
 | **v2.0** | 1-D and 2-D modes + shared color across dimensions | Delivers the "multi-dimensional" promise; new renderers and shared state |
 | **v2.1** | Golf in 2-D | A flat map shows a whole hole at once (no far side of a sphere) |
 | **v2.2** | More 3-D shapes: HSL cylinder, HSV cone / bicone | Reuses the 3-D pipeline |
@@ -200,15 +200,60 @@ Version numbers: minor versions keep counting past 9 (v1.9, v1.10, …). v2.0 is
 - **End-of-round message** by score: perfect round, under par, level par, close to par (+1 to +6), or "Every round teaches the clubs".
 
 ### v1.8: Expansion Pack
-3–4 account-only courses, unlocked one after another like courses 4–5: harder, wackier and built around a gimmick each. **Rule for every gimmick:** it may depend only on the current color (or something as small as the stroke number), so the solver still finds par and perfect exactly and the server can replay rounds. Candidates:
-- **Portals:** landing in a region warps the ball to a fixed color elsewhere (a looks-like hazard that can help); shortcuts and traps.
-- **Club bans:** per hole ("Irons only", "no Driver", "wedges only past the turn").
-- **Mirror greens:** inside a region every hue shift is flipped (+120° plays as −120°).
-- **Turning wind:** the wind changes with the stroke number, so it's still known in advance.
-- **Fog:** the map stays hidden until the ball is on the green, or swatches show clubs only.
-- **Survival course** (the last one): make par or better on each hole or the round ends. Its own leaderboard: holes survived, then strokes.
-- Out: moving pins, random bounces and gusts, since true par couldn't be computed.
-- Spec each course here (gimmick, solver impact, generator checks) before building, as was done for hazards.
+Seven account-only courses after Royal Indigo, each built around one gimmick, the last a survival course. Harder and wackier than courses 1–5, but scored the same way: every hole still has an exact par and perfect, the solver can show the perfect route, and the score server replays rounds.
+
+**The one rule for every gimmick:** what a stroke does may depend only on the color it's hit from, the hole and the stroke number on that hole, all known in advance. Then the solver (breadth-first search over whole-number HSL) stays exact and the server can replay a round from its clubs. Random bounces, gusts and moving pins are out.
+
+**Courses** (each 18 holes; as with courses 1–5, a color in the name says where the course plays):
+
+| # | Course | Colors | Gimmick | What it does |
+|---|---|---|---|---|
+| 6 | Violet Vortex | Violets and purples (250°–300°) | Portals | Landing inside a portal (a looks-like region, like a hazard) warps the ball to the portal's fixed exit color, which can be far outside the course's hues. Shortcuts across the wheel, and traps that send you backwards. |
+| 7 | Silverglass Greens | Muted, grayish colors (saturation 10–45%), any hue | Mirrors | Land on a mirror region and the color's hex flips (#234243 → #342432), like a portal. (First specced as hue moves flipping inside a mirror; changed in v1.8.1, see Done.) |
+| 8 | Caddie Strike | Full spectrum | Club bans | Each hole bans some clubs ("Irons only", "No Driver or Woods", "Wedges and putter only"); banned rows grey out, as in a bunker. |
+| 9 | Saffron Whirlwind | Yellows and oranges (30°–65°) | Turning wind | The wind changes every shot in a short cycle known before you tee off ("+8° ↻, then −4% light, then calm, repeat"). Shown as the current and next wind. |
+| 10 | Scarlet Roulette | Reds and pinks (330°–20°) | Roulette row | A new row whose one swatch cycles through 4 hue shifts, one per second (set per hole, e.g. +30°, +95°, −60°, +150°). The stroke plays whichever shift is showing when you tap; keyboard players get the 4 as separate swatches. |
+| 11 | Hexflip Hollow | Full spectrum | Flip club | A new row of 5 swatches that move the color's hex digits left by 1–5 places (`A23432` → `23432A` → `3432A2` …). Wild jumps that are still predictable. |
+| 12 | The Obsidian Gauntlet | Full spectrum, darker colors (lightness 15–50%) | Survival | Holes from all six gimmicks. Go over par on any hole and the round ends. Score: holes survived, then strokes, then time. Its own all-time top-10 leaderboard. |
+
+**Unlocking:** a chain from Royal Indigo, as for courses 4–5: each course needs an account and a round at its unlock score or better on the course before it (Violet Vortex from Royal Indigo, Silverglass Greens from Violet Vortex, …; The Obsidian Gauntlet from Hexflip Hollow). Scores are set per course in `unlocks.js` once the courses are generated and measured (starting guesses: −2 on Royal Indigo, −4 on each expansion course).
+
+**Difficulty:** Standard par rules (par above perfect), with the birdie line of Standard to Expert courses (1–4 of 41 first shots). No Expert hiding (yardage and the meter stay), since the gimmicks are the challenge.
+
+**How it's built:**
+- **Regions are hazards:** portals and black holes (v1.8.0) are hazard types (`hazards.js`: `portalAt`, `land`), so the round, the solver, the generator, the map and the server replay reuse the hazard code. Mirror greens will be one too.
+- **Hole rules in one place:** gimmicks that aren't regions (bans, the wind cycle, roulette shifts) go in a `hole.rules` object read by one function the game, the solver, the generator and the server share, starting with v1.8.2.
+- **New clubs at the end:** Roulette (4) and Flip (5) are appended to the club list after the putter, so recorded rounds from v1.6–v1.7 still replay. They appear only on holes that have them (like the putter row, which shows only in golf).
+- **Solver:** Portals, mirrors, bans, roulette and flip depend only on the color, so the search is unchanged in kind. Turning wind adds "which shot in the cycle" to the state: memory × the cycle length (2–3), so the search stays exact.
+- **Generator:** `generateCourses.mjs` gains a placement step per gimmick (portals on or across the hazard-free perfect route, mirror regions near the tee or the green, bans chosen so the perfect route must change, wind cycles and roulette sets kept only if the hole passes the usual checks). Every hole is re-checked: perfect under par, finishable within par, birdie line in range, and the gimmick must matter (the perfect route with it differs from the one without).
+- **Map:** portals as a ring with a swirl icon and a dotted line to the exit; mirror regions as a silver patch with a ⇄ icon (the same footprint tracing as hazards); wind badge shows now → next.
+- **Survival on the server:** a round may end early (the first hole over par); bests compare holes survived first. A `survival/{uid}` best per player feeds the top 10.
+- **Help:** each course's card says its gimmick in a line, and "How to play" gains a section per gimmick.
+
+**Done:** v1.8.0 Violet Vortex: 17 portal holes and the ace. Par 72, perfect 51; the perfect route always warps.
+- After the first play-test (portals felt like a lucky guess): swatches that land in a portal have a dotted purple outline and a label (a chip of the exit color, then how far from the pin the ball comes out; the exit's hex in the tooltip); every par 3 and 4 is two strokes too long without its portal, so **par needs the portal** (par 5s: only the birdie does); **black holes** (a new hazard: +1 stroke and back to the tee).
+- After the second: shorter tutorial; bigger black holes (35–55 yds, 3 per hole), some on tee shots (2–7 of the tee's swatches fall in); two new hole types: **chains** (holes 4, 11, 14: two or three portals in a row from the tee to beside the pin) and **mazes** (holes 5, 8, 13: about half the full shots go into one of 12–13 portals; one exit leads on, the decoys look closer but can't make the perfect score). Holes: tutorial 1; traps 2, 7, 10, 17; black holes 3, 6, 9, 12, 15, 18. A shortcut portal's exit is on the hole's best route; a trap's or decoy's is a seeded random color (250+ yds from the pin for a trap, 40–160 for a decoy).
+- **Tutorial hole:** each gimmick course's hole 1 teaches its gimmick (the course's `tutorial` text, shown on hole 1, and a hole built so the gimmick is the way to par; Violet Vortex's has a bigger portal and no trap). Later expansion courses do the same.
+
+**Done:** v1.8.1 Silverglass Greens: 18 mirror holes (saturation 12–45%, any hue), par 72, perfect 51.
+- **Changed from the spec:** land on a mirror and your color's hex flips (#234243 → #342432), like a portal whose exit is your own color reversed. The hue-flip mirror only reshuffled the swatches, so it could never shorten or block a route; a Mirror club (+1 stroke) was built next and replaced by this.
+- Holes are built round the mirrors, two strokes longer without them on par 3s and 4s, like Violet Vortex's portals. Chains (5, 11, 14) need two mirrors with a shot between; decoys reflect far from the pin; the ace flips into the hole.
+- Swatches that land on a mirror are outlined (dotted silver) and labeled "⇄ N yds", where the flip leaves you.
+- Tutorial boxes take the course's or the hazard's color, and bunkers, water and black holes get one on their first hole of a round.
+
+**Done:** v1.8.2 Caddie Strike: 18 club-ban holes (full spectrum), par 72, perfect 51. `hole.rules` and `rules.js` now hold rules that aren't regions, shared by the round, solver, builder and server. Every ban costs at least a stroke; the line under the hole info names it and the banned rows grey out. No bunkers on this course (one could need a banned wedge).
+- **Holes that make you think** (all courses but Prism Point, regenerated): the swatches that land closest to the pin never keep the perfect score (the closest 2 on Standard, 3 on Expert and expansion courses), and a perfect route plays like golf (putts only near the pin, no Driver or Woods into the hole). Greedy "closest swatch" play now makes perfect only on the aces.
+- **Tester accounts:** `tester: true` on a user's Firestore record opens every course and a "Test a hole" card; nothing is sent.
+
+**Done:** v1.8.3 Saffron Whirlwind: 18 turning-wind holes (30°–65°), par 72, perfect 49 (par 5s are eagle holes: three strokes of turning wind reach nearly every color). The cycle lives in `hole.rules.windCycle`; the solver tracks the wind's place in it, so it stays exact. The hole line shows the whole cycle, the map badge this stroke's wind and the next. No water or black holes on this course (penalty strokes turn the wind too).
+
+**Done:** v1.8.4 Scarlet Roulette: 18 roulette holes (330°–20°), par 72, perfect 49. A Roulette row's wheel spins through four hue shifts set per hole, one a second, and a stroke plays the one showing; keyboard players get the four as separate swatches. Changed from the spec's intent: the roulette is the way to the perfect score, not to par (a hue shift can save one stroke at most).
+
+**Done:** v1.8.6 The Obsidian Gauntlet: 18 holes in dark colors (lightness 15–50%), three of each gimmick in turn, par 72, perfect 49. Survival: finishing a hole over par (or picking up) ends the round; no undos. Bests and an all-time top 10 per course version (`survival/{course}-r{rev}/scores/{uid}`) rank holes survived, then strokes, then time. Unlocked by −4 or better on Hexflip Hollow (provisional). Holes play easiest first. A weekly Gauntlet (nine survival holes, new each Monday, `weekly.json`) has its own board each week.
+
+**Done:** v1.8.5 Hexflip Hollow: 18 flip holes (full spectrum), par 72, perfect 49. A Flip row of five swatches moves the color's hex digits left by 1–5 places. Without the flips each hole is two strokes longer, so par needs one on the par 3s and 4s (the spec's "way to par", which the roulette couldn't reach).
+
+**Order:** one course per release, each playable and committed before the next: v1.8.0 hole rules + Portals (Violet Vortex), v1.8.1 Mirror greens (Silverglass Greens), v1.8.2 Club bans (Caddie Strike), v1.8.3 Turning wind (Saffron Whirlwind), v1.8.4 Roulette (Scarlet Roulette), v1.8.5 Flip (Hexflip Hollow), v1.8.6 Survival (The Obsidian Gauntlet).
 
 ### v2.0: 1-D and 2-D Modes
 Developed on the `feature/1d-2d` branch.
@@ -224,10 +269,12 @@ Developed on the `feature/1d-2d` branch.
 - Playtest Expert by hand: its difficulty has only been measured by the solver.
 - Playtest Verdant Pines and Cobalt Bay and tune `UNLOCK_TO_PAR` (v1.6) before the expansion pack builds on it.
 
-### v1.7: Mobile and Accessibility
-- **Touch:** tap a swatch to play a stroke (with a confirm on Expert), pinch to zoom, one-finger drag to rotate.
-- **Colour-blind mode:** name colors ("muted teal") and show the distance to the target as a number, so the game doesn't rely on telling colors apart.
-- **Keyboard play:** move between swatches with the arrow keys, play with Enter.
+### v1.7: Mobile and Accessibility ✓
+- **Phone layout:** under 760 px wide the page is one column: title, then the 3-D view (42% of the screen, staying at the top while the rest scrolls), then the controls or golf panel, then the harmonies. Bigger swatches (40 px). The viewport meta tag is in place, so phones no longer show the desktop page shrunk.
+- **Touch:** one finger drags to rotate, two fingers pinch to zoom (same limits as the wheel). A drag that ends over the shape no longer picks a color, on any device. Tap a swatch to choose it (explore) or play it (golf); on Expert the first tap aims (outlined, "Tap again") and a second tap on the same swatch plays, since its swatches are blank. Mice keep double-click; the double-click phones send after two taps is ignored.
+- **Keyboard play:** every swatch is reachable with Tab; arrow keys move along a row and to the row above or below (collapsed rows skipped; the 3-D view ignores arrows while a swatch has focus); Enter or Space chooses or plays it.
+- **Color names:** a "Color names" switch (explore controls and golf setup, one setting kept in the browser) describes colors in words ("dark muted teal", "pale blue") under every swatch, under the selected color, and under You / Target in golf. Pro and Expert still hide the swatches' names along with their colors. Distance as a number was already shown (yards to the pin; Expert keeps hiding it until the green, for everyone).
+- **Screen readers:** swatches are buttons labeled with their hex and name; in golf, with the club ("Triadic +120°, vivid red"), or the club alone in Pro.
 
 ### v2.1: Golf in 2-D
 - Play holes on the hue wheel (angle = hue, radius = saturation, a slider for lightness) or a square slice. The tee, the flag, both paths and the hazards are all visible at once, which fixes paths seeming to disconnect around the back of the sphere.

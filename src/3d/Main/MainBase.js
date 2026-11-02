@@ -27,7 +27,8 @@ export class MainBase {
         this.acc = 0.015;
         this.friction = 0.92;
 
-        // Input
+        // Input: one pointer (mouse or finger) drags; two fingers pinch-zoom instead (3d-mode.js)
+        this.pointers = new Set();
         this.isDragging = false;
         this.lastMouseX = 0;
         this.lastMouseY = 0;
@@ -78,15 +79,22 @@ export class MainBase {
         this._controls = new AbortController();
         const { signal } = this._controls;
 
-        container.addEventListener("mousedown", event => {
-            this.isDragging = true;
+        container.addEventListener("pointerdown", event => {
+            this.pointers.add(event.pointerId);
+            // A second finger turns the drag into a pinch; lifting back to one doesn't resume it
+            this.isDragging = this.pointers.size === 1;
             this.lastMouseX = event.clientX;
             this.lastMouseY = event.clientY;
         }, { signal });
 
-        window.addEventListener("mouseup", () => { this.isDragging = false; }, { signal });
+        const release = (event) => {
+            this.pointers.delete(event.pointerId);
+            this.isDragging = false;
+        };
+        window.addEventListener("pointerup", release, { signal });
+        window.addEventListener("pointercancel", release, { signal });
 
-        window.addEventListener("mousemove", event => this._onMouseMove(event), { signal });
+        window.addEventListener("pointermove", event => this._onMouseMove(event), { signal });
         window.addEventListener("keydown", event => this._onKeyDown(event), { signal });
         window.addEventListener("keyup", event => this._onKeyUp(event), { signal });
     }
@@ -97,8 +105,8 @@ export class MainBase {
     }
 
     _onKeyDown(event) {
-        // Arrow keys belong to the focused control (search box, sliders, selects), not the object
-        if (event.target.closest?.("input, textarea, select")) return;
+        // Arrow keys belong to the focused control (search box, sliders, selects, swatches), not the object
+        if (event.target.closest?.("input, textarea, select, .square")) return;
         const key = this.keyMap[event.key];
         if (key) this.keys[key] = true;
     }
@@ -109,7 +117,7 @@ export class MainBase {
     }
 
     _onMouseMove(event) {
-        if (!this.isDragging || !this.ready) return;
+        if (!this.isDragging || !this.ready || !this.pointers.has(event.pointerId)) return;
 
         const dx = event.clientX - this.lastMouseX;
         const dy = event.clientY - this.lastMouseY;
