@@ -1,7 +1,7 @@
 import courses from "./courses.json";
 import { GolfRound, scoreName, compareRounds, survivalBoard, UNDOS_PER_ROUND, UNDOS_DAILY } from "./game.js";
 import { PUTTER, ROULETTE_SLOTS, FLIPS, STANDARD_CLUBS, COPIES, strike } from "./clubs.js";
-import { IN_THE_HOLE, hslDistance, hslToHex } from "./oklab.js";
+import { cupOf, hslDistance, hslToHex } from "./oklab.js";
 import { harmonySets, selectBaseColor, clearBaseColor, addNameLabel } from "../harmony.js";
 import { describeColor, colorNamesOn } from "../color-names.js";
 import { setMapState } from "./mapState.js";
@@ -67,8 +67,14 @@ const HUE_SHIFTS = {
 let rouletteShifts = null;
 const shiftText = (shift) => `${shift > 0 ? "+" : "−"}${Math.abs(shift)}°`;
 
-// "Tints 60%", "Triadic +120°", "Putter Sat +", "Roulette +95°", "Flip ← 3"
+// The rows golf shows as one Long shots row (v1.8.5), named there by club type and shift, all one
+// way round: "Hybrid +60°", "Wood +150°", "Driver +180°", "Hybrid +240°" (Triadic −120°)
+const LONG_ROWS = new Set(["complementary", "split-complementary", "triadic", "tetradic", "double-complementary"]);
+const longShift = (row, index) => (HUE_SHIFTS[row][index] + 360) % 360;
+
+// "Tints 60%", "Wood +150°", "Analogous −20°", "Putter Sat +", "Roulette +95°", "Flip ← 3"
 function clubName({ row, index }) {
+    if (LONG_ROWS.has(row)) return `${CLUB_TYPES[row]} +${longShift(row, index)}°`;
     if (row === "putter") return `Putt ${PUTTER[index].label}`;
     if (row === "flip") return `Flip ← ${index + 1}`;
     if (row === "roulette") return `Roulette ${shiftText(rouletteShifts?.[index] ?? 0)}`;
@@ -100,6 +106,7 @@ function proLabel({ row, index }) {
     if (row === "putter") return PUTTER[index].label;
     if (row === "roulette") return clubName({ row, index }).slice("Roulette ".length);
     if (row === "flip") return `← ${index + 1}`;
+    if (LONG_ROWS.has(row)) return `+${longShift(row, index)}°`;
     return clubName({ row, index }).slice(ROW_NAMES[row].length + 1);
 }
 
@@ -108,7 +115,7 @@ function proLabel({ row, index }) {
 let solver = null;
 let solverRequest = 0;
 const pendingRoutes = new Map();
-function solveRoute({ tee, target, perfect, hazards = [], wind = null, rules = null }) {
+function solveRoute({ tee, target, perfect, hazards = [], wind = null, rules = null, cup }) {
     if (!solver) {
         solver = new Worker(new URL("./solver-worker.js", import.meta.url), { type: "module" });
         solver.onmessage = ({ data }) => {
@@ -121,7 +128,7 @@ function solveRoute({ tee, target, perfect, hazards = [], wind = null, rules = n
     const id = ++solverRequest;
     return new Promise((resolve, reject) => {
         pendingRoutes.set(id, { resolve, reject });
-        solver.postMessage({ id, tee, target, perfect, hazards, wind, rules });
+        solver.postMessage({ id, tee, target, perfect, hazards, wind, rules, cup });
     });
 }
 
@@ -393,9 +400,8 @@ export function setupGolf() {
         const wrapper = harmonySets[row][index].box.closest(".square-wrapper");
         const caption = document.createElement("span");
         caption.className = "long-shift";
-        caption.textContent = `+${(HUE_SHIFTS[row][index] + 360) % 360}°`; // all one way round, in order (Triadic −120° is +240°)
+        caption.textContent = proLabel({ row, index }); // all one way round, in order (Triadic −120° is +240°)
         wrapper.prepend(caption);
-        wrapper.title = `${CLUB_TYPES[row]}: ${clubName({ row, index })}`;
         return { wrapper, parent: wrapper.parentElement, next: wrapper.nextElementSibling };
     });
     const longRows = [...new Set(LONG_SHOTS.map(([row]) => harmonySets[row][0].box.closest(".colors-row")))];
@@ -730,6 +736,7 @@ export function setupGolf() {
         setMapState(null);
         document.body.classList.remove("golf", "golf-pro", "golf-menu");
         mergeLongShots(false);
+        for (const box of clubs.keys()) box.closest(".square-wrapper")?.removeAttribute("title"); // golf's club names
         document.dispatchEvent(new CustomEvent("golfshowcase", { detail: "explore" })); // back to the explore layer
         if (exploringSpace !== null) setSpaceToggle(exploringSpace);
         exploringSpace = null;
@@ -1058,7 +1065,6 @@ export function setupGolf() {
                 warps = round.expert ? ", lands on a mirror" : `, lands on a mirror: flips to${hex} ${out} yds from the pin`;
                 wrapper.dataset.mirror = round.expert ? "Mirror" : `⇄ ${out} yds`;
                 wrapper.style.setProperty("--reflect", round.pro ? "transparent" : css(reflected));
-                wrapper.title = warps.slice(2);
             }
             if (portal) {
                 const out = yards(portal.exit, round.hole.target);
@@ -1066,10 +1072,8 @@ export function setupGolf() {
                 warps = round.expert ? `, lands in a portal${hex}` : `, lands in a portal: comes out${hex}, ${out} yds from the pin`;
                 wrapper.dataset.portal = round.expert ? "Portal" : `→ ${out} yds`;
                 wrapper.style.setProperty("--exit", round.pro ? "transparent" : css(portal.exit));
-                wrapper.title = warps.slice(2);
-            } else if (wrapper?.title && !mirror) {
-                wrapper.title = "";
             }
+            if (wrapper) wrapper.title = clubName(club) + (warps ? `: ${warps.slice(2)}` : ""); // the club, then where a warp leaves you
             box.setAttribute("aria-label", (round.pro ? clubName(club) : `${clubName(club)}, ${box.dataset.name}`) + warps);
         }
 
@@ -1106,7 +1110,7 @@ export function setupGolf() {
             return;
         }
         // Full bar at the hole's edge, empty at 0.4 (about as far as two colors get)
-        const closeness = Math.max(0, Math.min(1, 1 - (lie.distance - IN_THE_HOLE) / 0.4));
+        const closeness = Math.max(0, Math.min(1, 1 - (lie.distance - cupOf(round.hole)) / 0.4));
         fill.style.width = `${(lie.holed ? 1 : closeness) * 100}%`;
         label.textContent = lieLabel(lie);
     };

@@ -273,6 +273,7 @@ Developed on the `feature/1d-2d` branch.
 - **Playtest Expert by hand** (Cobalt Bay, Royal Indigo): its difficulty has only been measured by the solver, and par equals the perfect score on most holes, so a club audit found almost no slack.
 - Run the remaining v1 live checks (first load under 3 s, 10 shape switches).
 - **Merge `main` into `feature/1d-2d`** before any v2.0 work: about 76 commits behind after v1.8, with big changes to the panel, the 3-D view (layer slider, golf showcase), the CSS and the help. Expect conflicts in `index.html`, `index.css` and `3d-mode.js`.
+- **Unlock score for Cobalt Bay:** raised from −4 to −8 on Verdant Pines when Beginner and Standard holes got the bigger 0.03 hole (a simulated player went from −4 to −9 there); check it by hand.
 - **Calendar:** the weekly Gauntlet holes run out after the week of 27 Dec 2027 (`npm run weekly -- --until …`) and the daily holes at the end of 2028 (`npm run daily -- --until …`).
 
 ### v1.7: Mobile and Accessibility ✓

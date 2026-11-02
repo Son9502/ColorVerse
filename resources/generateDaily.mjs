@@ -4,8 +4,9 @@
 // Builds one hole per date into src/golf/daily.json, following the weekly rotation in
 // src/golf/daily.js. Each day is seeded by its date, so days already in the file are kept and
 // only new ones are built: run it again with a later --until to extend the list. After a rotation
-// change, --weekdays rebuilds those days in place (0 = Sunday … 6 = Saturday).
-// Run: npm run daily [-- --until 2028-12-31] [--weekdays 5,6]
+// change, --weekdays rebuilds those days in place (0 = Sunday … 6 = Saturday), only from --from on
+// if given, so days already played keep their holes.
+// Run: npm run daily [-- --until 2028-12-31] [--weekdays 5,6 [--from YYYY-MM-DD]]
 //
 // Days are independent, so they're built in parallel (one worker thread per spare CPU core).
 
@@ -38,8 +39,11 @@ if (!isMainThread) {
 
     const weekdaysArg = process.argv.indexOf("--weekdays");
     const rebuild = new Set(weekdaysArg > 0 ? process.argv[weekdaysArg + 1].split(",").map(Number) : []);
+    const fromArg = process.argv.indexOf("--from");
+    const from = fromArg > 0 ? process.argv[fromArg + 1] : START;
     const total = daysBetween(START, until) + 1;
-    const holes = Array.from({ length: total }, (_, i) => (rebuild.has(weekday(addDays(START, i))) ? undefined : existing.holes[i]));
+    const redo = (i) => rebuild.has(weekday(addDays(START, i))) && daysBetween(from, addDays(START, i)) >= 0;
+    const holes = Array.from({ length: total }, (_, i) => (redo(i) ? undefined : existing.holes[i]));
     const todo = holes.flatMap((hole, i) => (hole ? [] : [addDays(START, i)]));
 
     // One hole per line, so additions read clearly in a diff. Only the days built so far, in order

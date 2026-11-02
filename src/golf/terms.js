@@ -19,8 +19,8 @@ const TERMS = {
     turning: { title: "Turning wind", text: "The wind changes every stroke, in the cycle shown, then starts again; putts aren't affected. Swatches show where a calm shot lands.", example: "−10° hue → +4% light: stroke 1 drifts −10° hue, stroke 2 brightens 4%, stroke 3 drifts −10° again." },
     line: { title: "Perfect line", text: "How many of the 38 first shots can still make the perfect score. Fewer means a harder hole.", example: "\"Perfect line 2 of 38\": only two swatches from the tee keep the perfect score alive." },
     pro: { title: "Pro", text: "Swatches show only the club, not the color, so you play on color theory alone. Expert always plays Pro; Pro scores are kept separately.", example: "You see \"+120°\" instead of the color it lands on." },
-    beginner: { title: "Beginner", text: "Plenty of ways to make the perfect score (6 or more first shots), and the swatch closest to the pin is often right.", example: "Prism Point." },
-    standard: { title: "Standard", text: "3–6 first shots make the perfect score, and the two swatches closest to the pin never do: look further.", example: "Ember Dunes, Verdant Pines." },
+    beginner: { title: "Beginner", text: "Plenty of ways to make the perfect score (6 or more first shots), and the swatch closest to the pin is often right. A bigger hole: a near match drops.", example: "Prism Point." },
+    standard: { title: "Standard", text: "3–6 first shots make the perfect score, and the two swatches closest to the pin never do: look further. A bigger hole than Expert's: a near match drops.", example: "Ember Dunes, Verdant Pines." },
     expert: { title: "Expert", text: "1–3 first shots make the perfect score and the three closest swatches never do. Played Pro, with no yardage until you're on the green, and par is perfect on par 3s and 4s.", example: "Cobalt Bay, Royal Indigo." },
     expansion: { title: "Expansion", text: "Each course adds a twist and is built so it matters; the three swatches closest to the pin never make the perfect score. Unlocked one after another from Royal Indigo.", example: "Violet Vortex's portals, Silverglass Greens' mirrors." },
 };

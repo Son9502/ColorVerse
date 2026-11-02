@@ -1,5 +1,5 @@
 import { strike, PUTTER, clubId } from "./clubs.js";
-import { hslDistance, IN_THE_HOLE } from "./oklab.js";
+import { hslDistance, IN_THE_HOLE, cupOf } from "./oklab.js";
 import { hazardMap } from "./hazards.js";
 import { ruleAllows, windFor } from "./rules.js";
 
@@ -27,13 +27,14 @@ const NO_HAZARDS = hazardMap();
 // Fewest putts (0–2) from `hsl` into the hole, or null if it takes more than 2.
 // No putting out of sand, and a putt that would land in a hazard doesn't count.
 // A mirror (v1.8.1) isn't a hazard here. With the putter banned (v1.8.2), only a ball already in counts.
-export function puttsToHole(hsl, target, hazards = NO_HAZARDS, rules = null) {
+// `cup`: the hole's size (oklab.js: cupOf; v1.8.6)
+export function puttsToHole(hsl, target, hazards = NO_HAZARDS, rules = null, cup = IN_THE_HOLE) {
     const rough = (c) => { const type = hazards.at(c); return type !== null && type !== "mirror"; };
     if (rough(hsl)) return null;
     let frontier = [hsl];
     const putts = ruleAllows(rules, { row: "putter", index: 0 }) ? 2 : 0;
     for (let n = 0; n <= putts; n++) {
-        if (frontier.some(c => hslDistance(c, target) < IN_THE_HOLE)) return n;
+        if (frontier.some(c => hslDistance(c, target) < cup)) return n;
         frontier = frontier
             .flatMap(c => PUTTER.map((_, index) => strike(c, { row: "putter", index })))
             .filter(c => !rough(c));
@@ -76,9 +77,9 @@ export class GolfRound {
     // (2 putts or fewer will hole it, as in golf) and which hazard, if any, the ball is in
     lie(hsl = this.current) {
         const distance = hslDistance(hsl, this.hole.target);
-        const holed = distance < IN_THE_HOLE;
+        const holed = distance < cupOf(this.hole); // bigger on Beginner and Standard holes (v1.8.6)
         const hazard = this.hazards.at(hsl);
-        return { distance, holed, hazard, onGreen: holed || puttsToHole(hsl, this.hole.target, this.hazards, this.hole.rules) !== null };
+        return { distance, holed, hazard, onGreen: holed || puttsToHole(hsl, this.hole.target, this.hazards, this.hole.rules, cupOf(this.hole)) !== null };
     }
 
     // One stroke with a club ({ row, index }); returns the new lie plus `landed`

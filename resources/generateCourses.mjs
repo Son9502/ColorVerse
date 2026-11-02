@@ -125,17 +125,17 @@ const THINK = { Beginner: 0, Standard: 2, Expert: 3, Expansion: 3 };
 // `rev` counts regenerations, so bests from older holes aren't shown.
 const COURSES = [
     {
-        id: "prism", name: "Prism Point", seed: 1, hues: [0, 360], difficulty: "Beginner", // full spectrum
+        id: "prism", name: "Prism Point", seed: 1, rev: 2, hues: [0, 360], difficulty: "Beginner", // full spectrum
         hazards: (i, par) => (i >= 9 && par >= 4 && i % 2 === 0 ? { greenside: 1 } : null), // a few bunkers on the back 9
         wind: null, // calm
     },
     {
-        id: "ember", name: "Ember Dunes", seed: 2, rev: 3, hues: [345, 60], difficulty: "Standard", layout: [EMBER_FRONT, BACK], // par 73, reds, oranges, yellows
+        id: "ember", name: "Ember Dunes", seed: 2, rev: 4, hues: [345, 60], difficulty: "Standard", layout: [EMBER_FRONT, BACK], // par 73, reds, oranges, yellows
         hazards: (i, par, perfect) => (perfect === 1 ? null : { greenside: par === 5 ? 2 : 1, route: i % 3 === 0 ? 1 : 0 }), // the sand course
         wind: { hue: [4, 8], light: [2, 4] }, // steady breezes
     },
     {
-        id: "verdant", name: "Verdant Pines", seed: 3, rev: 3, hues: [75, 165], difficulty: "Standard", layout: [FRONT_35, VERDANT_BACK], // par 70, greens
+        id: "verdant", name: "Verdant Pines", seed: 3, rev: 4, hues: [75, 165], difficulty: "Standard", layout: [FRONT_35, VERDANT_BACK], // par 70, greens
         hazards: (i, par, perfect) => (perfect > 1 && i % 3 === 1 ? { greenside: 1 } : null), // light sand
         wind: { hue: [2, 4] }, // light
     },
