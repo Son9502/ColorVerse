@@ -26,6 +26,12 @@ The sixth expansion course, from the agreed v1.8 spec; implementation `[ai-assis
 - v1.8.4: the panel worked out every club's landing, the roulette keys included, so on any hole without a roulette `strike` threw and the hole never finished drawing (every course but Scarlet Roulette). Rows a hole doesn't have are now skipped
 - v1.8.4: a click on the roulette wheel focused it and opened the four keys, so a mouse could pick any shift without timing it; the keys now open only for keyboard focus. A strip beside the wheel lists the four shifts in order with the one showing highlighted (not clickable)
 
+**Changed (after a club audit)**
+- An audit of every hole (solver, one club taken away at a time) found three clubs that always land where another does: Tetradic +180° and Double-comp. +180° (Complementary) and Double-comp. +240° (Triadic −120°). `COPIES` (`clubs.js`) lists them; they stay in `CLUBS` so recorded rounds replay
+- Golf shows a Long shots row (Driver · Woods · Hybrids) instead of the five long harmony rows: their eight distinct clubs by hue shift, +60° to +270°, each captioned with its shift (the swatch elements move there on entering golf and back on leaving, so exploring is unchanged). Caddie Strike's bans grey out swatches in it; its texts and the "ban" term say which shifts are the Driver, Woods and Hybrids
+- The perfect line counts distinct clubs: "of 38" (42 with a roulette, 43 with flips). `perfectLine` sets `hole.lines`; the stored counts in `courses.json`, `daily.json` and `practice.json` were rewritten in place (13, 133 and 33 holes changed). The generator's birdie-line bands still count every club, so the holes don't change (Prism Point and Hexflip Hollow regenerate byte for byte)
+- Audit results, for later trimming: reaching the perfect score on every course needs 36 of the 38 distinct clubs (Putter Sat − and Sat + are never needed); par needs 29. Cobalt Bay and Royal Indigo (Expert par) leave the least slack
+
 **Notes**
 - Flips 2 and 4 turn the channels round (about ±120° of hue, like Triadic); 1, 3 and 5 are the wild jumps, and every perfect route uses one of them
 

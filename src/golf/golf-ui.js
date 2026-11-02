@@ -1,6 +1,6 @@
 import courses from "./courses.json";
 import { GolfRound, scoreName, compareRounds, UNDOS_PER_ROUND, UNDOS_DAILY } from "./game.js";
-import { PUTTER, ROULETTE_SLOTS, FLIPS, strike } from "./clubs.js";
+import { PUTTER, ROULETTE_SLOTS, FLIPS, STANDARD_CLUBS, COPIES, strike } from "./clubs.js";
 import { IN_THE_HOLE, hslDistance, hslToHex } from "./oklab.js";
 import { harmonySets, selectBaseColor, clearBaseColor, addNameLabel } from "../harmony.js";
 import { describeColor, colorNamesOn } from "../color-names.js";
@@ -328,8 +328,29 @@ export function setupGolf() {
     rouletteRow.addEventListener("focusout", ({ relatedTarget }) => {
         if (!rouletteRow.contains(relatedTarget)) rouletteRow.classList.remove("keys-open");
     });
+    // Long shots (v1.8.5): in golf the Driver, Woods and Hybrids share one row, by hue shift, without
+    // the copies (clubs.js: COPIES); their rows hide. Leaving golf puts the swatches back.
+    const LONG_SHOTS = [["double-complementary", 0], ["tetradic", 0], ["triadic", 0], ["split-complementary", 0],
+        ["complementary", 0], ["split-complementary", 1], ["triadic", 1], ["tetradic", 2]];
+    const longRow = $("long");
+    const longHome = LONG_SHOTS.map(([row, index]) => {
+        const wrapper = harmonySets[row][index].box.closest(".square-wrapper");
+        const caption = document.createElement("span");
+        caption.className = "long-shift";
+        caption.textContent = `+${(HUE_SHIFTS[row][index] + 360) % 360}°`; // all one way round, in order (Triadic −120° is +240°)
+        wrapper.prepend(caption);
+        wrapper.title = `${CLUB_TYPES[row]}: ${clubName({ row, index })}`;
+        return { wrapper, parent: wrapper.parentElement, next: wrapper.nextElementSibling };
+    });
+    const longRows = [...new Set(LONG_SHOTS.map(([row]) => harmonySets[row][0].box.closest(".colors-row")))];
+    const mergeLongShots = (on) => {
+        longRows.forEach(row => row.classList.toggle("explore-only", on));
+        if (on) longHome.forEach(({ wrapper }) => longRow.append(wrapper));
+        else longHome.forEach(({ wrapper, parent, next }) => parent.insertBefore(wrapper, next?.parentElement === parent ? next : null));
+    };
     // Pro rounds show these under the swatches instead of the colors (index.css)
     for (const [box, club] of clubs) box.closest(".square-wrapper")?.setAttribute("data-club", proLabel(club));
+    longHome.forEach(({ wrapper }) => { wrapper.dataset.club = wrapper.querySelector(".long-shift").textContent; });
     // In a game each row heading starts with its club type (hidden while exploring)
     for (const [row, elements] of Object.entries(harmonySets)) {
         const heading = elements[0]?.box?.closest(".colors-row")?.querySelector(".row-header h3");
@@ -598,6 +619,7 @@ export function setupGolf() {
         setSpaceToggle(true);
         document.body.classList.add("golf");
         document.body.classList.remove("golf-pro");
+        mergeLongShots(true);
         panel.hidden = false;
         clearBaseColor();
         putterBoxes.forEach(box => { box.style.backgroundColor = ""; });
@@ -614,6 +636,7 @@ export function setupGolf() {
         round = null;
         setMapState(null);
         document.body.classList.remove("golf", "golf-pro", "golf-menu");
+        mergeLongShots(false);
         if (exploringSpace !== null) setSpaceToggle(exploringSpace);
         exploringSpace = null;
         panel.hidden = true;
@@ -798,7 +821,7 @@ export function setupGolf() {
         const length = !round.expert && `${yards(hole.tee, hole.target)} yds`; // Expert: no yardage
         const summary = hazardSummary(hole.hazards);
         const pro = round.pro && "Pro";
-        const firstShots = 41 + (hole.rules?.roulette ? ROULETTE_SLOTS : 0) + (hole.rules?.flip ? FLIPS : 0);
+        const firstShots = STANDARD_CLUBS.length - COPIES.size + (hole.rules?.roulette ? ROULETTE_SLOTS : 0) + (hole.rules?.flip ? FLIPS : 0);
         const line = hole.lines !== undefined && `perfect line ${hole.lines} of ${firstShots}`;
         let title, info;
         if (mode === "daily") {

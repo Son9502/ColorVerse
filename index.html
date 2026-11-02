@@ -383,6 +383,18 @@
                 </div>
             </div>
             <div id="ui-container">
+                <!-- Long shots: Color Golf only (v1.8.5). The Driver, Woods and Hybrids in one row by hue shift;
+                     golf-ui.js moves their swatches here from the harmony rows below (leaving out the copies) -->
+                <div class="colors-row golf-only">
+                    <div class="row-header">
+                        <h3><span class="club-type">Driver · Woods · Hybrids</span>Long shots</h3>
+                        <button class="row-toggle" aria-expanded="true">▾</button>
+                    </div>
+
+                    <div class="row-body">
+                        <div id="long" class="swatch-row"></div>
+                    </div>
+                </div>
                 <!-- Each row becomes a “coolors-row” -->
                 <div class="colors-row">
                     <div class="row-header">

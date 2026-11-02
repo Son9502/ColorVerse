@@ -576,7 +576,8 @@ Color Categories + Squares
 #saturate,
 #putter,
 #roulette,
-#flip {
+#flip,
+#long {
     display: flex;
     align-items: flex-start; /* a name or portal label makes a swatch taller: keep the squares in line */
     gap: clamp(6px, 1vw, 18px);
@@ -1052,6 +1053,35 @@ body.golf .golf-only {
 }
 
 body.golf .golf-only[hidden] {
+    display: none;
+}
+
+/* Rows whose swatches golf moves into the Long shots row (golf-ui.js), and the copies left behind */
+body.golf .explore-only {
+    display: none;
+}
+
+#long {
+    flex-wrap: wrap; /* eight swatches: a second line on narrow screens */
+    row-gap: 8px;
+}
+
+/* Long shots (v1.8.5): each swatch's hue shift above it (Pro already labels them with it) */
+.long-shift {
+    display: none;
+}
+
+#long .long-shift {
+    display: block;
+    order: -1;
+    margin-bottom: 2px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #555;
+    white-space: nowrap;
+}
+
+body.golf-pro #long .long-shift {
     display: none;
 }
 

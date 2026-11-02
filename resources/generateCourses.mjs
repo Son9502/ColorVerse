@@ -168,8 +168,8 @@ const COURSES = [
     },
     {
         id: "caddie", name: "Caddie Strike", seed: 8, hues: [0, 360], difficulty: "Expansion", // full spectrum
-        gimmick: "Each hole bans some clubs; banned rows are greyed out.",
-        tutorial: "Your caddie won't carry every club: each hole bans some (shown under the hole info), and their rows are greyed out. Here it's the Driver and Woods.",
+        gimmick: "Each hole bans some clubs; banned swatches are greyed out.",
+        tutorial: "Your caddie won't carry every club: each hole bans some (shown under the hole info), and their swatches are greyed out. Here it's the Driver and Woods (+150° to +210° in Long shots).",
         rules: (i) => BANS[CADDIE_HOLES[i]],
     },
     {

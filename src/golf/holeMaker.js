@@ -1,5 +1,5 @@
 import { searchFrom, parFor, pathTo, reachesWithin } from "./solver.js";
-import { CLUBS, STANDARD_CLUBS, allStrikes, strike, mirrorOf, roundHSL, encode, decode } from "./clubs.js";
+import { CLUBS, COPIES, STANDARD_CLUBS, allStrikes, strike, mirrorOf, roundHSL, encode, decode } from "./clubs.js";
 import { hazardMap, isWedge, WEDGES } from "./hazards.js";
 import { clubMask, ruleAllows, windFor, windOptions } from "./rules.js";
 import { hslDistance, IN_THE_HOLE, ON_THE_GREEN } from "./oklab.js";
@@ -116,7 +116,8 @@ function birdieLines(hole, perfect, map = null) {
 }
 // (only clubs the hole's rules allow, v1.8.2; with a turning wind, v1.8.3, the first stroke's wind,
 // then the cycle from stroke 2; with a roulette, v1.8.4, its four shots too, and with flips, v1.8.5, their five)
-const birdieLineCount = (hole, perfect, map, wind = null) => {
+// `copies`: false leaves out the clubs that duplicate others (clubs.js: COPIES), as the game shows it
+const birdieLineCount = (hole, perfect, map, wind = null, copies = true) => {
     const rules = hole.rules ?? null;
     const allowed = clubMask(rules);
     const cycle = rules?.windCycle ?? null;
@@ -124,13 +125,18 @@ const birdieLineCount = (hole, perfect, map, wind = null) => {
     const flip = !!rules?.flip;
     let count = 0;
     allStrikes(hole.tee, cycle ? cycle[0] : wind, roulette, flip).forEach((landing, i) => { // counts clubs, like the selection check
-        if (!landing || (allowed && !allowed[i])) return;
+        if (!landing || (allowed && !allowed[i]) || (!copies && COPIES.has(i))) return;
         const shot = map.land(landing); // through a portal (v1.8) or a mirror (v1.8.1)
         if (map.at(landing) === "water") return;
         if (reachesWithin(shot, hole.target, perfect - 1, map, { wind, cycle, played: 1, roulette, flip, rules })) count++;
     });
     return count;
 };
+
+// The perfect line, shown in the game: first shots that keep the perfect score reachable, out of the
+// 38 distinct clubs (and the hole's roulette or flips). The generator's birdie-line bands count every
+// club, copies included, so the courses don't change.
+export const perfectLine = (hole, copies = false) => birdieLineCount(hole, hole.perfect, hazardMap(hole.hazards ?? []), hole.wind ?? null, copies);
 
 // "Make you think" (v1.8.2): none of the `count` tee shots that end up closest to the pin (after any
 // portal or mirror, counting only clubs the hole allows) keeps the perfect score, so the obvious
@@ -657,7 +663,7 @@ function buildOnce({ rand, hazardRand, windRand }, { par, perfect, hues, sats, d
     for (let attempt = 0; flip && attempt < 8; attempt++) {
         const hole = makeFlipHole(rand, { par, perfect, hues, sats, band: BIRDIE_LINE[difficulty], think, ...flip });
         if (hole) {
-            hole.lines = birdieLineCount(hole, hole.perfect, hazardMap([]));
+            hole.lines = perfectLine(hole);
             return hole;
         }
         if (attempt === 7) log("no flip hole passed the checks; built without one");
@@ -666,7 +672,7 @@ function buildOnce({ rand, hazardRand, windRand }, { par, perfect, hues, sats, d
     for (let attempt = 0; roulette && attempt < 8; attempt++) {
         const hole = makeRouletteHole(rand, { par, perfect, hues, sats, band: BIRDIE_LINE[difficulty], think, ...roulette });
         if (hole) {
-            hole.lines = birdieLineCount(hole, hole.perfect, hazardMap([]));
+            hole.lines = perfectLine(hole);
             return hole;
         }
         if (attempt === 7) log("no roulette hole passed the checks; built without one");
@@ -675,7 +681,7 @@ function buildOnce({ rand, hazardRand, windRand }, { par, perfect, hues, sats, d
     for (let attempt = 0; turning && attempt < 8; attempt++) {
         const hole = makeWindHole(rand, { par, perfect, hues, sats, band: BIRDIE_LINE[difficulty], think, ...turning });
         if (hole) {
-            hole.lines = birdieLineCount(hole, hole.perfect, hazardMap([]));
+            hole.lines = perfectLine(hole);
             return hole;
         }
         if (attempt === 7) log("no turning-wind hole passed the checks; built calm");
@@ -684,7 +690,7 @@ function buildOnce({ rand, hazardRand, windRand }, { par, perfect, hues, sats, d
     for (let attempt = 0; rules && attempt < 8; attempt++) {
         const hole = makeBanHole(rand, { par, perfect, hues, sats, band: BIRDIE_LINE[difficulty], rules, think });
         if (hole) {
-            hole.lines = birdieLineCount(hole, hole.perfect, hazardMap([]));
+            hole.lines = perfectLine(hole);
             return hole;
         }
         if (attempt === 7) log(`no hole passed the checks with "${rules.name}"; built without a ban`);
@@ -693,7 +699,7 @@ function buildOnce({ rand, hazardRand, windRand }, { par, perfect, hues, sats, d
     for (let attempt = 0; mirrors && attempt < 8; attempt++) {
         const hole = makeMirrorHole(rand, { par, perfect, hues, sats, band: BIRDIE_LINE[difficulty], ...mirrors });
         if (hole) {
-            hole.lines = birdieLineCount(hole, hole.perfect, hazardMap(hole.hazards));
+            hole.lines = perfectLine(hole);
             return hole;
         }
         if (attempt === 7) log("no mirror hole passed the checks; built without mirrors");
@@ -710,7 +716,7 @@ function buildOnce({ rand, hazardRand, windRand }, { par, perfect, hues, sats, d
         const blackHoles = placed && portals.blackHoles ? placeBlackHoles(hazardRand, hole, BIRDIE_LINE[difficulty], portals.blackHoles, length) : [];
         if (placed && blackHoles) {
             hole.hazards.push(...blackHoles);
-            hole.lines = birdieLineCount(hole, hole.perfect, hazardMap(hole.hazards));
+            hole.lines = perfectLine(hole);
             return hole;
         }
         if (attempt === 9) log("no portal placement passed the checks; built without portals");
@@ -733,8 +739,7 @@ function buildOnce({ rand, hazardRand, windRand }, { par, perfect, hues, sats, d
         const wind = addWind(windRand, hole, windPlan, BIRDIE_LINE[difficulty], hole.perfect > 1 && !layup);
         if (wind) hole.wind = wind;
     }
-    // The perfect line, shown in the game: first shots (of 41) that keep the perfect score reachable
-    hole.lines = birdieLineCount(hole, hole.perfect, hazardMap(hole.hazards ?? []), hole.wind ?? null);
+    hole.lines = perfectLine(hole);
     return hole;
 }
 

@@ -43,6 +43,12 @@ export const CLUBS = [
 ];
 export const STANDARD_CLUBS = CLUBS.filter(club => club.row !== "roulette" && club.row !== "flip"); // every hole's 41
 
+// Clubs that always land where another does (v1.8.5): Tetradic and Double-comp. +180° are
+// Complementary, Double-comp. +240° is Triadic −120°. Golf doesn't show them (golf-ui.js: the long
+// row) and the perfect line doesn't count them; they stay in CLUBS so recorded rounds keep their ids.
+export const COPIES = new Set(CLUBS.flatMap((club, i) =>
+    (club.row === "tetradic" && club.index === 1) || (club.row === "double-complementary" && club.index > 0) ? [i] : []));
+
 // A club as one small number (its place in CLUBS) and back, for recorded rounds (v1.6)
 export const clubId = ({ row, index }) => CLUBS.findIndex(club => club.row === row && club.index === index);
 export const clubById = (id) => CLUBS[id] ?? null;
