@@ -1530,7 +1530,8 @@ body.golf-mono .square,
 body.golf-mono #golf-path .swatch,
 body.golf-mono .golf-portal::before,
 body.golf-mono .golf-to-mirror::before,
-body.golf-mono #ui-canvas canvas {
+body.golf-mono #ui-canvas canvas,
+body.golf.golf-menu.golf-mono-switch #ui-canvas canvas {
     filter: grayscale(1);
 }
 

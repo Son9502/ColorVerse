@@ -671,8 +671,11 @@ export function setupGolf() {
     // courses listed (the Monochrome five or the color ones) and plays daily, weekly and practice in gray
     const proSwitch = $("golf-pro");
     proSwitch.checked = load(PRO_KEY, false);
+    // The golf menu's shape turns gray with the switch on (index.css: golf-mono-switch)
+    document.body.classList.toggle("golf-mono-switch", proSwitch.checked);
     proSwitch.addEventListener("change", () => {
         save(PRO_KEY, proSwitch.checked);
+        document.body.classList.toggle("golf-mono-switch", proSwitch.checked);
         renderCourses();
         settingsSummary();
     });
