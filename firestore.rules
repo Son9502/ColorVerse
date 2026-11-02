@@ -17,5 +17,10 @@ service cloud.firestore {
     match /dailies/{day}/scores/{uid} {
       allow read: if true;
     }
+
+    // Survival leaderboard (v1.8.6), one per version of the course
+    match /survival/{board}/scores/{uid} {
+      allow read: if true;
+    }
   }
 }

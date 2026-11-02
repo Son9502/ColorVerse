@@ -113,6 +113,23 @@ const EAGLE_LAYOUT = [FRONT, BACK].map(nine => nine.map(([par, perfect]) => [par
 // needs a flip on the par 3s and 4s, and going under par needs one on the par 5s. Flips are wild
 // enough that two strokes is within reach, unlike the roulette's hue shifts.
 
+// The Obsidian Gauntlet (v1.8.6): a survival course (finish a hole over par and the round ends) in
+// dark colors (lightness 15–50%), cycling through the six gimmicks, three holes each, every one built
+// as on its own course. Bans suit the hole (par 5s only take two of them); the ace is a wind hole.
+const GAUNTLET_HOLES = [
+    { portals: { trap: true } }, { mirrors: {} }, { rules: BANS.noHybrids }, { turning: {} }, { roulette: {} }, { flip: {} },
+    { portals: { chain: true } }, { mirrors: { chain: true } }, { rules: BANS.noTintsShades }, { turning: {} }, { roulette: {} }, { flip: {} },
+    { portals: { maze: true } }, { mirrors: { decoy: true } }, { rules: BANS.hybridsIrons }, { turning: {} }, { roulette: {} }, { flip: {} },
+];
+const gauntletHole = (i, perfect) => {
+    const [kind, plan] = Object.entries(GAUNTLET_HOLES[i])[0];
+    if (kind === "portals" || kind === "mirrors") return { [kind]: { ...plan, skip: skipFor(perfect) } };
+    if (kind === "turning") return { turning: { strengths: WHIRL } };
+    if (kind === "roulette") return { roulette: { skip: 1 } };
+    if (kind === "flip") return { flip: { skip: 2 } };
+    return { rules: plan };
+};
+
 // "Make you think" (v1.8.2, holeMaker.js: thinks): on each hole but the ace, none of this many tee
 // shots closest to the pin keeps the perfect score, and a perfect route plays like golf (putts only
 // near the pin, no Driver or Woods into the hole). The beginner course is left as it is.
@@ -190,12 +207,17 @@ const COURSES = [
         tutorial: "The Flip row moves your color's hex digits left by 1 to 5 places (#A23432 → #23432A by 1). Flips 2 and 4 just turn the hue about 120°; 1, 3 and 5 jump somewhere new. You need one to make par here.",
         flip: () => ({ skip: 2 }),
     },
+    {
+        id: "gauntlet", name: "The Obsidian Gauntlet", seed: 12, hues: [0, 360], lights: [15, 50], difficulty: "Expansion", layout: EAGLE_LAYOUT, survival: true, // dark, full spectrum
+        gimmick: "Survival: finish a hole over par and the round ends. Every gimmick, in the dark; no undos.",
+        mix: gauntletHole,
+    },
 ];
 
 const only = process.argv.slice(2); // optional: course ids to generate (others are kept from the current file)
 const existing = only.length ? JSON.parse(readFileSync(new URL("../src/golf/courses.json", import.meta.url))) : [];
 
-const courses = COURSES.map(({ id, name, seed, rev, hues, sats, difficulty, gimmick, tutorial, layout = [FRONT, BACK], hazards: planFor, layup, wind: windPlan, portals: portalsFor, mirrors: mirrorsFor, rules: rulesFor, turning: turningFor, roulette: rouletteFor, flip: flipFor }) => {
+const courses = COURSES.map(({ id, name, seed, rev, hues, sats, lights, survival, mix, difficulty, gimmick, tutorial, layout = [FRONT, BACK], hazards: planFor, layup, wind: windPlan, portals: portalsFor, mirrors: mirrorsFor, rules: rulesFor, turning: turningFor, roulette: rouletteFor, flip: flipFor }) => {
     if (only.length && !only.includes(id)) return existing.find(course => course.id === id);
     const rand = rng(seed);
     const hazardRand = rng(seed * 7919); // separate sequence: hazards don't change which holes are chosen
@@ -203,14 +225,14 @@ const courses = COURSES.map(({ id, name, seed, rev, hues, sats, difficulty, gimm
     const holes = layout.flat().map(([par, layoutPerfect], i) => {
         const perfect = difficulty === "Expert" && layoutPerfect > 1 && layup !== i ? expertPerfect(par) : layoutPerfect;
         const hole = buildHole({ rand, hazardRand, windRand }, {
-            par, perfect, hues, sats, difficulty, think: THINK[difficulty], plan: planFor?.(i, par, perfect), windPlan, layup: layup === i, portals: portalsFor?.(i, par, perfect), mirrors: mirrorsFor?.(i, perfect), rules: rulesFor?.(i), turning: turningFor?.(i), roulette: rouletteFor?.(i, par, perfect), flip: flipFor?.(i, par, perfect),
+            par, perfect, hues, sats, lights, difficulty, think: THINK[difficulty], plan: planFor?.(i, par, perfect), windPlan, layup: layup === i, portals: portalsFor?.(i, par, perfect), mirrors: mirrorsFor?.(i, perfect), rules: rulesFor?.(i), turning: turningFor?.(i), roulette: rouletteFor?.(i, par, perfect), flip: flipFor?.(i, par, perfect), ...mix?.(i, perfect),
             log: (message) => console.log(`  (hole ${i + 1}: ${message})`),
         });
         const summary = [(hole.hazards ?? []).map(h => h.type).join(", ") || "clear", hole.wind ? `wind ${JSON.stringify(hole.wind)}` : "calm", hole.rules?.name, hole.rules?.windCycle && `turning ${JSON.stringify(hole.rules.windCycle)}`, hole.rules?.roulette && `roulette ${hole.rules.roulette.join(" ")}`, hole.rules?.flip && "flip"].filter(Boolean).join("; ");
         console.log(`${name} hole ${i + 1}: par ${par}, perfect ${hole.perfect}, ${Math.round(yardsBetween(hole.tee, hole.target))} yds, ${summary}`);
         return hole;
     });
-    return { id, name, ...(rev && { rev }), hues, difficulty, ...(gimmick && { gimmick }), ...(tutorial && { tutorial }), holes };
+    return { id, name, ...(rev && { rev }), hues, difficulty, ...(survival && { survival }), ...(gimmick && { gimmick }), ...(tutorial && { tutorial }), holes };
 }).filter(Boolean);
 
 const out = new URL("../src/golf/courses.json", import.meta.url);

@@ -13,7 +13,7 @@ export const FREE_COURSES = 3;
 // ahead scores (Verdant Pines −4, Cobalt Bay +17, Royal Indigo +23, Violet Vortex +2, Silverglass
 // Greens +6), well short of perfect, with extra room on the Expert courses (played Pro, no yardage).
 // Saffron Whirlwind (v1.8.3) asks −6 on Caddie Strike (planner −11). To tune once they've been played by hand.
-const UNLOCK_TO_PAR = { cobalt: -4, indigo: 2, vortex: 4, silverglass: -3, caddie: -2, saffron: -6, scarlet: -4, hexflip: -4 };
+const UNLOCK_TO_PAR = { cobalt: -4, indigo: 2, vortex: 4, silverglass: -3, caddie: -2, saffron: -6, scarlet: -4, hexflip: -4, gauntlet: -4 };
 const DEFAULT_TO_PAR = -6;
 export const unlockToPar = (course) => UNLOCK_TO_PAR[course.id] ?? DEFAULT_TO_PAR;
 

@@ -218,5 +218,25 @@
     {"tee":{"h":332,"s":71,"l":36},"target":{"h":279,"s":45,"l":65},"par":3,"perfect":1,"rules":{"flip":true},"lines":1},
     {"tee":{"h":172,"s":46,"l":51},"target":{"h":359,"s":80,"l":68},"par":4,"perfect":3,"rules":{"flip":true},"lines":3},
     {"tee":{"h":30,"s":63,"l":49},"target":{"h":313,"s":87,"l":66},"par":4,"perfect":3,"rules":{"flip":true},"lines":1}
+  ]},
+  {"id":"gauntlet","name":"The Obsidian Gauntlet","hues":[0,360],"difficulty":"Expansion","survival":true,"gimmick":"Survival: finish a hole over par and the round ends. Every gimmick, in the dark; no undos.","holes":[
+    {"tee":{"h":2,"s":90,"l":45},"target":{"h":292,"s":30,"l":22},"par":4,"perfect":3,"hazards":[{"type":"portal","center":{"h":152,"s":90,"l":45},"radius":32,"exit":{"h":302,"s":90,"l":56}},{"type":"portal","center":{"h":2,"s":72,"l":46},"radius":21,"exit":{"h":24,"s":36,"l":62}}],"lines":1},
+    {"tee":{"h":136,"s":41,"l":29},"target":{"h":269,"s":50,"l":48},"par":4,"perfect":3,"hazards":[{"type":"mirror","center":{"h":176,"s":41,"l":29},"radius":28}],"lines":1},
+    {"tee":{"h":335,"s":68,"l":19},"target":{"h":55,"s":68,"l":19},"par":3,"perfect":2,"rules":{"name":"No Hybrids","ban":["triadic","tetradic","double-complementary"]},"lines":1},
+    {"tee":{"h":250,"s":34,"l":20},"target":{"h":160,"s":80,"l":33},"par":5,"perfect":3,"rules":{"windCycle":[{"light":-7},{"light":-10}]},"lines":3},
+    {"tee":{"h":315,"s":33,"l":15},"target":{"h":55,"s":68,"l":29},"par":4,"perfect":3,"rules":{"roulette":[-47,-133,100,47]},"lines":3},
+    {"tee":{"h":137,"s":92,"l":20},"target":{"h":30,"s":70,"l":44},"par":4,"perfect":3,"rules":{"flip":true},"lines":4},
+    {"tee":{"h":95,"s":81,"l":27},"target":{"h":177,"s":83,"l":24},"par":3,"perfect":2,"hazards":[{"type":"portal","center":{"h":95,"s":81,"l":42},"radius":26,"exit":{"h":175,"s":81,"l":42}}],"lines":1},
+    {"tee":{"h":268,"s":81,"l":33},"target":{"h":11,"s":35,"l":50},"par":4,"perfect":3,"hazards":[{"type":"mirror","center":{"h":88,"s":81,"l":33},"radius":27},{"type":"mirror","center":{"h":185,"s":99,"l":72},"radius":31}],"lines":1},
+    {"tee":{"h":289,"s":67,"l":16},"target":{"h":49,"s":88,"l":30},"par":5,"perfect":3,"rules":{"name":"No Tints or Shades","ban":["tints","shades"]},"lines":3},
+    {"tee":{"h":96,"s":91,"l":16},"target":{"h":188,"s":91,"l":36},"par":4,"perfect":3,"rules":{"windCycle":[{"hue":15},{"hue":14},{"hue":-12}]},"lines":4},
+    {"tee":{"h":290,"s":47,"l":35},"target":{"h":155,"s":80,"l":50},"par":5,"perfect":3,"rules":{"roulette":[98,-135,14,-105]},"lines":4},
+    {"tee":{"h":270,"s":54,"l":49},"target":{"h":212,"s":92,"l":38},"par":3,"perfect":2,"rules":{"flip":true},"lines":1},
+    {"tee":{"h":71,"s":48,"l":37},"target":{"h":204,"s":86,"l":21},"par":4,"perfect":3,"hazards":[{"type":"portal","center":{"h":311,"s":48,"l":37},"radius":35,"exit":{"h":211,"s":48,"l":62}},{"type":"portal","center":{"h":71,"s":0,"l":50},"radius":27,"exit":{"h":347,"s":31,"l":34}},{"type":"portal","center":{"h":111,"s":48,"l":37},"radius":26,"exit":{"h":217,"s":95,"l":36}},{"type":"portal","center":{"h":251,"s":48,"l":37},"radius":32,"exit":{"h":234,"s":31,"l":24}},{"type":"portal","center":{"h":71,"s":48,"l":50},"radius":33,"exit":{"h":199,"s":57,"l":35}},{"type":"portal","center":{"h":191,"s":48,"l":37},"radius":28,"exit":{"h":234,"s":30,"l":48}},{"type":"portal","center":{"h":281,"s":48,"l":37},"radius":26,"exit":{"h":320,"s":58,"l":22}},{"type":"portal","center":{"h":341,"s":48,"l":37},"radius":34,"exit":{"h":262,"s":53,"l":40}},{"type":"portal","center":{"h":71,"s":69,"l":37},"radius":34,"exit":{"h":203,"s":35,"l":39}},{"type":"portal","center":{"h":71,"s":48,"l":30},"radius":37,"exit":{"h":194,"s":62,"l":28}},{"type":"portal","center":{"h":51,"s":48,"l":37},"radius":32,"exit":{"h":243,"s":54,"l":43}},{"type":"portal","center":{"h":221,"s":48,"l":37},"radius":28,"exit":{"h":201,"s":55,"l":37}}],"lines":1},
+    {"tee":{"h":324,"s":46,"l":25},"target":{"h":37,"s":72,"l":44},"par":4,"perfect":3,"hazards":[{"type":"mirror","center":{"h":144,"s":46,"l":25},"radius":26},{"type":"mirror","center":{"h":324,"s":78,"l":25},"radius":28}],"lines":2},
+    {"tee":{"h":57,"s":67,"l":38},"target":{"h":267,"s":67,"l":42},"par":5,"perfect":3,"rules":{"name":"Hybrids, Iron and putter only","ban":["complementary","split-complementary","tints","shades","tones","saturate"]},"lines":3},
+    {"tee":{"h":301,"s":32,"l":30},"target":{"h":143,"s":39,"l":29},"par":3,"perfect":1,"rules":{"windCycle":[{"hue":21},{"hue":24}]},"lines":1},
+    {"tee":{"h":335,"s":34,"l":20},"target":{"h":77,"s":70,"l":26},"par":4,"perfect":3,"rules":{"roulette":[71,102,-45,-156]},"lines":4},
+    {"tee":{"h":345,"s":95,"l":50},"target":{"h":240,"s":46,"l":46},"par":4,"perfect":3,"rules":{"flip":true},"lines":1}
   ]}
 ]

@@ -1,5 +1,5 @@
 import courses from "./courses.json";
-import { GolfRound, scoreName, compareRounds, UNDOS_PER_ROUND, UNDOS_DAILY } from "./game.js";
+import { GolfRound, scoreName, compareRounds, survivalBoard, UNDOS_PER_ROUND, UNDOS_DAILY } from "./game.js";
 import { PUTTER, ROULETTE_SLOTS, FLIPS, STANDARD_CLUBS, COPIES, strike } from "./clubs.js";
 import { IN_THE_HOLE, hslDistance, hslToHex } from "./oklab.js";
 import { harmonySets, selectBaseColor, clearBaseColor, addNameLabel } from "../harmony.js";
@@ -189,7 +189,7 @@ function saveBest(course, pro, totals) {
     const record = bestFor(course, pro);
     if (record && compareRounds(record, totals) <= 0) return false;
     const best = load(scoped(BEST_KEY), {});
-    best[bestKey(course.id, pro)] = { strokes: totals.strokes, toPar: totals.toPar, time: totals.time, rev: course.rev ?? 1 };
+    best[bestKey(course.id, pro)] = { strokes: totals.strokes, toPar: totals.toPar, time: totals.time, rev: course.rev ?? 1, ...(course.survival && { survived: totals.survived }) };
     save(scoped(BEST_KEY), best);
     return true;
 }
@@ -580,6 +580,26 @@ export function setupGolf() {
         }
     });
 
+    // Survival courses (v1.8.6): an all-time top 10 on the course card, your entry in bold
+    const showSurvivalBoard = async (course, list, toggle) => {
+        list.hidden = !list.hidden;
+        toggle.setAttribute("aria-expanded", String(!list.hidden));
+        if (list.hidden) return;
+        list.replaceChildren(Object.assign(document.createElement("li"), { textContent: "Loading…" }));
+        try {
+            const top = await cloud.survivalLeaderboard(survivalBoard(course));
+            const me = cloud.currentAccount()?.uid;
+            list.replaceChildren(...(top.length ? top.map(entry => {
+                const item = document.createElement("li");
+                item.className = entry.uid === me ? "me" : "";
+                item.textContent = `${entry.nickname}: ${entry.survived} of ${course.holes.length} holes · ${entry.strokes} strokes · ${formatTime(entry.time)}${entry.pro ? " · Pro" : ""}`;
+                return item;
+            }) : [Object.assign(document.createElement("li"), { textContent: "No rounds yet. Be the first!" })]));
+        } catch {
+            list.replaceChildren(Object.assign(document.createElement("li"), { textContent: "Couldn't load the leaderboard." }));
+        }
+    };
+
     // Pro: the switch on the setup screen applies to the next round and picks which bests are shown
     const proSwitch = $("golf-pro");
     proSwitch.checked = load(PRO_KEY, false);
@@ -663,19 +683,25 @@ export function setupGolf() {
             const pro = proSwitch.checked || isExpert(course.difficulty);
             const record = bestFor(course, pro);
             const locked = lockText(index);
+            const bestText = !record ? ""
+                : course.survival ? ` · ${pro ? "Pro best" : "best"} ${record.survived} of ${course.holes.length} holes, ${record.strokes} strokes, ${formatTime(record.time)}`
+                : ` · ${pro ? "Pro best" : "best"} ${record.strokes} (${formatToPar(record.toPar)}), ${formatTime(record.time)}`;
 
             const item = document.createElement("li");
             item.className = locked ? "golf-course locked" : "golf-course";
             item.innerHTML = `
                 <h3>${course.name}</h3>
                 <div class="golf-hues" style="background: linear-gradient(to right, ${stops.join(", ")})"></div>
-                <span class="golf-best">${termify(course.difficulty)} · ${course.holes.length} holes · par ${par} · ${length.toLocaleString()} yds${record ? ` · ${pro ? "Pro best" : "best"} ${record.strokes} (${formatToPar(record.toPar)}), ${formatTime(record.time)}` : ""}</span>
+                <span class="golf-best">${termify(course.difficulty)} · ${course.holes.length} holes · par ${par} · ${length.toLocaleString()} yds${bestText}</span>
                 ${course.gimmick ? `<span class="golf-best golf-gimmick">${termify(course.gimmick)}</span>` : ""}
                 ${locked ? `<span class="golf-best golf-lock">🔒 ${locked}</span>` : ""}
-                <button class="btn btn-primary" type="button"${locked ? " disabled" : ""}>Play</button>`;
+                <button class="btn btn-primary" type="button"${locked ? " disabled" : ""}>Play</button>
+                ${course.survival && cloud.cloudAvailable ? `<button class="btn btn-link golf-leaderboard-toggle" type="button" aria-expanded="false">All-time top 10</button><ol class="golf-leaderboard" hidden></ol>` : ""}`;
             // The button spans every line of the card
             item.querySelector("button.btn-primary").style.gridRow = `1 / span ${3 + !!course.gimmick + !!locked}`;
             item.querySelector("button.btn-primary").addEventListener("click", () => startRound(course));
+            item.querySelector(".golf-leaderboard-toggle")?.addEventListener("click", (event) =>
+                showSurvivalBoard(course, item.querySelector(".golf-leaderboard"), event.currentTarget));
             return item;
         }));
     };
@@ -772,8 +798,10 @@ export function setupGolf() {
     const startRound = (course, newMode = "course", { from = 0 } = {}) => {
         mode = newMode;
         const played = from ? { ...course, holes: course.holes.slice(from) } : course;
-        const undos = ["practice", "test"].includes(mode) ? Infinity : mode === "daily" ? UNDOS_DAILY : UNDOS_PER_ROUND;
+        // No undos on a survival course (v1.8.6): taking back the shot that would go over par defeats it
+        const undos = ["practice", "test"].includes(mode) ? Infinity : mode === "daily" ? UNDOS_DAILY : course.survival ? 0 : UNDOS_PER_ROUND;
         round = new GolfRound(played, undefined, { undos });
+        undoButton.hidden = undos === 0;
         round.firstHole = from;
         taught = new Set();
         round.expert = isExpert(course.difficulty);
@@ -834,7 +862,7 @@ export function setupGolf() {
         } else {
             const number = round.firstHole + holeIndex + 1; // test rounds can start partway
             title = `${mode === "test" ? "Test · " : ""}Hole ${number} · Par ${hole.par}`;
-            info = [round.course.name, `${number <= 9 ? "Front" : "Back"} 9`, length, summary, line, pro, mode === "test" && "not saved"];
+            info = [round.course.name, `${number <= 9 ? "Front" : "Back"} 9`, length, summary, line, pro, round.survival && "Survival", mode === "test" && "not saved"];
         }
         $("golf-hole-title").textContent = title;
         $("golf-hole-info").innerHTML = termify(info.filter(Boolean).join(" · ")); // gimmick words explain themselves (terms.js)
@@ -1053,7 +1081,7 @@ export function setupGolf() {
         stopTimer();
         refreshLiveCard();
         const result = round.card[round.holeIndex];
-        $("golf-result").textContent = result.pickedUp ? "Picked up" : scoreName(result.strokes, result.par);
+        $("golf-result").textContent = `${round.over ? "Round over: " : ""}${result.pickedUp ? "Picked up" : scoreName(result.strokes, result.par)}`;
         $("golf-result-info").textContent =
             `${result.strokes} strokes · Par ${result.par} · Perfect ${result.perfect} · ${formatTime(result.time)}`;
         $("golf-next").textContent = mode === "practice" || !round.finished ? "Next hole" : mode === "course" ? "See score card" : "See result";
@@ -1131,11 +1159,16 @@ export function setupGolf() {
         } else {
             const isBest = saveBest(round.course, round.pro, totals);
             sendRound({ kind: "course", courseId: round.course.id, rev: round.course.rev ?? 1, pro: round.pro, holes: playedHoles(round.card) });
-            $("golf-round-title").textContent = `${round.course.name}: ${totals.strokes} (${formatToPar(totals.toPar)})`;
-            $("golf-round-message").textContent = roundMessage(totals);
+            const length = round.course.holes.length;
+            $("golf-round-title").textContent = round.survival
+                ? `${round.course.name}: ${totals.survived} of ${length} holes survived`
+                : `${round.course.name}: ${totals.strokes} (${formatToPar(totals.toPar)})`;
+            $("golf-round-message").textContent = !round.survival ? roundMessage(totals)
+                : totals.survived === length ? `Through the Gauntlet! ${totals.strokes} strokes (${formatToPar(totals.toPar)}).${totals.strokes <= totals.perfect ? " Perfect, too." : ""}`
+                : `Out on hole ${totals.holes}. The Gauntlet ranks holes survived first, then strokes, then time.`;
             $("golf-round-message").hidden = false;
             $("golf-round-info").textContent =
-                `Par ${totals.par} · Perfect ${totals.perfect} · ${formatTime(totals.time)}${pro}${isBest ? ` · New ${round.pro ? "Pro " : ""}best!` : ""}`;
+                `${round.survival ? `${totals.strokes} strokes (${formatToPar(totals.toPar)}) · ` : ""}Par ${totals.par} · Perfect ${totals.perfect} · ${formatTime(totals.time)}${pro}${isBest ? ` · New ${round.pro ? "Pro " : ""}best!` : ""}`;
             $("golf-card").hidden = false;
             $("golf-again").textContent = "Choose a course";
             renderCard($("golf-card"));
@@ -1197,7 +1230,8 @@ export function setupGolf() {
                 const mirror = (hole.hazards ?? []).filter(h => h.type === "mirror").length;
                 return {
                     label: index + 1, par: hole.par, current,
-                    hazards: `<span class="sand">${"●".repeat(sand)}</span><span class="water">${"●".repeat(water)}</span><span class="portal">${"●".repeat(portal)}</span><span class="blackhole">${"●".repeat(blackHole)}</span><span class="mirror">${"●".repeat(mirror)}</span>`,
+                    hazards: [["sand", sand], ["water", water], ["portal", portal], ["blackhole", blackHole], ["mirror", mirror]]
+                        .map(([type, n]) => `<span class="${type}">${n > 3 ? `●${n}` : "●".repeat(n)}</span>`).join(""), // a maze's dozen portals: one dot and the count
                     perfect: played ? played.perfect : "–",
                     strokes: played ? played.strokes : current ? round.strokes : "–",
                     parPlayed: played ? hole.par : null,

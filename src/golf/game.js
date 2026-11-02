@@ -42,9 +42,11 @@ export function puttsToHole(hsl, target, hazards = NO_HAZARDS, rules = null) {
 }
 
 export class GolfRound {
-    // `undos`: free undos for the round (practice passes Infinity)
+    // `undos`: free undos for the round (practice passes Infinity). A survival course (v1.8.6, The
+    // Obsidian Gauntlet: `course.survival`) ends at the first hole finished over par.
     constructor(course, now = () => performance.now(), { undos = UNDOS_PER_ROUND } = {}) {
         this.course = course;
+        this.survival = !!course.survival;
         this.now = now;
         this.undos = undos;
         this.card = []; // finished holes: { par, perfect, strokes, time, pickedUp, clubs }
@@ -55,7 +57,12 @@ export class GolfRound {
     get hole() { return this.course.holes[this.holeIndex]; }
     get nine() { return this.holeIndex < 9 ? 0 : 1; }
     get maxStrokes() { return this.hole.par * 2; } // pick up at double par
-    get finished() { return this.card.length === this.course.holes.length; }
+    get finished() { return this.card.length === this.course.holes.length || this.over; }
+    // Survival: the round ended on a hole over par (or picked up)
+    get over() {
+        const last = this.card.at(-1);
+        return this.survival && !!last && (last.pickedUp || last.strokes > last.par);
+    }
     get holeDone() { return this.card.length > this.holeIndex; }
     get inSand() { return this.hazards.at(this.current) === "sand"; }
     get canUndo() { return !this.holeDone && this.history.length > 0 && this.undosLeft > 0; }
@@ -121,6 +128,7 @@ export class GolfRound {
 
     nextHole() {
         if (this.holeIndex >= 0 && !this.holeDone) return false;
+        if (this.over) return false;
         if (this.holeIndex + 1 >= this.course.holes.length) return false;
         this.holeIndex++;
         this.undosLeft ??= this.undos;
@@ -145,9 +153,15 @@ export class GolfRound {
     totals(nine = null) {
         const holes = nine === null ? this.card : this.card.slice(nine * 9, nine * 9 + 9);
         const sum = (key) => holes.reduce((total, hole) => total + hole[key], 0);
-        return { holes: holes.length, par: sum("par"), perfect: sum("perfect"), strokes: sum("strokes"), toPar: sum("strokes") - sum("par"), time: sum("time") };
+        const totals = { holes: holes.length, par: sum("par"), perfect: sum("perfect"), strokes: sum("strokes"), toPar: sum("strokes") - sum("par"), time: sum("time") };
+        if (this.survival) totals.survived = holes.filter(hole => !hole.pickedUp && hole.strokes <= hole.par).length;
+        return totals;
     }
 }
 
-// Rank two finished rounds: fewer strokes wins, total time breaks ties
-export const compareRounds = (a, b) => (a.strokes - b.strokes) || (a.time - b.time);
+// A survival course's leaderboard (v1.8.6): one per version of its holes
+export const survivalBoard = (course) => `${course.id}-r${course.rev ?? 1}`;
+
+// Rank two finished rounds: fewer strokes wins, total time breaks ties. Survival rounds (v1.8.6)
+// compare holes survived first.
+export const compareRounds = (a, b) => ((b.survived ?? 0) - (a.survived ?? 0)) || (a.strokes - b.strokes) || (a.time - b.time);

@@ -247,6 +247,15 @@ export async function loadMyScores() {
     };
 }
 
+// A survival course's all-time top 10 (v1.8.6; board from game.js: survivalBoard):
+// [{ uid, nickname, survived, strokes, toPar, time, pro }]
+export async function survivalLeaderboard(board) {
+    const { db, sdk } = await loadCloud();
+    const { getDocs, query, collection, orderBy, limit } = sdk.store;
+    const top = await getDocs(query(collection(db, "survival", board, "scores"), orderBy("survived", "desc"), orderBy("strokes"), orderBy("time"), limit(10)));
+    return top.docs.map(entry => ({ uid: entry.id, ...entry.data() }));
+}
+
 // Today's top 10 on the daily hole: [{ uid, nickname, strokes, toPar, time, pro }]
 export async function dailyLeaderboard(day) {
     const { db, sdk } = await loadCloud();

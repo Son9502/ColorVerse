@@ -4,7 +4,7 @@ import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import courses from "../../src/golf/courses.json";
 import dailyList from "../../src/golf/daily.json";
 import { replayRound } from "../../src/golf/replay.js";
-import { compareRounds } from "../../src/golf/game.js";
+import { compareRounds, survivalBoard } from "../../src/golf/game.js";
 import { WEEK, daysBetween, weekday } from "../../src/golf/daily.js";
 import { courseLock } from "../../src/golf/unlocks.js";
 import { cleanNickname, nicknameId, nicknameProblem } from "../../src/cloud/nickname.js";
@@ -22,6 +22,8 @@ import { cleanNickname, nicknameId, nicknameProblem } from "../../src/cloud/nick
 //   users/{uid}/daily/{day}        the day's scored try: { par, perfect, strokes, time, pickedUp, pro, final, ranked }
 //   dailies/{day}/scores/{uid}     the public leaderboard: { nickname, strokes, toPar, time, pro, at }
 //   nicknames/{id}                 who holds a nickname: { uid } (id from nicknameId, so it ignores case)
+//   survival/{board}/scores/{uid}  a survival course's all-time board (v1.8.6), one per course version
+//                                  (board "<course id>-r<rev>"): { nickname, survived, strokes, toPar, time, pro, at }
 //
 // Trust: strokes, penalties, pick-ups and holes come from the replay. The time taken, the Pro setting
 // (outside Expert, which is always Pro) and the undo limit are the browser's word.
@@ -53,6 +55,7 @@ function dailyHole(day) {
 }
 
 const expert = (difficulty) => difficulty === "Expert";
+
 
 // First stroke of today's daily: the try is on record as a pick-up until it's finished,
 // so leaving and starting again doesn't give a second scored try
@@ -89,6 +92,8 @@ export const setNickname = onCall(async (request) => {
         tx.set(claimRef, { uid });
         tx.set(userRef, { nickname }, { merge: true });
     });
+    await Promise.all(courses.filter(c => c.survival).map(course =>
+        db.doc(`survival/${survivalBoard(course)}/scores/${uid}`).update({ nickname }).catch(() => {}))); // not on the board
     const ranked = await db.collection(`users/${uid}/daily`).where("ranked", "==", true).get();
     await Promise.all(ranked.docs.map(day =>
         db.doc(`dailies/${day.id}/scores/${uid}`).update({ nickname }).catch(() => {}))); // picked up: not listed
@@ -96,13 +101,15 @@ export const setNickname = onCall(async (request) => {
 });
 
 // A finished course round or daily hole: { kind: "course", courseId, rev, pro, holes } or
-// { kind: "daily", day, pro, guest, holes }, where holes is [{ clubs: [club ids], time }]
+// { kind: "daily", day, pro, guest, holes }, where holes is [{ clubs: [club ids], time }].
+// A survival course's round (v1.8.6) may stop at the hole that ended it; its best and its place on
+// the course's board go by holes survived, then strokes, then time.
 export const submitRound = onCall(async (request) => {
     const uid = signedIn(request);
     const { kind, pro = false } = request.data ?? {};
-    const replay = (holes) => {
+    const replay = (holes, options) => {
         try {
-            return replayRound(holes, request.data.holes);
+            return replayRound(holes, request.data.holes, options);
         } catch (error) {
             throw bad(`Round didn't replay: ${error.message}`);
         }
@@ -113,20 +120,28 @@ export const submitRound = onCall(async (request) => {
         const course = courses[index];
         if (!course) throw bad("Unknown course.");
         if (request.data.rev !== (course.rev ?? 1)) throw bad("This course has changed since the round was played.");
-        if (request.data.holes?.length !== course.holes.length) throw bad("Only full rounds count.");
-        const { totals } = replay(course.holes);
+        const survival = !!course.survival;
+        const { totals, over } = replay(course.holes, { survival });
+        if (totals.holes !== course.holes.length && !over) throw bad("Only full rounds count.");
         const isPro = !!pro || expert(course.difficulty);
         const key = isPro ? `${course.id}:pro` : course.id;
-        const record = { strokes: totals.strokes, toPar: totals.toPar, time: totals.time, rev: course.rev ?? 1 };
+        const record = { strokes: totals.strokes, toPar: totals.toPar, time: totals.time, rev: course.rev ?? 1, ...(survival && { survived: totals.survived }) };
 
         const userRef = db.doc(`users/${uid}`);
         const bests = (await userRef.get()).get("bests") ?? {};
         if (courseLock(courses, index, { signedIn: true, bests })) throw bad("This course isn't unlocked yet.");
+        // The board (survival) keeps each player's best, Pro or not. Reads first, as transactions need.
+        const entryRef = survival ? db.doc(`survival/${survivalBoard(course)}/scores/${uid}`) : null;
         const isBest = await db.runTransaction(async (tx) => {
-            const best = (await tx.get(userRef)).get(`bests.${key}`);
+            const [user, entry] = await Promise.all([tx.get(userRef), entryRef && tx.get(entryRef)]);
+            const best = user.get(`bests.${key}`);
             const better = !best || best.rev !== record.rev || compareRounds(record, best) < 0;
             tx.set(userRef.collection("rounds").doc(), { courseId: course.id, ...record, pro: isPro, at: FieldValue.serverTimestamp() });
             if (better) tx.set(userRef, { bests: { [key]: record } }, { merge: true });
+            if (entryRef && (!entry.exists || compareRounds(record, entry.data()) < 0)) {
+                const { survived, strokes, toPar, time } = record;
+                tx.set(entryRef, { nickname: user.get("nickname") ?? "Player", survived, strokes, toPar, time, pro: isPro, at: FieldValue.serverTimestamp() });
+            }
             return better;
         });
         return { totals, isBest };

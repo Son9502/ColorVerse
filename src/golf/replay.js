@@ -11,13 +11,15 @@ import { clubById } from "./clubs.js";
 const MAX_HOLE_MS = 60 * 60 * 1000; // a time is the player's word; clamp it to something sane
 
 // holes: the course's holes; played: one entry per hole, in order: { clubs: [club ids], time (ms) }.
-// Returns the replayed card ({ par, perfect, strokes, time, pickedUp } per hole) and its totals,
-// or throws an Error saying what didn't replay.
-export function replayRound(holes, played) {
+// Returns the replayed card ({ par, perfect, strokes, time, pickedUp } per hole), its totals (with
+// `survived` on a survival course) and `over` (a survival round that ended early), or throws an
+// Error saying what didn't replay. On a survival course (v1.8.6) nothing replays past the first
+// hole over par.
+export function replayRound(holes, played, { survival = false } = {}) {
     if (!Array.isArray(played) || played.length === 0 || played.length > holes.length) {
         throw new Error("wrong number of holes");
     }
-    const round = new GolfRound({ holes }, () => 0, { undos: 0 });
+    const round = new GolfRound({ holes, survival }, () => 0, { undos: 0 });
     played.forEach(({ clubs, time }, i) => {
         if (i > 0 && !round.nextHole()) throw new Error(`hole ${i + 1}: can't move on`);
         if (!Array.isArray(clubs) || clubs.length === 0 || clubs.length > round.maxStrokes) {
@@ -33,5 +35,5 @@ export function replayRound(holes, played) {
         round.card[i].time = Math.min(MAX_HOLE_MS, Math.max(0, Math.round(Number(time) || 0)));
     });
     const card = round.card.map(({ clubs, ...hole }) => hole);
-    return { card, totals: round.totals() };
+    return { card, totals: round.totals(), over: round.over };
 }

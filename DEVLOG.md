@@ -9,6 +9,28 @@ Each entry is tagged with how it was produced:
 
 ---
 
+## Milestone 31 — Survival: The Obsidian Gauntlet (v1.8.6) `[ai-assisted]`
+**2026-11-01**
+
+The last expansion course, from the agreed v1.8 spec; implementation `[ai-assisted]`.
+
+**Added**
+- `lights` (`holeMaker.js`): a lightness range beside `sats`, default 22–78% (the old fixed range), so every other course regenerates byte for byte (checked on seven covering every hole maker)
+- The Obsidian Gauntlet (`generateCourses.mjs`, seed 12, full spectrum, lightness 15–50%, `EAGLE_LAYOUT`, par 72, perfect 49): portal, mirror, ban, turning wind, roulette and flip holes in turn, three each, built with their own courses' makers (`GAUNTLET_HOLES`, `mix`); `survival: true` on the course
+- Survival (`game.js`): `GolfRound` ends at the first hole finished over par or picked up (`over`; `finished`; `nextHole` refuses), and its totals carry `survived`. `compareRounds` ranks holes survived first. `replayRound(holes, played, { survival })` returns `over` and refuses holes after the failure
+- Score server: a survival round may stop at the hole that ended it (any other short round is still refused); bests carry `survived`; a public board per course version, `survival/{course}-r{rev}/scores/{uid}` (`survivalBoard`), keeps each player's best, Pro or not, and follows nickname changes. Firestore rules let anyone read it; a composite index (survived desc, strokes, time) serves the top 10
+- Panel: no undos on the Gauntlet (the button hides); "Survival" in the hole info and as a term; "Round over: …" at the failing hole; the result says holes survived; the course card shows the survival best and an "All-time top 10"
+- Score card: more than three of one hazard on a hole shows one dot and the count (a portal maze has twelve), so the column stays narrow (Violet Vortex too)
+- Unlock: the Gauntlet needs −4 or better on Hexflip Hollow (provisional)
+
+**Verified**
+- Every hole: perfect matches the solver with its gimmick; the round plays the perfect route to the perfect score; think and golf-like checks pass; tees and pins all at lightness 15–50%; courses 1–11 unchanged byte for byte
+- `replayRound` (survival): a pick-up on hole 2 ends the round with 1 survived; a hole after it is refused; a perfect round is 18 survived, 49 strokes
+- Emulators: locked until the chain is unlocked; a round out on hole 3 saved (2 survived); a hole after the failure, and a round stopped without failing, refused; a worse round isn't a best; a second player's 6 survived ranks below 18; the board takes a new nickname
+- Headless Chrome: the card, "Survival" in the hole info, no undo, a pick-up ends the round ("0 of 18 holes survived"), the best on the card; no console errors
+
+---
+
 ## Milestone 30 — Flip: Hexflip Hollow (v1.8.5) `[ai-assisted]`
 **2026-11-01**
 

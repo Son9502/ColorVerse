@@ -249,6 +249,8 @@ Seven account-only courses after Royal Indigo, each built around one gimmick, th
 
 **Done:** v1.8.4 Scarlet Roulette: 18 roulette holes (330°–20°), par 72, perfect 49. A Roulette row's wheel spins through four hue shifts set per hole, one a second, and a stroke plays the one showing; keyboard players get the four as separate swatches. Changed from the spec's intent: the roulette is the way to the perfect score, not to par (a hue shift can save one stroke at most).
 
+**Done:** v1.8.6 The Obsidian Gauntlet: 18 holes in dark colors (lightness 15–50%), three of each gimmick in turn, par 72, perfect 49. Survival: finishing a hole over par (or picking up) ends the round; no undos. Bests and an all-time top 10 per course version (`survival/{course}-r{rev}/scores/{uid}`) rank holes survived, then strokes, then time. Unlocked by −4 or better on Hexflip Hollow (provisional).
+
 **Done:** v1.8.5 Hexflip Hollow: 18 flip holes (full spectrum), par 72, perfect 49. A Flip row of five swatches moves the color's hex digits left by 1–5 places. Without the flips each hole is two strokes longer, so par needs one on the par 3s and 4s (the spec's "way to par", which the roulette couldn't reach).
 
 **Order:** one course per release, each playable and committed before the next: v1.8.0 hole rules + Portals (Violet Vortex), v1.8.1 Mirror greens (Silverglass Greens), v1.8.2 Club bans (Caddie Strike), v1.8.3 Turning wind (Saffron Whirlwind), v1.8.4 Roulette (Scarlet Roulette), v1.8.5 Flip (Hexflip Hollow), v1.8.6 Survival (The Obsidian Gauntlet).
