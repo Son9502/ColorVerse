@@ -162,10 +162,10 @@ function roundMessage({ strokes, perfect, toPar }) {
     return "Every round teaches the clubs. Try again?";
 }
 
-// The end of a survival round (v1.8.6): through every hole, or where it ended and how it ranks
+// The end of a survival round (v1.8.6): through every hole, or where it ended
 function survivalMessage({ survived, holes, strokes, toPar, perfect }, length, last) {
     if (survived === length) return `Through the Gauntlet! ${strokes} strokes (${formatToPar(toPar)}).${strokes <= perfect ? " Perfect, too." : ""}`;
-    return `${last.pickedUp ? "Picked up" : "Over par"} on hole ${holes}, so the run ends here. Holes survived: ${survived}. Ties on holes survived go to fewer strokes, then the faster time.`;
+    return `${last.pickedUp ? "Picked up" : "Over par"} on hole ${holes} (survived ${survived} hole${survived === 1 ? "" : "s"})`;
 }
 
 // Saved in this browser only. localStorage can throw: fall back to nothing saved
