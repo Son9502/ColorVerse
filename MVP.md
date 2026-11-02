@@ -270,14 +270,13 @@ Developed on the `feature/1d-2d` branch.
 - **Shared state across dimensions:** a color picked in one dimension stays highlighted when you switch to another.
 
 ### Before v2.0: Housekeeping
-- **After merging v1.7–v1.8:** once GitHub Pages has deployed, run `npm run deploy:cloud` (score server, Firestore rules, the survival leaderboard index). Until then the live site can't save rounds (the server checks each course's version) and the top-10 boards don't load.
-- **Real-phone check on the live site:** Google sign-in in Safari on an iPhone (not yet tried on a device), a round in landscape, and the first-time golf walk-through (once per browser: use a private tab).
-- **Tune the unlock scores** (`UNLOCK_TO_PAR`, `unlocks.js`) by playing the chain: the expansion courses' are provisional (Saffron Whirlwind −6, Scarlet Roulette −4, Hexflip Hollow −4, The Obsidian Gauntlet −4), and the earlier ones come from simulated players, not real rounds.
-- **Playtest Expert by hand** (Cobalt Bay, Royal Indigo): its difficulty has only been measured by the solver, and par equals the perfect score on most holes, so a club audit found almost no slack.
-- Run the remaining v1 live checks (first load under 3 s, 10 shape switches).
-- **Merge `main` into `feature/1d-2d`** before any v2.0 work: about 76 commits behind after v1.8, with big changes to the panel, the 3-D view (layer slider, golf showcase), the CSS and the help. Expect conflicts in `index.html`, `index.css` and `3d-mode.js`.
-- **Unlock score for Cobalt Bay:** −5 on Verdant Pines (raised for the bigger 0.03 hole, then 3 strokes of grace); check it by hand, along with the Monochrome chain's (provisional).
-- **Calendar:** the weekly Gauntlet holes run out after the week of 27 Dec 2027 (`npm run weekly -- --until …`, and again with `--mono`) and the daily holes at the end of 2028 (`npm run daily -- --until …`, and again with `--mono`).
+1. **Merge and deploy:** merge `feature/expansion` into `main`; once GitHub Pages has deployed, run `npm run deploy:cloud` (score server, Firestore rules, the survival leaderboard index, which takes a few minutes to build). Until then the live site can't save rounds and the boards don't load.
+2. **Live-site check on a phone** (private tab, so it's a first visit): the first-time golf walk-through, a Monochrome round, the Monochrome daily and weekly, and one saved round. (Landscape play and Google sign-in in Safari: checked.)
+3. **Play and tune** `UNLOCK_TO_PAR` (`unlocks.js`): the color chain (Cobalt Bay −5, Royal Indigo +5, the expansion courses +7, 0, +1, −3, −1, −1, −1) and the Monochrome chain (Ash Point −6, then 0, 0, 0, +8: the roughest, since the simulated player can't judge grayscale).
+4. **Playtest Expert** (Cobalt Bay, Royal Indigo) by hand: measured only by the solver, and par equals the perfect score on most holes. Check the bigger 0.03 hole on Beginner and Standard feels right.
+5. Run the remaining v1 live checks (first load under 3 s, 10 shape switches).
+6. **Merge `main` into `feature/1d-2d`** before any v2.0 work: about 85 commits behind, with big changes to the panel, the 3-D view, the CSS and the help. Expect conflicts in `index.html`, `index.css` and `3d-mode.js`.
+- **Calendar (not a blocker):** the weekly Gauntlet holes, color and Monochrome, run out after the week of 27 Dec 2027 (`npm run weekly -- --until …` and with `--mono`), the daily holes at the end of 2028 (`npm run daily -- --until …` and with `--mono`).
 
 ### v1.7: Mobile and Accessibility ✓
 - **Phone layout:** under 760 px wide the page is one column: title, then the 3-D view (42% of the screen, staying at the top while the rest scrolls), then the controls or golf panel, then the harmonies. Bigger swatches (40 px). The viewport meta tag is in place, so phones no longer show the desktop page shrunk.
