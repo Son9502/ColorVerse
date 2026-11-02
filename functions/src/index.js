@@ -139,7 +139,7 @@ export const submitRound = onCall(async (request) => {
         const survival = !!course.survival;
         const { totals, over } = replay(course.holes, { survival });
         if (totals.holes !== course.holes.length && !over) throw bad("Only full rounds count.");
-        const isPro = !!pro || expert(course.difficulty);
+        const isPro = !!pro || (expert(course.difficulty) && !course.mono); // Monochrome Expert isn't forced Pro (v1.8.6)
         const key = isPro ? `${course.id}:pro` : course.id;
         const record = { strokes: totals.strokes, toPar: totals.toPar, time: totals.time, rev: course.rev ?? 1, ...(survival && { survived: totals.survived }) };
 

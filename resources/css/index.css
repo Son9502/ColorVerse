@@ -202,6 +202,10 @@ input:checked+.slider:before {
     .for-mouse {
         display: none !important;
     }
+
+    .golf-aimed::before {
+        content: "Tap again";
+    }
 }
 
 /* -----------------------------------------------
@@ -1513,12 +1517,44 @@ body.golf .club-type {
     color: #777;
 }
 
-.golf-section-title {
+.golf-section-title,
+.golf-courses-group {
     font-size: 0.8rem;
     font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: #666;
+}
+
+.golf-courses-group {
+    margin-top: 6px;
+    list-style: none;
+}
+
+/* Monochrome round (v1.8.6): everything that shows a color shows its gray value, so lightness is the
+   only clue; hex labels and color names give way to the club, as in Pro */
+body.golf-mono .square,
+body.golf-mono .golf-swatch,
+body.golf-mono #golf-path .swatch,
+body.golf-mono .golf-portal::before,
+body.golf-mono .golf-to-mirror::before,
+body.golf-mono #ui-canvas canvas {
+    filter: grayscale(1);
+}
+
+body.golf-mono .square-wrapper .square-label,
+body.golf-mono .square-name,
+body.golf-mono .golf-swatches .color-names-only,
+body.golf-mono #long .long-shift {
+    display: none;
+}
+
+body.golf-mono .square-wrapper::after {
+    content: attr(data-club);
+    margin-top: clamp(2px, 0.3vh, 6px);
+    font-size: clamp(0.7rem, 1.2vh, 1.1rem);
+    text-align: center;
+    white-space: nowrap;
 }
 
 /* Pro round: swatches are blank and labeled with the club (data-club from golf-ui.js) */
@@ -2060,7 +2096,7 @@ body.golf .golf-to-mirror::before {
 }
 
 .golf-aimed::before {
-    content: "Tap again";
+    content: "Click again";
     font-size: 0.6rem;
     font-weight: 700;
     white-space: nowrap;

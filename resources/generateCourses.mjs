@@ -195,6 +195,17 @@ const COURSES = [
     },
 ];
 
+// Monochrome (v1.8.6): gray copies of courses 1–5, the same holes played with every color in grayscale
+// (swatches, You and Target, the map), so lightness is the only clue. Copied from their color twins on
+// every run (same rev, so regenerating a twin regenerates its copy); their own unlock chain (`after`).
+const MONO = [
+    { id: "ash", name: "Ash Point", from: "prism", after: "prism" },
+    { id: "cinder", name: "Cinder Dunes", from: "ember", after: "ash" },
+    { id: "slate", name: "Slate Pines", from: "verdant", after: "cinder" },
+    { id: "graphite", name: "Graphite Bay", from: "cobalt", after: "slate" },
+    { id: "onyx", name: "Royal Onyx", from: "indigo", after: "graphite" },
+];
+
 const only = process.argv.slice(2); // optional: course ids to generate (others are kept from the current file)
 const existing = only.length ? JSON.parse(readFileSync(new URL("../src/golf/courses.json", import.meta.url))) : [];
 
@@ -216,6 +227,14 @@ const courses = COURSES.map(({ id, name, seed, rev, hues, sats, lights, survival
     if (survival) holes.splice(0, holes.length, ...easiestFirst(holes)); // a survival round gets harder as it goes
     return { id, name, ...(rev && { rev }), hues, difficulty, ...(survival && { survival }), ...(gimmick && { gimmick }), ...(tutorial && { tutorial }), holes };
 }).filter(Boolean);
+for (const { id, name, from, after } of MONO) {
+    const twin = courses.find(course => course.id === from);
+    courses.push({
+        id, name, ...(twin.rev && { rev: twin.rev }), hues: twin.hues, difficulty: twin.difficulty, mono: true, after,
+        gimmick: `Monochrome: ${twin.name}'s holes with every color in grayscale. Read lightness, not hue.`,
+        holes: twin.holes,
+    });
+}
 
 const out = new URL("../src/golf/courses.json", import.meta.url);
 // One hole per line, so course changes read clearly in a diff

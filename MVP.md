@@ -254,6 +254,8 @@ Seven account-only courses after Royal Indigo, each built around one gimmick, th
 
 **Done:** v1.8.6 The Obsidian Gauntlet: 18 holes in dark colors (lightness 15–50%), three of each gimmick in turn, par 72, perfect 49. Survival: finishing a hole over par (or picking up) ends the round; no undos. Bests and an all-time top 10 per course version (`survival/{course}-r{rev}/scores/{uid}`) rank holes survived, then strokes, then time. Unlocked by −4 or better on Hexflip Hollow (provisional). Holes play easiest first (by how many tee shots still leave par reachable).
 - **Weekly Gauntlet:** nine survival holes, the same for everyone, new each Monday (the player's local date). Every gimmick once plus three more, easiest first, built ahead into `weekly.json` (to 27 Dec 2027; `npm run weekly -- --until …` extends it). Unlimited tries, best run counts, one board per week; opens with The Obsidian Gauntlet.
+- **Monochrome courses:** Ash Point, Cinder Dunes, Slate Pines, Graphite Bay and Royal Onyx: the holes of courses 1–5 with every color (swatches, You and Target, the map) in grayscale, so lightness is the only clue. Their own bests and unlock chain from Prism Point; the Expert pair keep Expert's rules but aren't forced Pro.
+- **One click plays** a swatch on every device; blank swatches (Pro, Expert) aim first. Unlock scores got 3 strokes of grace.
 - **Phones and first visits (from playtesting):** a landscape layout (hole, swatches and map side by side), a layer slider with − / +, help and tour text written for touch, a ? panel that scrolls to its end, leaderboards as tables, the golf menu showing the full-color surface turning, and a first-time walk-through of the golf screen and the first hole.
 
 **Order:** one course per release, each playable and committed before the next: v1.8.0 hole rules + Portals (Violet Vortex), v1.8.1 Mirror greens (Silverglass Greens), v1.8.2 Club bans (Caddie Strike), v1.8.3 Turning wind (Saffron Whirlwind), v1.8.4 Roulette (Scarlet Roulette), v1.8.5 Flip (Hexflip Hollow), v1.8.6 Survival (The Obsidian Gauntlet).
@@ -273,7 +275,7 @@ Developed on the `feature/1d-2d` branch.
 - **Playtest Expert by hand** (Cobalt Bay, Royal Indigo): its difficulty has only been measured by the solver, and par equals the perfect score on most holes, so a club audit found almost no slack.
 - Run the remaining v1 live checks (first load under 3 s, 10 shape switches).
 - **Merge `main` into `feature/1d-2d`** before any v2.0 work: about 76 commits behind after v1.8, with big changes to the panel, the 3-D view (layer slider, golf showcase), the CSS and the help. Expect conflicts in `index.html`, `index.css` and `3d-mode.js`.
-- **Unlock score for Cobalt Bay:** raised from −4 to −8 on Verdant Pines when Beginner and Standard holes got the bigger 0.03 hole (a simulated player went from −4 to −9 there); check it by hand.
+- **Unlock score for Cobalt Bay:** −5 on Verdant Pines (raised for the bigger 0.03 hole, then 3 strokes of grace); check it by hand, along with the Monochrome chain's (provisional).
 - **Calendar:** the weekly Gauntlet holes run out after the week of 27 Dec 2027 (`npm run weekly -- --until …`) and the daily holes at the end of 2028 (`npm run daily -- --until …`).
 
 ### v1.7: Mobile and Accessibility ✓
