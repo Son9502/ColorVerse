@@ -585,46 +585,50 @@ export function setupGolf() {
         }
     });
 
-    // Daily leaderboard: top 10 for today, your entry in bold
-    const leaderboard = $("golf-leaderboard");
-    $("golf-leaderboard-toggle").addEventListener("click", async (event) => {
-        leaderboard.hidden = !leaderboard.hidden;
-        event.currentTarget.setAttribute("aria-expanded", String(!leaderboard.hidden));
-        if (leaderboard.hidden) return;
-        leaderboard.replaceChildren(Object.assign(document.createElement("li"), { textContent: "Loading…" }));
-        try {
-            const top = await cloud.dailyLeaderboard(dateKey());
-            const me = cloud.currentAccount()?.uid;
-            leaderboard.replaceChildren(...(top.length ? top.map(entry => {
-                const item = document.createElement("li");
-                item.className = entry.uid === me ? "me" : "";
-                item.textContent = `${entry.nickname}: ${entry.strokes} (${formatToPar(entry.toPar)}) · ${formatTime(entry.time)}${entry.pro ? " · Pro" : ""}`;
-                return item;
-            }) : [Object.assign(document.createElement("li"), { textContent: "No scores yet today. Be the first!" })]));
-        } catch {
-            leaderboard.replaceChildren(Object.assign(document.createElement("li"), { textContent: "Couldn't load the leaderboard." }));
-        }
-    });
+    // Daily leaderboard: today's top 10 (showBoard)
+    $("golf-leaderboard-toggle").addEventListener("click", (event) => showBoard($("golf-leaderboard"), event.currentTarget,
+        () => cloud.dailyLeaderboard(dateKey()),
+        [["Score", e => `${e.strokes} (${formatToPar(e.toPar)})`], ["Time", e => formatTime(e.time)]],
+        "No scores yet today. Be the first!"));
 
-    // Survival courses (v1.8.6): an all-time top 10 on the course card, your entry in bold
-    const showSurvivalBoard = async (course, list, toggle) => {
-        list.hidden = !list.hidden;
-        toggle.setAttribute("aria-expanded", String(!list.hidden));
-        if (list.hidden) return;
-        list.replaceChildren(Object.assign(document.createElement("li"), { textContent: "Loading…" }));
+    // A leaderboard under its card (the daily hole, a survival course, the weekly Gauntlet): the
+    // toggle opens it and loads the top 10 as a table, your row in bold. `columns` are [heading, entry → cell].
+    const showBoard = async (box, toggle, load, columns, empty) => {
+        box.hidden = !box.hidden;
+        toggle.setAttribute("aria-expanded", String(!box.hidden));
+        if (box.hidden) return;
+        const note = (text) => box.replaceChildren(Object.assign(document.createElement("p"), { className: "golf-board-note", textContent: text }));
+        note("Loading…");
         try {
-            const top = await cloud.survivalLeaderboard(survivalBoard(course));
+            const top = await load();
+            if (!top.length) return note(empty);
             const me = cloud.currentAccount()?.uid;
-            list.replaceChildren(...(top.length ? top.map(entry => {
-                const item = document.createElement("li");
-                item.className = entry.uid === me ? "me" : "";
-                item.textContent = `${entry.nickname}: ${entry.survived} of ${course.holes.length} holes · ${entry.strokes} strokes · ${formatTime(entry.time)}${entry.pro ? " · Pro" : ""}`;
-                return item;
-            }) : [Object.assign(document.createElement("li"), { textContent: "No rounds yet. Be the first!" })]));
+            const table = document.createElement("table");
+            table.className = "golf-board";
+            const row = (cells, tag, className = "") => {
+                const tr = document.createElement("tr");
+                tr.className = className;
+                tr.append(...cells.map(cell => Object.assign(document.createElement(tag), { textContent: cell })));
+                return tr;
+            };
+            table.append(
+                row(["#", "Player", ...columns.map(([heading]) => heading)], "th"),
+                ...top.map((entry, i) => {
+                    const tr = row([String(i + 1), entry.nickname, ...columns.map(([, cell]) => cell(entry))], "td", entry.uid === me ? "me" : "");
+                    if (entry.pro) tr.children[1].append(Object.assign(document.createElement("span"), { className: "golf-board-pro", textContent: "Pro" }));
+                    return tr;
+                }),
+            );
+            box.replaceChildren(table);
         } catch {
-            list.replaceChildren(Object.assign(document.createElement("li"), { textContent: "Couldn't load the leaderboard." }));
+            note("Couldn't load the leaderboard.");
         }
     };
+    // Survival courses and the weekly Gauntlet (v1.8.6): holes survived, then strokes, then time
+    const showSurvivalBoard = (course, box, toggle) => showBoard(box, toggle,
+        () => cloud.survivalLeaderboard(survivalBoard(course)),
+        [["Holes", e => `${e.survived}/${course.holes.length}`], ["Strokes", e => String(e.strokes)], ["Time", e => formatTime(e.time)]],
+        "No rounds yet. Be the first!");
 
     // Pro: the switch on the setup screen applies to the next round and picks which bests are shown
     const proSwitch = $("golf-pro");
@@ -729,7 +733,7 @@ export function setupGolf() {
                 ${course.gimmick ? `<span class="golf-best golf-gimmick">${termify(course.gimmick)}</span>` : ""}
                 ${locked ? `<span class="golf-best golf-lock">🔒 ${locked}</span>` : ""}
                 <button class="btn btn-primary" type="button"${locked ? " disabled" : ""}>Play</button>
-                ${course.survival && cloud.cloudAvailable ? `<button class="btn btn-link golf-leaderboard-toggle" type="button" aria-expanded="false">All-time top 10</button><ol class="golf-leaderboard" hidden></ol>` : ""}`;
+                ${course.survival && cloud.cloudAvailable ? `<button class="btn btn-link golf-leaderboard-toggle" type="button" aria-expanded="false">All-time top 10</button><div class="golf-leaderboard" hidden></div>` : ""}`;
             // The button spans every line of the card
             item.querySelector("button.btn-primary").style.gridRow = `1 / span ${3 + !!course.gimmick + !!locked}`;
             item.querySelector("button.btn-primary").addEventListener("click", () => startRound(course));

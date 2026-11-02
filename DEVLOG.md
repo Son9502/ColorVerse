@@ -30,6 +30,9 @@ The last expansion course, from the agreed v1.8 spec; implementation `[ai-assist
 - Survival's end message says what happened: "Over par on hole N, so the run ends here. Holes survived: …" (or "Picked up")
 - Layers on touch screens: a − / slider / + row under the layer box steps and drags through the layers live (the `[` `]` keys' job), and leaving the box (Done on a phone's number pad, which has no Enter) jumps to a typed layer
 - A layer typed but not jumped to no longer leaves its preview over the golf map: opening Color Golf clears the box
+- Survival's end message is just where it ended: "Picked up on hole 4 (survived 3 holes)" (or "Over par …")
+- Phones sideways (`@media (min-width: 761px) and (max-height: 520px)`): the page no longer scrolls (the 3-D view stays put; the left column scrolls by itself), a smaller title, 36 px swatches, and during a hole the left side splits into the hole and the swatches, each scrolling, beside the map. The hole puts the colors, meter, strokes and Next hole first; notes and lessons follow. Before, the hole filled all 390 px and the swatches got a 20 px strip
+- Leaderboards (daily, survival courses, weekly Gauntlet) are tables: rank, player with a Pro tag, then score or holes / strokes, and time, your row in bold (`showBoard`). Their toggles are outlined pills with an arrow
 
 **Verified**
 - Every hole: perfect matches the solver with its gimmick; the round plays the perfect route to the perfect score; think and golf-like checks pass; tees and pins all at lightness 15–50%; courses 1–11 unchanged byte for byte
