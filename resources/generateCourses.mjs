@@ -231,7 +231,7 @@ for (const { id, name, from, after } of MONO) {
     const twin = courses.find(course => course.id === from);
     courses.push({
         id, name, ...(twin.rev && { rev: twin.rev }), hues: twin.hues, difficulty: twin.difficulty, mono: true, after,
-        gimmick: `Monochrome: ${twin.name}'s holes with every color in grayscale. Read lightness, not hue.`,
+        gimmick: `Monochrome: ${twin.name}'s holes with the swatches in gray. Judge each shot by its lightness.`,
         holes: twin.holes,
     });
 }

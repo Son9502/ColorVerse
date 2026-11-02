@@ -6,7 +6,7 @@ import dailyList from "../../src/golf/daily.json";
 import weeklyList from "../../src/golf/weekly.json";
 import { replayRound } from "../../src/golf/replay.js";
 import { compareRounds, survivalBoard } from "../../src/golf/game.js";
-import { WEEK, daysBetween, weekday, weekOf } from "../../src/golf/daily.js";
+import { daysBetween, weekOf } from "../../src/golf/daily.js";
 import { courseLock } from "../../src/golf/unlocks.js";
 import { cleanNickname, nicknameId, nicknameProblem } from "../../src/cloud/nickname.js";
 
@@ -27,8 +27,8 @@ import { cleanNickname, nicknameId, nicknameProblem } from "../../src/cloud/nick
 //                                  (board "<course id>-r<rev>"; the weekly Gauntlet's "weekly-<Monday>-r1"):
 //                                  { nickname, survived, strokes, toPar, time, pro, at }
 //
-// Trust: strokes, penalties, pick-ups and holes come from the replay. The time taken, the Pro setting
-// (outside Expert, which is always Pro) and the undo limit are the browser's word.
+// Trust: strokes, penalties, pick-ups and holes come from the replay. The time taken, the Monochrome
+// setting (the `pro` field, from when it was Pro) and the undo limit are the browser's word.
 //
 // Daily hole: one try per account per day, and only a try started while signed in (startDaily on
 // its first stroke) is ranked. A guest's try sent on sign-in ({ guest: true }) counts as the day's
@@ -56,7 +56,6 @@ function dailyHole(day) {
     return { hole, live: offset >= -1 };
 }
 
-const expert = (difficulty) => difficulty === "Expert";
 
 // The weekly Gauntlet (v1.8.6) for the player's local date "YYYY-MM-DD": its Monday and nine holes.
 // Only the week that's on now counts (a day either side of UTC, as for the daily hole).
@@ -139,7 +138,7 @@ export const submitRound = onCall(async (request) => {
         const survival = !!course.survival;
         const { totals, over } = replay(course.holes, { survival });
         if (totals.holes !== course.holes.length && !over) throw bad("Only full rounds count.");
-        const isPro = !!pro || (expert(course.difficulty) && !course.mono); // Monochrome Expert isn't forced Pro (v1.8.6)
+        const isPro = !!pro; // Monochrome (was Pro): no course is forced into it (v1.8.6)
         const key = isPro ? `${course.id}:pro` : course.id;
         const record = { strokes: totals.strokes, toPar: totals.toPar, time: totals.time, rev: course.rev ?? 1, ...(survival && { survived: totals.survived }) };
 
@@ -168,7 +167,7 @@ export const submitRound = onCall(async (request) => {
         const { hole, live } = dailyHole(day);
         const { card } = replay([hole]);
         const result = card[0];
-        const isPro = !!pro || expert(WEEK[weekday(day)].difficulty);
+        const isPro = !!pro;
         const ref = db.doc(`users/${uid}/daily/${day}`);
         const userRef = db.doc(`users/${uid}`);
         const guest = request.data.guest !== false;

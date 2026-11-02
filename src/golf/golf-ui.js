@@ -18,9 +18,9 @@ import { runTour } from "../welcome.js";
 // Color Golf screen
 // ----------------------------------
 // body.golf hides the explore controls (search, sliders, help) and shows the putter row;
-// 3d-mode.js and dropdown.js skip canvas picking and Esc while it's set. body.golf-pro hides the
-// swatch colors in a Pro round. Three ways to play: a course (18 holes), the daily hole, practice.
-// Expert (any mode) is always Pro and hides the yardage until you're on the green.
+// 3d-mode.js and dropdown.js skip canvas picking and Esc while it's set. body.golf-mono shows the
+// swatches and the map in gray in a Monochrome round. Ways to play: a course, the daily hole, the weekly
+// Gauntlet, practice. Expert (any mode) hides the yardage until you're on the green.
 
 const BEST_KEY = "colorverse.golf.best.v2"; // v2: courses regenerated in v1.1.1, so older bests no longer apply
 const DAILY_KEY = "colorverse.golf.daily.v1"; // { "2026-10-28": { strokes, par, perfect, time, pickedUp, pro } }
@@ -652,7 +652,7 @@ export function setupGolf() {
                 row(["#", "Player", ...columns.map(([heading]) => heading)], "th"),
                 ...top.map((entry, i) => {
                     const tr = row([String(i + 1), entry.nickname, ...columns.map(([, cell]) => cell(entry))], "td", entry.uid === me ? "me" : "");
-                    if (entry.pro) tr.children[1].append(Object.assign(document.createElement("span"), { className: "golf-board-pro", textContent: "Pro" }));
+                    if (entry.pro) tr.children[1].append(Object.assign(document.createElement("span"), { className: "golf-board-pro", textContent: "Mono" }));
                     return tr;
                 }),
             );
@@ -667,7 +667,8 @@ export function setupGolf() {
         [["Holes", e => `${e.survived}/${course.holes.length}`], ["Strokes", e => String(e.strokes)], ["Time", e => formatTime(e.time)]],
         "No rounds yet. Be the first!");
 
-    // Pro: the switch on the setup screen applies to the next round and picks which bests are shown
+    // Monochrome (v1.8.6, was Pro; still "pro" in storage and on the server): the switch picks the
+    // courses listed (the Monochrome five or the color ones) and plays daily, weekly and practice in gray
     const proSwitch = $("golf-pro");
     proSwitch.checked = load(PRO_KEY, false);
     proSwitch.addEventListener("change", () => {
@@ -681,7 +682,7 @@ export function setupGolf() {
         const account = cloud.currentAccount();
         $("golf-settings-summary").textContent = [
             account && `signed in as ${account.nickname ?? account.email}`,
-            proSwitch.checked ? "Clubs (Pro)" : "Colors",
+            proSwitch.checked ? "Monochrome" : "Color",
             colorNamesOn() && "color names on",
         ].filter(Boolean).join(" · ");
     };
@@ -705,7 +706,7 @@ export function setupGolf() {
         exploringSpace ??= spaceToggle.checked;
         setSpaceToggle(true);
         document.body.classList.add("golf");
-        document.body.classList.remove("golf-pro", "golf-mono");
+        document.body.classList.remove("golf-mono");
         mergeLongShots(true);
         document.dispatchEvent(new CustomEvent("golfshowcase", { detail: "menu" })); // 3d-mode.js: the full-color surface, turning
         if (load(GOLF_WELCOMED_KEY, null) !== 1) { // first visit: offer the walk-through
@@ -734,7 +735,7 @@ export function setupGolf() {
         stopTimer();
         round = null;
         setMapState(null);
-        document.body.classList.remove("golf", "golf-pro", "golf-mono", "golf-menu");
+        document.body.classList.remove("golf", "golf-mono", "golf-menu");
         mergeLongShots(false);
         for (const box of clubs.keys()) box.closest(".square-wrapper")?.removeAttribute("title"); // golf's club names
         document.dispatchEvent(new CustomEvent("golfshowcase", { detail: "explore" })); // back to the explore layer
@@ -755,7 +756,10 @@ export function setupGolf() {
     };
 
     const renderCourses = () => {
+        // Monochrome on: only the Monochrome courses; off: only the color ones
+        $("golf-courses-title").textContent = proSwitch.checked ? "Monochrome courses" : "Courses";
         $("golf-courses").replaceChildren(...courses.flatMap((course, index) => {
+            if (!!course.mono !== proSwitch.checked) return [];
             const [from, to] = course.hues;
             const span = ((to - from + 359) % 360) + 1;
             const stops = course.mono
@@ -763,12 +767,11 @@ export function setupGolf() {
                 : Array.from({ length: 7 }, (_, i) => `hsl(${(from + (span * i) / 6) % 360}, 75%, 50%)`);
             const par = course.holes.reduce((sum, hole) => sum + hole.par, 0);
             const length = course.holes.reduce((sum, hole) => sum + yards(hole.tee, hole.target), 0);
-            const pro = proSwitch.checked || (isExpert(course.difficulty) && !course.mono);
-            const record = bestFor(course, pro);
+            const record = bestFor(course, false); // a Monochrome course keeps its bests under its own id
             const locked = lockText(index);
             const bestText = !record ? ""
-                : course.survival ? ` · ${pro ? "Pro best" : "best"} ${record.survived} of ${course.holes.length} holes, ${record.strokes} strokes, ${formatTime(record.time)}`
-                : ` · ${pro ? "Pro best" : "best"} ${record.strokes} (${formatToPar(record.toPar)}), ${formatTime(record.time)}`;
+                : course.survival ? ` · best ${record.survived} of ${course.holes.length} holes, ${record.strokes} strokes, ${formatTime(record.time)}`
+                : ` · best ${record.strokes} (${formatToPar(record.toPar)}), ${formatTime(record.time)}`;
 
             const item = document.createElement("li");
             item.className = locked ? "golf-course locked" : "golf-course";
@@ -785,10 +788,7 @@ export function setupGolf() {
             item.querySelector("button.btn-primary").addEventListener("click", () => startRound(course));
             item.querySelector(".golf-leaderboard-toggle")?.addEventListener("click", (event) =>
                 showSurvivalBoard(course, item.querySelector(".golf-leaderboard"), event.currentTarget));
-            // The Monochrome courses (v1.8.6) come after a heading of their own
-            if (!course.mono || courses[index - 1]?.mono) return [item];
-            const heading = Object.assign(document.createElement("li"), { className: "golf-courses-group", textContent: "Monochrome" });
-            return [heading, item];
+            return [item];
         }));
     };
 
@@ -806,13 +806,13 @@ export function setupGolf() {
             return;
         }
         const summary = hazardSummary(hole.hazards);
-        $("golf-daily-info").innerHTML = termify([name, difficulty, isExpert(difficulty) && "Pro", `par ${hole.par}`, `${yards(hole.tee, hole.target)} yds`, summary, hole.wind && "wind"]
+        $("golf-daily-info").innerHTML = termify([name, difficulty, `par ${hole.par}`, `${yards(hole.tee, hole.target)} yds`, summary, hole.wind && "wind"]
             .filter(Boolean).join(" · "));
         const results = loadDaily();
         const result = results[day];
         const run = streak(results, day);
         $("golf-daily-status").textContent = result
-            ? `Today: ${result.pickedUp ? "picked up" : scoreName(result.strokes, result.par)} (${result.strokes})${result.pro ? ", Pro" : ""} · streak ${run}`
+            ? `Today: ${result.pickedUp ? "picked up" : scoreName(result.strokes, result.par)} (${result.strokes})${result.pro ? ", Monochrome" : ""} · streak ${run}`
             : run ? `Streak ${run}: play today to keep it` : "Play today to start a streak";
         play.textContent = result ? "Replay" : "Play";
         play.disabled = false;
@@ -840,7 +840,7 @@ export function setupGolf() {
         const best = loadWeekly()[week];
         const locked = lockText(GAUNTLET) && "🔒 Unlock The Obsidian Gauntlet to play";
         $("golf-weekly-status").textContent = locked || (best
-            ? `Your best this week: ${best.survived} of ${course.holes.length} holes, ${best.strokes} strokes, ${formatTime(best.time)}${best.pro ? ", Pro" : ""}`
+            ? `Your best this week: ${best.survived} of ${course.holes.length} holes, ${best.strokes} strokes, ${formatTime(best.time)}${best.pro ? ", Monochrome" : ""}`
             : "No run yet this week");
         play.textContent = best ? "Play again" : "Play";
         play.disabled = !!locked;
@@ -931,10 +931,11 @@ export function setupGolf() {
         round.firstHole = from;
         taught = new Set();
         round.expert = isExpert(course.difficulty);
-        round.mono = !!course.mono; // Monochrome (v1.8.6): every color in grayscale, so not forced Pro
-        round.pro = proSwitch.checked || (round.expert && !round.mono);
-        round.hidesColor = round.pro || round.mono; // no hex values or color names in words
-        document.body.classList.toggle("golf-pro", round.pro);
+        // Monochrome (v1.8.6): a Monochrome course, or daily / weekly / practice with the switch on.
+        // `pro` files the scores apart (a Monochrome course has its own id, so it needn't)
+        round.mono = !!course.mono || (!["course", "test"].includes(mode) && proSwitch.checked);
+        round.pro = round.mono && !course.mono;
+        round.hidesColor = round.mono; // no hex values or color names for the swatches
         document.body.classList.toggle("golf-mono", round.mono);
         $("golf-card-toggle").hidden = mode !== "course";
         $("golf-card-toggle").setAttribute("aria-expanded", "false");
@@ -977,7 +978,7 @@ export function setupGolf() {
         const { hole, holeIndex } = round;
         const length = !round.expert && `${yards(hole.tee, hole.target)} yds`; // Expert: no yardage
         const summary = hazardSummary(hole.hazards);
-        const pro = round.pro && "Pro";
+        const pro = round.mono && "Monochrome";
         const firstShots = STANDARD_CLUBS.length - COPIES.size + (hole.rules?.roulette ? ROULETTE_SLOTS : 0) + (hole.rules?.flip ? FLIPS : 0);
         const line = hole.lines !== undefined && `perfect line ${hole.lines} of ${firstShots}`;
         let title, info;
@@ -994,7 +995,7 @@ export function setupGolf() {
         } else {
             const number = round.firstHole + holeIndex + 1; // test rounds can start partway
             title = `${mode === "test" ? "Test · " : ""}Hole ${number} · Par ${hole.par}`;
-            info = [round.course.name, `${number <= 9 ? "Front" : "Back"} 9`, length, summary, line, pro, round.mono && "Monochrome", round.survival && "Survival", mode === "test" && "not saved"];
+            info = [round.course.name, `${number <= 9 ? "Front" : "Back"} 9`, length, summary, line, pro, round.survival && "Survival", mode === "test" && "not saved"];
         }
         // A first-timer's first course: walk through the hole once it's drawn
         if (mode === "course" && holeIndex === 0 && load(COACH_KEY, 0) === 1) {
@@ -1023,7 +1024,6 @@ export function setupGolf() {
     // Current color, swatches (harmonies + putter), strokes, undo and the meter
     const renderPosition = (lie) => {
         const { current } = round;
-        aim(null);
         $("golf-you").style.backgroundColor = css(current);
         selectBaseColor(css(current), "", "golf", current);
         putterBoxes.forEach((box, index) => {
@@ -1072,14 +1072,14 @@ export function setupGolf() {
                 const hex = round.hidesColor ? "" : ` (${hslToHex(reflected)})`;
                 warps = round.expert ? ", lands on a mirror" : `, lands on a mirror: flips to${hex} ${out} yds from the pin`;
                 wrapper.dataset.mirror = round.expert ? "Mirror" : `⇄ ${out} yds`;
-                wrapper.style.setProperty("--reflect", round.pro ? "transparent" : css(reflected));
+                wrapper.style.setProperty("--reflect", css(reflected)); // gray in Monochrome (index.css)
             }
             if (portal) {
                 const out = yards(portal.exit, round.hole.target);
                 const hex = round.hidesColor ? "" : ` at ${hslToHex(portal.exit)}`;
                 warps = round.expert ? `, lands in a portal${hex}` : `, lands in a portal: comes out${hex}, ${out} yds from the pin`;
                 wrapper.dataset.portal = round.expert ? "Portal" : `→ ${out} yds`;
-                wrapper.style.setProperty("--exit", round.pro ? "transparent" : css(portal.exit));
+                wrapper.style.setProperty("--exit", css(portal.exit));
             }
             if (wrapper) wrapper.title = clubName(club) + (warps ? `: ${warps.slice(2)}` : ""); // the club, then where a warp leaves you
             box.setAttribute("aria-label", (round.hidesColor ? clubName(club) : `${clubName(club)}, ${box.dataset.name}`) + warps);
@@ -1269,7 +1269,7 @@ export function setupGolf() {
         replayToken++;
         $("golf-wind-badge").hidden = true;
         const totals = round.totals();
-        const pro = round.pro ? " · Pro" : "";
+        const pro = round.pro ? " · Monochrome" : "";
         if (mode === "daily") {
             const { clubs, ...result } = round.card[0];
             if (daily.scored) {
@@ -1431,14 +1431,6 @@ export function setupGolf() {
 
     // ---- Strokes: click or tap a swatch, or Enter / Space (keyboard) (v1.8.6: one click on every device) ----
     // Listeners use the capture phase, so harmony.js's explore-mode choosing never sees them.
-    // Blank swatches (Pro, and Expert, which is always Pro): the first click aims (the swatch is
-    // outlined), a second click on it plays, since a stray click on a blank swatch would cost a stroke.
-    let aimed = null; // square aimed at with a first tap
-    const aim = (square) => {
-        aimed?.closest(".square-wrapper")?.classList.remove("golf-aimed");
-        aimed = square;
-        aimed?.closest(".square-wrapper")?.classList.add("golf-aimed");
-    };
     const ui = $("ui-container");
     const inGame = () => document.body.classList.contains("golf");
     ui.addEventListener("dblclick", (event) => {
@@ -1449,8 +1441,7 @@ export function setupGolf() {
         if (!inGame() || !(clubs.has(square) || square === wheel)) return;
         event.stopPropagation();
         if (event.detail > 1 && lastPointerType() !== "touch") return; // a habitual double-click plays once
-        if (round?.pro && aimed !== square) aim(square);
-        else playSwatch(square);
+        playSwatch(square);
     }, { capture: true });
     ui.addEventListener("keydown", (event) => {
         const square = event.target.closest?.(".square");

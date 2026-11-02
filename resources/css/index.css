@@ -202,10 +202,6 @@ input:checked+.slider:before {
     .for-mouse {
         display: none !important;
     }
-
-    .golf-aimed::before {
-        content: "Tap again";
-    }
 }
 
 /* -----------------------------------------------
@@ -1126,10 +1122,6 @@ body.golf .explore-only {
     white-space: nowrap;
 }
 
-body.golf-pro #long .long-shift {
-    display: none;
-}
-
 /* The course screen and the score card: no clubs (golf-ui.js: show) */
 body.golf.golf-menu #ui-container {
     display: none;
@@ -1531,10 +1523,10 @@ body.golf .club-type {
     list-style: none;
 }
 
-/* Monochrome round (v1.8.6): everything that shows a color shows its gray value, so lightness is the
-   only clue; hex labels and color names give way to the club, as in Pro */
+/* Monochrome round (v1.8.6, replaces Pro's blank swatches): the swatches and the map show only their
+   gray value, so a shot's lightness is the only clue (You and Target keep their colors); the swatches'
+   hex labels and names give way to the club */
 body.golf-mono .square,
-body.golf-mono .golf-swatch,
 body.golf-mono #golf-path .swatch,
 body.golf-mono .golf-portal::before,
 body.golf-mono .golf-to-mirror::before,
@@ -1544,30 +1536,11 @@ body.golf-mono #ui-canvas canvas {
 
 body.golf-mono .square-wrapper .square-label,
 body.golf-mono .square-name,
-body.golf-mono .golf-swatches .color-names-only,
 body.golf-mono #long .long-shift {
     display: none;
 }
 
 body.golf-mono .square-wrapper::after {
-    content: attr(data-club);
-    margin-top: clamp(2px, 0.3vh, 6px);
-    font-size: clamp(0.7rem, 1.2vh, 1.1rem);
-    text-align: center;
-    white-space: nowrap;
-}
-
-/* Pro round: swatches are blank and labeled with the club (data-club from golf-ui.js) */
-body.golf-pro .square {
-    background-color: #e6e6e6 !important;
-    background-image: repeating-linear-gradient(45deg, transparent 0 4px, rgba(0, 0, 0, 0.06) 4px 8px);
-}
-
-body.golf-pro .square-wrapper .square-label {
-    display: none;
-}
-
-body.golf-pro .square-wrapper::after {
     content: attr(data-club);
     margin-top: clamp(2px, 0.3vh, 6px);
     font-size: clamp(0.7rem, 1.2vh, 1.1rem);
@@ -2089,20 +2062,7 @@ body.golf .golf-to-mirror::before {
     white-space: nowrap;
 }
 
-/* Expert on a touch screen: the first tap aims, a second tap plays (golf-ui.js) */
-.golf-aimed .square {
-    outline: 3px solid #f1c40f;
-    outline-offset: 3px;
-}
-
-.golf-aimed::before {
-    content: "Click again";
-    font-size: 0.6rem;
-    font-weight: 700;
-    white-space: nowrap;
-}
-
-/* Color names (color-names.js): only with the switch on, and never on Pro's blank swatches */
+/* Color names (color-names.js): only with the switch on, and never on Monochrome's gray swatches (below) */
 .square-name,
 .color-names-only {
     display: none;
@@ -2111,10 +2071,6 @@ body.golf .golf-to-mirror::before {
 body.color-names .square-name,
 body.color-names .color-names-only {
     display: block;
-}
-
-body.golf-pro .square-name {
-    display: none;
 }
 
 /* Names wrap to different heights: keep the swatches themselves in line */

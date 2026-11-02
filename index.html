@@ -153,9 +153,8 @@
                     </div>
                     <p>Make <strong>You</strong> match the <strong>Target</strong> in as few strokes as you can.
                         <span class="for-mouse">A stroke is a click on any swatch below (or <kbd>Enter</kbd> on a
-                        swatch reached with <kbd>Tab</kbd> and the arrow keys). With blank swatches (Pro and Expert), click
-                        once to aim and again to play.</span><span class="for-touch">A stroke is a tap on any swatch below.
-                        With blank swatches (Pro and Expert), tap once to aim and again to play.</span>
+                        swatch reached with <kbd>Tab</kbd> and the arrow keys).</span><span class="for-touch">A stroke is a
+                        tap on any swatch below.</span>
                         Each row is a club:</p>
                     <dl>
                         <dt>Long shots</dt><dd>Big jumps around the hue wheel, by how far: the Driver (+180°, straight
@@ -244,7 +243,7 @@
                                     <p id="golf-nickname-error" class="golf-error" role="alert" hidden></p>
                                 </form>
                             </div>
-                        <!-- Pro: Clubs hides the swatch colors (always on for Expert) -->
+                        <!-- Monochrome (v1.8.6, was Pro): gray swatches, the Monochrome courses -->
                         <!-- Color names (v1.7): the same setting as on the explore screen -->
                         <div class="field">
                             <span class="field-label">Color names</span>
@@ -256,20 +255,20 @@
                                 </label>
                                 <span>On</span>
                             </div>
-                            <span class="golf-sub">Names every color in words ("dark muted teal"), for anyone who finds colors hard to tell apart. Pro still hides the swatches' colors.</span>
+                            <span class="golf-sub">Names every color in words ("dark muted teal"), for anyone who finds colors hard to tell apart. Monochrome still hides the swatches' names.</span>
                         </div>
 
                         <div id="golf-swatch-mode" class="field">
-                            <span class="field-label">Swatches</span>
+                            <span class="field-label">Monochrome</span>
                             <div class="space-toggle">
-                                <span class="mode-colors">Colors</span>
+                                <span class="mode-colors">Color</span>
                                 <label class="switch">
-                                    <input type="checkbox" id="golf-pro" aria-label="Pro: show club names instead of colors">
+                                    <input type="checkbox" id="golf-pro" aria-label="Monochrome: swatches show only their lightness">
                                     <span class="slider"></span>
                                 </label>
-                                <span class="mode-clubs">Clubs (Pro)</span>
+                                <span class="mode-clubs">Monochrome</span>
                             </div>
-                            <span class="golf-sub">Clubs shows only each club (e.g. "+120°", "60%"). Expert always plays with Clubs; Pro scores are kept separately.</span>
+                            <span class="golf-sub">The swatches show only their lightness and the map turns gray (You and Target keep their colors). The courses become the Monochrome five (the first five's holes); daily, weekly and practice play this way too, with their scores kept apart.</span>
                         </div>
                         </div>
                     </details>
@@ -328,7 +327,7 @@
                         <button id="golf-practice-play" class="btn btn-primary" type="button">Play</button>
                     </div>
 
-                    <h3 class="golf-section-title">Courses</h3>
+                    <h3 id="golf-courses-title" class="golf-section-title">Courses</h3>
                     <ul id="golf-courses"></ul>
                     </div>
                 </div>
