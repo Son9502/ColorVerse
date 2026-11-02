@@ -43,12 +43,12 @@ In HSL, saturation also decreases toward the core, so inner layers converge on g
 
 ## Features
 
-- **Welcome + guided tour**: first-visit welcome and a spotlight tour of the controls, replayable from the `?` panel
+- **Welcome + guided tour**: first-visit welcome and a spotlight tour of the controls, replayable from the `?` panel; on touch screens the tour and help describe taps and pinches instead of keys
 - **Dimension selector**: switch between dimensional views (3-D in v1; 1-D/2-D planned)
 - **RGB ↔ HSL toggle**: animated cross-fade between color spaces on the 3-D object
 - **3-D Cube & Sphere**: both shapes support RGB and HSL
-- **128 nested layers**: navigate with `[` / `]` or type a layer number
-- **Layer preview**: typing a layer number shows a translucent, enlarged preview of that layer before you commit with `Enter`
+- **128 nested layers**: navigate with `[` / `]`, the layer slider and its − / + buttons, or type a layer number
+- **Layer preview**: typing a layer number shows a translucent, enlarged preview of that layer before you commit with `Enter` (or Done on a phone)
 - **Face snapping**: press `1`–`6` to snap to a face/axis with eased quaternion rotation
 - **Physics-based rotation**: mouse drag and arrow keys with velocity and friction
 - **Color picking**: click any point on the object to read its color via raycasting
@@ -57,7 +57,12 @@ In HSL, saturation also decreases toward the core, so inner layers converge on g
 - **Color search**: fuzzy autocomplete (Levenshtein distance) over ~3,200 named colors; clicking the empty box shows your last 10 searches
 - **Mini orientation viewport**: a small axis-gizmo object (bottom-right) that mirrors rotation, highlights the picked color's direction, and fades out when idle
 - **Progressive loading**: textures generate in a Web Worker with a progress bar and ETA
-- **Color Golf** (v1.1): get from a tee color to a target color in as few strokes as possible. Harmony rows are clubs, a putter row nudges, and par comes from a solver that knows the best route. 5 themed 18-hole courses from Beginner to Expert (Prism Point, Ember Dunes, Verdant Pines, Cobalt Bay, Royal Indigo), sand and water hazards, wind, birdies/eagles/an ace per course, yardage (OKLab distance × 1000), a live score card, a daily hole with streaks, endless practice, a Pro setting that hides swatch colors, and the 3-D shape as a map with a ball, flag, trail and hazard footprints
+- **Phones and accessibility** (v1.7): a one-column phone layout, a landscape layout with the hole, swatches and map side by side, touch play (tap, drag, pinch), keyboard play (Tab, arrows, Enter) and color names for every swatch
+- **Color Golf** (v1.1+): get from a tee color to a target color in as few strokes as possible. Harmony rows are clubs (the Driver, Woods and Hybrids share one Long shots row in golf), a putter row nudges, and par comes from a solver that knows the best route. Sand, water and black-hole hazards, wind, yardage (OKLab distance × 1000), a live score card, a Pro setting that hides swatch colors, and the 3-D shape as a map with a ball, flag, trail and hazard footprints
+  - **12 courses**: five themed courses from Beginner to Expert (Prism Point, Ember Dunes, Verdant Pines, Cobalt Bay, Royal Indigo), then a v1.8 expansion pack of seven, each built around one gimmick: portals (Violet Vortex), mirrors (Silverglass Greens), club bans (Caddie Strike), turning wind (Saffron Whirlwind), a spinning roulette swatch (Scarlet Roulette), hex-digit flips (Hexflip Hollow) and survival (The Obsidian Gauntlet: go over par and the run ends)
+  - **Daily hole** with streaks and a leaderboard, a **weekly Gauntlet** (nine survival holes, new each Monday, with its own board) and endless **practice**
+  - **Accounts** (v1.6, Firebase): scores saved across devices, courses unlocked in a chain by scoring well, server-checked rounds (the server replays every stroke), nicknames and top-10 leaderboards
+  - A first-time walk-through of the golf screen and the first hole, and highlighted words that explain each gimmick
 
 ---
 
@@ -68,6 +73,7 @@ In HSL, saturation also decreases toward the core, so inner layers converge on g
 - **WebGL / GLSL**: custom shaders for layer cross-fading, Blinn-Phong lighting, and pick highlights
 - **Web Workers**: off-main-thread pixel generation, with a main-thread fallback
 - **Vite**: dev server and build tool
+- **Firebase** (v1.6): Auth (Google, email and password, email link), Firestore (bests, daily results, leaderboards) and Cloud Functions (the score server, which replays rounds with the game's own code)
 - **Python** (`resources/colorTable.py`): one-off scraper used to build `public/named_colors.csv`
 
 ---
@@ -104,6 +110,18 @@ npm run dev
 
 Then open **`http://localhost:5173`**.
 
+Other scripts:
+
+| Command | What it does |
+|---------|--------------|
+| `npm run dev:unlocked` | Every course open, nothing sent to an account (test mode) |
+| `npm run dev -- --host` | Serve on your network too, to try the site on a phone (Google sign-in there needs the address in Firebase's authorized domains) |
+| `npm run emulators` + `npm run dev:cloud` | Firebase emulators and a dev server that uses them (accounts and scores without the real project) |
+| `npm run courses [-- <course ids>]` | Regenerate the Color Golf courses (all, or the ones named) into `src/golf/courses.json` |
+| `npm run daily -- --until YYYY-MM-DD` | Extend the daily holes (`daily.json`, currently to 2028) |
+| `npm run weekly -- --until YYYY-MM-DD` | Extend the weekly Gauntlet (`weekly.json`, currently to 27 Dec 2027) |
+| `npm run practice` | Rebuild the practice starter pool |
+
 ## Deployment
 
 The site deploys to GitHub Pages at **https://son9502.github.io/ColorVerse/** via [.github/workflows/deploy.yml](.github/workflows/deploy.yml) on every push to `main`. To test the production build locally:
@@ -112,6 +130,14 @@ The site deploys to GitHub Pages at **https://son9502.github.io/ColorVerse/** vi
 npm run build
 npm run preview   # serves dist/ at http://localhost:4173/ColorVerse/
 ```
+
+The score server, Firestore rules and indexes deploy separately, after the site:
+
+```bash
+npm run deploy:cloud   # Firebase project colorverse-9efa3 (npm run firebase -- login first)
+```
+
+Deploy them whenever course holes change: the server refuses rounds whose course version differs from its own.
 
 ---
 
@@ -152,8 +178,9 @@ See [MVP.md](MVP.md#roadmap-post-v1) for details.
 - [x] **v1.3:** Daily hole, practice by difficulty, Pro setting (no swatch previews)
 - [x] **v1.4:** Golf variety: layer peeling animation, "sand wedge only" on Expert courses, per-course par layouts
 - [x] **v1.5:** Engine cleanup: Three.js r128 → npm package; remove the unused `ShaderCache`
-- [ ] **v1.6:** Accounts + score database: cloud bests, daily streaks, leaderboards, server-checked scores
-- [ ] **v1.7:** Mobile and accessibility: tap to play, colour-blind mode, keyboard play
+- [x] **v1.6:** Accounts + score database: cloud bests, daily streaks, leaderboards, server-checked scores
+- [x] **v1.7:** Mobile and accessibility: phone layout, tap to play, keyboard play, color names
+- [x] **v1.8:** Color Golf expansion pack: seven gimmick courses, survival, a weekly Gauntlet, landscape phones and a first-time walk-through
 - [ ] **v2.0:** 1-D mode (single-channel gradient line) and 2-D mode (square/circle planes), with the picked color shared across dimensions
 - [ ] **v2.1:** Color Golf on a 2-D map (hue wheel or square slice)
 - [ ] **v2.2:** More 3-D shapes: HSL cylinder, HSV cone/bicone
@@ -181,6 +208,16 @@ See [MVP.md](MVP.md#roadmap-post-v1) for details.
 | Double-click | Reset rotation and zoom |
 | `Esc` | Close the help panel → cancel the text box you're in → back to Color Search (first that applies) |
 | `?` button (top-left of canvas) | Show all controls and tools |
+
+On a touch screen:
+
+| Gesture | Action |
+|---------|--------|
+| Drag (one finger) | Rotate object |
+| Pinch | Zoom |
+| Tap | Pick color (or play a swatch in Color Golf) |
+| Layer slider, − / + | Step through the layers |
+| Type a layer, then Done | Jump to that layer |
 
 ---
 

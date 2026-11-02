@@ -20,29 +20,41 @@ main.js              Bootstrap: wires toggle, dimension selector, search, harmon
 │   ├── categories.js         Collapsible harmony rows
 │   ├── help.js               ? button popover listing controls and tools
 │   ├── sliders.js            HSL/RGB sliders in the details card; follow the toggle
-│   ├── welcome.js            First-visit welcome modal + spotlight tour (localStorage flag)
+│   ├── welcome.js            First-visit welcome modal + spotlight tour; runTour(steps) for Color Golf's walk-throughs
+│   ├── color-names.js        Colors in words ("dark muted teal") for swatches and screen readers (v1.7)
+│   ├── pointer.js            Last pointer type (mouse / touch), for tap-to-play
 │   ├── LoaderManager.js      Loading overlay, progress bar, ETA
 │   ├── three-setup.js        Three.js (npm, r181) configured once; every module imports THREE from here
 │   ├── color-utils.js        Color math: HSL→RGB, gamma, cube/sphere color mapping (no Three.js: the texture worker imports it)
 │   └── utils.js              clamp, lerp
 │
+├── src/cloud/                ── Accounts (v1.6) ──
+│   ├── cloud.js              Firebase Auth + Firestore (loaded on demand), round queue, leaderboards
+│   ├── config.js             Firebase web config (public by design) and the emulator switch
+│   └── nickname.js           Nickname rules, shared with the server
+│
 ├── src/golf/                 ── Color Golf (v1.1+) ──
-│   ├── clubs.js              Every move a stroke can make (harmony rows + putter), wind drift, HSL packing
+│   ├── clubs.js              Every move a stroke can make: harmony rows, putter, roulette, flip; COPIES; wind; HSL packing
 │   ├── oklab.js              OKLab distance; in the hole / lip-out thresholds
-│   ├── hazards.js            Sand and water regions, cached "which hazard is this color in"
+│   ├── hazards.js            Sand, water, black holes, portals, mirrors; cached "which region is this color in"
+│   ├── rules.js              Hole rules that aren't regions: bans, turning wind, roulette, flip (v1.8)
+│   ├── replay.js             Replays a recorded round with GolfRound (the score server's check)
+│   ├── unlocks.js            Course lock chain and unlock scores
+│   ├── terms.js              Gimmick words that explain themselves (hover / tap)
 │   ├── solver.js             Breadth-first par solver over ≈3.7M whole-number HSL states
 │   ├── solver-worker.js      Perfect route for the end-of-hole replay, off the main thread
 │   ├── holeMaker.js          Builds one hole (tee, target, hazards, wind) from seeded random sequences
 │   ├── practice.js           One practice hole from a seed + settings (worker and pool generator)
 │   ├── practice-worker.js    Random practice holes, built off the main thread
-│   ├── daily.js              Daily hole rotation by weekday, dates, streaks
-│   ├── game.js               A round: strokes, penalties, undo, pick-up, score card
-│   ├── golf-ui.js            Game screen: daily / practice / course picker, Pro, panel, cards, replay
+│   ├── daily.js              Daily hole rotation by weekday, dates, streaks; weekly Gauntlet weeks
+│   ├── game.js               A round: strokes, penalties, undo, pick-up, survival, score card
+│   ├── golf-ui.js            Game screen: daily / weekly / practice / courses, Pro, panel, cards, replay, tours
 │   ├── map.js                Where a color sits on the shape; hazard footprints per layer
 │   ├── mapView.js            Ball, flag, trails, hazard patches and icons on the 3-D shape
 │   ├── mapState.js           Shared game → 3-D view state
 │   ├── courses.json          Generated courses (npm run courses)
 │   ├── daily.json            Generated daily holes to 2028-12-31 (npm run daily); loaded on first use
+│   ├── weekly.json           Generated weekly Gauntlets to the week of 2027-12-27 (npm run weekly); loaded on first use
 │   └── practice.json         Practice starter pool, 6 holes per setting (npm run practice)
 │
 └── src/3d/                   ── 3-D engine ──
@@ -62,11 +74,17 @@ main.js              Bootstrap: wires toggle, dimension selector, search, harmon
     ├── Preview/              Translucent "what layer N looks like" object
     └── Mini/                 Bottom-right orientation gizmo
 
+functions/src/index.js        Score server (Cloud Functions): replays rounds, saves bests, leaderboards, nicknames
+firestore.rules               Browser reads only its own data and the public boards; writes go through the server
+firestore.indexes.json        Leaderboard sort indexes (daily; survival: holes survived, strokes, time)
+
 public/named_colors.csv       ~3,200 named colors (name, hex, r, g, b)
 resources/colorTable.py       Scraper that produced the CSV (offline tool)
 resources/generateCourses.mjs Color Golf course generator (seeded; npm run courses)
 resources/generateDaily.mjs   Daily hole generator (one seed per date, parallel; npm run daily [-- --until YYYY-MM-DD])
 resources/generatePractice.mjs Practice starter pool generator (parallel; npm run practice)
+resources/generateWeekly.mjs  Weekly Gauntlet generator (one seed per Monday, parallel; npm run weekly [-- --until YYYY-MM-DD])
+resources/gimmicks.mjs        Expansion gimmick plans shared by the course and weekly generators; easiest-first ordering
 archive/smartCube.js          Pre-refactor monolithic cube (reference only, not imported)
 ```
 
@@ -212,7 +230,9 @@ requestAnimationFrame(update)
 Get from a tee color to a target color in as few strokes as possible; the harmony rows are clubs.
 
 - **State is whole-number HSL** (h 0–359, s and l 0–100), the values the swatches show. Every stroke rounds, so the game and the solver can never disagree about where a stroke lands, and the whole state space (≈3.7M) fits in typed arrays.
-- **Solver** (`solver.js`): breadth-first search from the tee over all 41 clubs (10 harmony rows + putter). Perfect = fewest strokes to land within OKLab 0.02 of the target. Hazards and wind keep it exact because they depend only on the current color: water landings are skipped (always 2 wasted strokes), sand allows wedges only, wind is a fixed drift per hole.
+- **Solver** (`solver.js`): breadth-first search from the tee over all 41 standard clubs (10 harmony rows + putter), plus a hole's roulette (4) or flips (5). Perfect = fewest strokes to land within OKLab 0.02 of the target. Hazards and wind keep it exact because they depend only on the current color: water landings are skipped (always 2 wasted strokes), sand allows wedges only, wind is a fixed drift per hole. A turning wind (v1.8.3) adds its place in the cycle to the state.
+- **The one rule for gimmicks** (v1.8): what a stroke does may depend only on the color, the hole and the stroke number. Regions (portals, black holes, mirrors) are hazards; everything else (bans, wind cycles, roulette shifts, flips) lives in `hole.rules`, read through `rules.js` by the round, the solver, the generator and the server alike.
+- **Club ids are append-only:** new clubs (roulette, flip) go at the end of `CLUBS`, and the three clubs that duplicate others (`COPIES`) stay in it, so every recorded round still replays. Golf shows the Driver, Woods and Hybrids as one Long shots row without the copies (the swatch elements move there on entering golf and back on leaving), and the perfect line counts distinct clubs (`perfectLine`); the generator's birdie-line bands still count every club, so holes don't change.
 - **Courses** are generated offline (`resources/generateCourses.mjs`, seeded) into `courses.json`: hole length follows par (yards = OKLab distance × 1000), difficulty is the *birdie line* (first shots that keep perfect reachable), and hazards and wind are placed from separate seeded sequences and kept only if every check still passes (perfect unchanged or +1 on a layup hole, finishable within par avoiding hazards, birdie line in range).
 - **Hole building** (`holeMaker.js`) is shared by both generators and the practice worker, so every hole, wherever it's made, passes the same checks.
 - **Daily hole** (v1.3): built ahead of time into `daily.json`, one hole per date from its own seed (`daily.js` holds the weekly rotation), so it's identical in every browser and the list can be extended without changing past days. One scored try: the first stroke saves a pick-up that finishing replaces. Results and streaks are in `localStorage`.
@@ -223,11 +243,25 @@ Get from a tee color to a target color in as few strokes as possible; the harmon
 - **Peel** (v1.4): `MainBase.peelTo(layer)` jumps straight to a layer and animates a see-through copy of the shell (built by each shape's `_shellParts`, sharing its geometry) lifting off or settling on. Golf strokes and typed layers use it; scroll and `]` / `[` keep setting `layerTarget` for the cross-fade.
 - **Solver speed**: `parFor` caches each search's OKLab colors; `reachesWithin` answers yes/no reach checks with an early exit and one reused scratch table. Both give exactly the answers of a full search, so generated holes don't change.
 - **Map** (`map.js`, `mapView.js`): markers are placed by searching the same functions that draw the textures, so they match what's drawn. Hazard footprints are traced on the layer being viewed (the layer's colors inside the hazard), so the ball is inside a patch exactly when it's in that hazard.
-- **Game ↔ view**: the game screen never touches Three.js objects; it sets `mapState`, and `3d-mode.js` hands that to `GolfMapView`. A rebuilt or still-loading view reads the current state on creation.
+- **Game ↔ view**: the game screen never touches Three.js objects; it sets `mapState`, and `3d-mode.js` hands that to `GolfMapView`. A rebuilt or still-loading view reads the current state on creation. `golfshowcase` events ("menu", "play", "explore") turn the full-color surface slowly on the golf menu and put the explore layer back on leaving.
+- **Holes that make you think** (v1.8.2): `thinks` (the tee shots that end closest to the pin never keep the perfect score) and `playsLikeGolf` (a perfect route putts only near the pin and never drives into the hole) are checked on every hole of every course but Prism Point.
+- **Survival** (v1.8.6): a course with `survival: true` ends at the first hole finished over par (`GolfRound.over`), totals carry `survived`, and `compareRounds` ranks holes survived first. The Obsidian Gauntlet's holes are sorted easiest first by `parLine` (tee shots that still leave par reachable). The weekly Gauntlet is a survival course built per Monday into `weekly.json`.
+- **Layouts** (`index.css`): desktop (panel left, canvas right), phones under 760 px (one column, canvas sticky at the top) and phones sideways (`min-width: 761px and max-height: 520px`: the page never scrolls; during a hole the left side splits into the hole and the swatches). Help text written for the device uses `.for-touch` / `.for-mouse` on `(hover: none) and (pointer: coarse)`.
 
 ---
 
-## 8. Design Decisions
+## 8. Accounts and the Score Server
+
+- **Trust:** the browser never writes scores (`firestore.rules`). It sends the clubs played on each hole; `submitRound` replays them with `replay.js` (the game's own `GolfRound`), so strokes, penalties and pick-ups come from the same code the game runs. Time, Pro and the undo count are the browser's word.
+- **Course versions:** a course's `rev` must match the server's, so regenerated holes need `npm run deploy:cloud`.
+- **Unlocks:** `courseLock` (`unlocks.js`) is shared by the course screen and the server: the first three courses are open, each later one needs an account and a round at its unlock score on the course before. The weekly Gauntlet opens with The Obsidian Gauntlet.
+- **Firestore layout:** `users/{uid}` (nickname, bests), `users/{uid}/rounds`, `users/{uid}/daily/{day}`, `dailies/{day}/scores/{uid}` (daily board), `survival/{board}/scores/{uid}` (`<course>-r<rev>` or `weekly-<Monday>-r1`), `nicknames/{id}`.
+- **Offline and guests:** rounds finished signed out or offline wait in a localStorage queue and are sent on sign-in. The Firebase SDK loads only when Color Golf opens or the browser was signed in before.
+- **Testing:** `npm run emulators` + `npm run dev:cloud` runs everything against a throwaway demo project. Tester accounts (`tester: true` on `users/{uid}`, set by hand) open every course and a test-a-hole picker, and send nothing.
+
+---
+
+## 9. Design Decisions
 
 | Decision | Why |
 |----------|-----|
@@ -239,12 +273,16 @@ Get from a tee color to a target color in as few strokes as possible; the harmon
 | Daily holes pre-built, not generated in the browser | Browsers may round `Math.cbrt`/`Math.pow` differently, which could change a borderline hole; a shipped list is identical everywhere, instant, and checkable by a future score server |
 | Golf courses generated offline | Generation runs the solver thousands of times (minutes); shipping a seeded JSON makes courses instant and identical for everyone |
 | Golf map markers found by search, not inverse formulas | One search over the texture functions works for every shape and color space, and can't drift from what's drawn |
+| Scores replayed on the server, not trusted | The replay is the game's own code, so a cheated score can't pass and the rules can't drift between browser and server |
+| Gimmicks limited to what depends on color, hole and stroke number | Keeps the solver exact and every round replayable; random bounces or gusts would break both |
 
 ---
 
-## 9. Known Issues / Tech Debt
+## 10. Known Issues / Tech Debt
 
 | Area | Issue |
 |------|-------|
 | Color management | Three.js's automatic sRGB ↔ linear conversion is switched off (`three-setup.js`) and the renderer writes pixels as-is, matching r128: the shaders convert colors themselves and sprites must show exact CSS colors. New built-in materials or textures follow the same rule (no `colorSpace` flags) |
 | RGB sphere | It sits inside the RGB cube, so the most vivid colors aren't on any layer. Color Golf avoids it by switching the map to HSL during a game (v1.2.1) |
+| `feature/1d-2d` | About 76 commits behind `main` after v1.8; merge `main` into it before v2.0 work |
+| Google sign-in | Uses a popup, which needs the site's address in Firebase's authorized domains (a computer's Wi-Fi address isn't, when testing on a phone); not yet tried in Safari on a real iPhone |
