@@ -43,6 +43,11 @@ export const daySeed = (key) => Number(key.replaceAll("-", ""));
 export const WEEKLY_START = "2026-10-26"; // a Monday (the week v1.8.6 was built)
 export const weekOf = (key) => addDays(WEEKLY_START, Math.floor(daysBetween(WEEKLY_START, key) / 7) * 7);
 
+// Monochrome (v1.8.6) has a daily hole and a weekly Gauntlet of its own (daily-mono.json,
+// weekly-mono.json), with their own tries and boards: these name them
+export const dailyKey = (day, mono) => (mono ? `${day}-mono` : day); // the day's result and board
+export const weeklyId = (week, mono) => `weekly${mono ? "-mono" : ""}-${week}`; // the week's course id (and board)
+
 // "Wed 28 Oct"
 export function dayLabel(key) {
     return new Date(Date.parse(key)).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });

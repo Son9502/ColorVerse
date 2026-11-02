@@ -5,7 +5,7 @@ import { cupOf, hslDistance, hslToHex } from "./oklab.js";
 import { harmonySets, selectBaseColor, clearBaseColor, addNameLabel } from "../harmony.js";
 import { describeColor, colorNamesOn } from "../color-names.js";
 import { setMapState } from "./mapState.js";
-import { WEEK, dateKey, daysBetween, addDays, dayLabel, weekday, weekOf, streak } from "./daily.js";
+import { WEEK, dateKey, daysBetween, addDays, dayLabel, weekday, weekOf, streak, dailyKey, weeklyId } from "./daily.js";
 import { poolKey, PARS } from "./practice.js";
 import { courseLock, unlockToPar, unlockedBy } from "./unlocks.js";
 import { windFor } from "./rules.js";
@@ -234,9 +234,13 @@ function saveBest(course, pro, totals) {
     return true;
 }
 
-// Daily results by date. The first stroke of a scored try saves a pick-up (double par), which
-// finishing the hole replaces, so quitting or reloading can't buy a second try.
+// Daily results by date (Monochrome's under "<day>-mono", daily.js: dailyKey). The first stroke of a
+// scored try saves a pick-up (double par), which finishing the hole replaces, so quitting or
+// reloading can't buy a second try.
 const loadDaily = () => load(scoped(DAILY_KEY), {});
+// One mode's results by plain date, for its streak
+const dailyResults = (mono) => Object.fromEntries(Object.entries(loadDaily()).flatMap(([key, result]) =>
+    key.endsWith("-mono") === mono ? [[mono ? key.slice(0, -5) : key, result]] : []));
 function saveDaily(day, result) {
     save(scoped(DAILY_KEY), { ...loadDaily(), [day]: result });
 }
@@ -266,13 +270,16 @@ function mergeCloudScores({ bests, daily }) {
 const playedHoles = (card) => card.map(({ clubs, time }) => ({ clubs, time: Math.round(time) }));
 
 // The weekly Gauntlet (v1.8.6): the week's nine holes (weekly.json loads on first use) as a
-// survival course, and this browser's best run each week
-let weeklyList = null;
-async function weeklyCourse(week) {
-    const { start, weeks } = await (weeklyList ??= import("./weekly.json").then(module => module.default));
+// survival course, and this browser's best run each week. Monochrome has its own (weekly-mono.json),
+// with its own best (under "<Monday>-mono") and board.
+const weeklyLists = {};
+async function weeklyCourse(week, mono) {
+    const file = mono ? import("./weekly-mono.json") : import("./weekly.json");
+    const { start, weeks } = await (weeklyLists[mono] ??= file.then(module => module.default));
     const holes = weeks[daysBetween(start, week) / 7];
-    return holes ? { id: `weekly-${week}`, name: "Weekly Gauntlet", difficulty: "Expansion", survival: true, week, holes } : null;
+    return holes ? { id: weeklyId(week, mono), name: "Weekly Gauntlet", difficulty: "Expansion", survival: true, week, mono, holes } : null;
 }
+const weeklyBestKey = (week, mono) => (mono ? `${week}-mono` : week);
 const loadWeekly = () => load(scoped(WEEKLY_KEY), {});
 function saveWeekly(week, totals, pro) {
     const weeks = loadWeekly();
@@ -282,11 +289,11 @@ function saveWeekly(week, totals, pro) {
     return true;
 }
 
-// The daily list loads on first use (it's a few hundred kB), then stays
-let dailyList = null;
-const loadDailyList = () => (dailyList ??= import("./daily.json").then(module => module.default));
-async function todaysHole(day = dateKey()) {
-    const { start, holes } = await loadDailyList();
+// The daily list loads on first use (it's a few hundred kB), then stays; Monochrome's is its own
+const dailyLists = {};
+async function todaysHole(day = dateKey(), mono = false) {
+    const file = mono ? import("./daily-mono.json") : import("./daily.json");
+    const { start, holes } = await (dailyLists[mono] ??= file.then(module => module.default));
     return holes[daysBetween(start, day)] ?? null;
 }
 
@@ -624,7 +631,7 @@ export function setupGolf() {
 
     // Daily leaderboard: today's top 10 (showBoard)
     $("golf-leaderboard-toggle").addEventListener("click", (event) => showBoard($("golf-leaderboard"), event.currentTarget,
-        () => cloud.dailyLeaderboard(dateKey()),
+        () => cloud.dailyLeaderboard(dailyKey(dateKey(), proSwitch.checked)), // the board for the switch's mode
         [["Score", e => `${e.strokes} (${formatToPar(e.toPar)})`], ["Time", e => formatTime(e.time)]],
         "No scores yet today. Be the first!"));
 
@@ -676,6 +683,8 @@ export function setupGolf() {
     proSwitch.addEventListener("change", () => {
         save(PRO_KEY, proSwitch.checked);
         document.body.classList.toggle("golf-mono-switch", proSwitch.checked);
+        renderDaily(); // the switch picks which daily hole and weekly Gauntlet the cards show
+        renderWeekly();
         renderCourses();
         settingsSummary();
     });
@@ -802,7 +811,11 @@ export function setupGolf() {
         const { name, difficulty } = WEEK[weekday(day)];
         $("golf-daily-date").textContent = `· ${dayLabel(day)}`;
         play.disabled = true;
-        const hole = await todaysHole(day).catch(() => null);
+        const mono = proSwitch.checked; // Monochrome: its own hole, result, streak and board
+        $("golf-daily-title").textContent = mono ? "Monochrome daily hole" : "Daily hole";
+        $("golf-leaderboard").hidden = true;
+        $("golf-leaderboard-toggle").setAttribute("aria-expanded", "false");
+        const hole = await todaysHole(day, mono).catch(() => null);
         if (!hole) {
             $("golf-daily-info").textContent = "No daily hole today. Check back after the next update.";
             $("golf-daily-status").textContent = "";
@@ -811,11 +824,11 @@ export function setupGolf() {
         const summary = hazardSummary(hole.hazards);
         $("golf-daily-info").innerHTML = termify([name, difficulty, `par ${hole.par}`, `${yards(hole.tee, hole.target)} yds`, summary, hole.wind && "wind"]
             .filter(Boolean).join(" · "));
-        const results = loadDaily();
+        const results = dailyResults(mono);
         const result = results[day];
         const run = streak(results, day);
         $("golf-daily-status").textContent = result
-            ? `Today: ${result.pickedUp ? "picked up" : scoreName(result.strokes, result.par)} (${result.strokes})${result.pro ? ", Monochrome" : ""} · streak ${run}`
+            ? `Today: ${result.pickedUp ? "picked up" : scoreName(result.strokes, result.par)} (${result.strokes}) · streak ${run}`
             : run ? `Streak ${run}: play today to keep it` : "Play today to start a streak";
         play.textContent = result ? "Replay" : "Play";
         play.disabled = false;
@@ -828,9 +841,11 @@ export function setupGolf() {
         const week = weekOf(day);
         const play = $("golf-weekly-play");
         const toggle = $("golf-weekly-board-toggle");
+        const mono = proSwitch.checked; // Monochrome: its own nine holes, best and board
         $("golf-weekly-date").textContent = `· week of ${dayLabel(week)}`;
+        $("golf-weekly-title").textContent = mono ? "Monochrome weekly Gauntlet" : "Weekly Gauntlet";
         play.disabled = true;
-        const course = await weeklyCourse(week).catch(() => null);
+        const course = await weeklyCourse(week, mono).catch(() => null);
         if (!course) {
             $("golf-weekly-info").textContent = "No Gauntlet this week. Check back after the next update.";
             $("golf-weekly-status").textContent = "";
@@ -840,10 +855,10 @@ export function setupGolf() {
         const par = course.holes.reduce((sum, hole) => sum + hole.par, 0);
         const left = daysBetween(day, addDays(week, 7));
         $("golf-weekly-info").innerHTML = termify(["Expansion", "Survival", `${course.holes.length} holes`, `par ${par}`, `new holes in ${left} day${left === 1 ? "" : "s"}`].join(" · "));
-        const best = loadWeekly()[week];
+        const best = loadWeekly()[weeklyBestKey(week, mono)];
         const locked = lockText(GAUNTLET) && "🔒 Unlock The Obsidian Gauntlet to play";
         $("golf-weekly-status").textContent = locked || (best
-            ? `Your best this week: ${best.survived} of ${course.holes.length} holes, ${best.strokes} strokes, ${formatTime(best.time)}${best.pro ? ", Monochrome" : ""}`
+            ? `Your best this week: ${best.survived} of ${course.holes.length} holes, ${best.strokes} strokes, ${formatTime(best.time)}`
             : "No run yet this week");
         play.textContent = best ? "Play again" : "Play";
         play.disabled = !!locked;
@@ -854,7 +869,7 @@ export function setupGolf() {
         toggle.onclick = () => showSurvivalBoard(course, list, toggle);
     };
     const startWeekly = async () => {
-        const course = await weeklyCourse(weekOf(dateKey()));
+        const course = await weeklyCourse(weekOf(dateKey()), proSwitch.checked);
         if (!course || setup.hidden) return;
         weekly = course;
         startRound(course, "weekly");
@@ -862,10 +877,12 @@ export function setupGolf() {
 
     const startDaily = async () => {
         const day = dateKey();
-        const hole = await todaysHole(day);
+        const mono = proSwitch.checked;
+        const hole = await todaysHole(day, mono);
         if (!hole || setup.hidden) return; // none today, or left the setup screen meanwhile
-        daily = { day, scored: !loadDaily()[day] && !testing(), started: false }; // a tester's daily is never scored
-        startRound({ id: "daily", name: "Daily hole", difficulty: WEEK[weekday(day)].difficulty, holes: [hole] }, "daily");
+        daily = { day, mono, key: dailyKey(day, mono), started: false };
+        daily.scored = !loadDaily()[daily.key] && !testing(); // a tester's daily is never scored
+        startRound({ id: "daily", name: mono ? "Monochrome daily hole" : "Daily hole", difficulty: WEEK[weekday(day)].difficulty, holes: [hole] }, "daily");
     };
 
     // Practice: the first hole comes from the starter pool; each next one is built while you play
@@ -1276,11 +1293,11 @@ export function setupGolf() {
         if (mode === "daily") {
             const { clubs, ...result } = round.card[0];
             if (daily.scored) {
-                saveDaily(daily.day, { ...result, pro: round.pro });
-                sendRound({ kind: "daily", day: daily.day, pro: round.pro, holes: playedHoles(round.card) });
+                saveDaily(daily.key, { ...result, pro: round.pro });
+                sendRound({ kind: "daily", day: daily.day, mono: daily.mono, pro: round.pro, holes: playedHoles(round.card) });
             }
-            const run = streak(loadDaily(), daily.day);
-            $("golf-round-title").textContent = `Daily hole: ${result.pickedUp ? "Picked up" : scoreName(result.strokes, result.par)}`;
+            const run = streak(dailyResults(daily.mono), daily.day);
+            $("golf-round-title").textContent = `${daily.mono ? "Monochrome daily hole" : "Daily hole"}: ${result.pickedUp ? "Picked up" : scoreName(result.strokes, result.par)}`;
             $("golf-round-message").hidden = true;
             $("golf-round-info").textContent = `${result.strokes} strokes · Par ${result.par} · Perfect ${result.perfect} · ${formatTime(result.time)}${pro} · ${
                 daily.scored ? `Streak ${run}` : "Replay, not scored"}`;
@@ -1288,9 +1305,9 @@ export function setupGolf() {
             $("golf-again").textContent = "Color Golf menu";
         } else if (mode === "weekly") {
             const length = round.course.holes.length;
-            const isBest = !testing() && saveWeekly(weekly.week, totals, round.pro);
-            sendRound({ kind: "weekly", day: dateKey(), pro: round.pro, holes: playedHoles(round.card) });
-            $("golf-round-title").textContent = `Weekly Gauntlet: ${totals.survived} of ${length} holes survived`;
+            const isBest = !testing() && saveWeekly(weeklyBestKey(weekly.week, weekly.mono), totals, round.pro);
+            sendRound({ kind: "weekly", day: dateKey(), mono: weekly.mono, pro: round.pro, holes: playedHoles(round.card) });
+            $("golf-round-title").textContent = `${weekly.mono ? "Monochrome weekly Gauntlet" : "Weekly Gauntlet"}: ${totals.survived} of ${length} holes survived`;
             $("golf-round-message").textContent = survivalMessage(totals, length, round.card.at(-1));
             $("golf-round-message").hidden = false;
             $("golf-round-info").textContent = `${totals.strokes} strokes (${formatToPar(totals.toPar)}) · Par ${totals.par} · ${formatTime(totals.time)}${pro}${isBest ? " · Your best this week!" : ""}`;
@@ -1464,8 +1481,8 @@ export function setupGolf() {
             // Today's try has started: it counts as a pick-up unless the hole is finished
             daily.started = true;
             const { par, perfect } = round.hole;
-            saveDaily(daily.day, { par, perfect, strokes: par * 2, time: 0, pickedUp: true, pro: round.pro });
-            cloud.startDaily(daily.day, round.pro);
+            saveDaily(daily.key, { par, perfect, strokes: par * 2, time: 0, pickedUp: true, pro: round.pro });
+            cloud.startDaily(daily.day, round.pro, daily.mono);
         }
         renderPosition(lie);
         if (round.holeDone) endHole();

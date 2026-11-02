@@ -118,8 +118,8 @@ Other scripts:
 | `npm run dev -- --host` | Serve on your network too, to try the site on a phone (Google sign-in there needs the address in Firebase's authorized domains) |
 | `npm run emulators` + `npm run dev:cloud` | Firebase emulators and a dev server that uses them (accounts and scores without the real project) |
 | `npm run courses [-- <course ids>]` | Regenerate the Color Golf courses (all, or the ones named) into `src/golf/courses.json` |
-| `npm run daily -- --until YYYY-MM-DD` | Extend the daily holes (`daily.json`, currently to 2028) |
-| `npm run weekly -- --until YYYY-MM-DD` | Extend the weekly Gauntlet (`weekly.json`, currently to 27 Dec 2027) |
+| `npm run daily -- --until YYYY-MM-DD [--mono]` | Extend the daily holes (`daily.json`, or the Monochrome ones in `daily-mono.json`; currently to 2028) |
+| `npm run weekly -- --until YYYY-MM-DD [--mono]` | Extend the weekly Gauntlet (`weekly.json`, or `weekly-mono.json`; currently to 27 Dec 2027) |
 | `npm run practice` | Rebuild the practice starter pool |
 
 ## Deployment

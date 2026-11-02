@@ -55,6 +55,8 @@ main.js              Bootstrap: wires toggle, dimension selector, search, harmon
 │   ├── courses.json          Generated courses (npm run courses)
 │   ├── daily.json            Generated daily holes to 2028-12-31 (npm run daily); loaded on first use
 │   ├── weekly.json           Generated weekly Gauntlets to the week of 2027-12-27 (npm run weekly); loaded on first use
+│   ├── daily-mono.json       Monochrome daily holes (other seeds; npm run daily -- --mono), from 2026-11-02
+│   ├── weekly-mono.json      Monochrome weekly Gauntlets (npm run weekly -- --mono)
 │   └── practice.json         Practice starter pool, 6 holes per setting (npm run practice)
 │
 └── src/3d/                   ── 3-D engine ──
@@ -256,7 +258,7 @@ Get from a tee color to a target color in as few strokes as possible; the harmon
 - **Trust:** the browser never writes scores (`firestore.rules`). It sends the clubs played on each hole; `submitRound` replays them with `replay.js` (the game's own `GolfRound`), so strokes, penalties and pick-ups come from the same code the game runs. Time, Pro and the undo count are the browser's word.
 - **Course versions:** a course's `rev` must match the server's, so regenerated holes need `npm run deploy:cloud`.
 - **Unlocks:** `courseLock` (`unlocks.js`) is shared by the course screen and the server: the first three courses are open, each later one needs an account and a round at its unlock score on the course before. The weekly Gauntlet opens with The Obsidian Gauntlet.
-- **Firestore layout:** `users/{uid}` (nickname, bests), `users/{uid}/rounds`, `users/{uid}/daily/{day}`, `dailies/{day}/scores/{uid}` (daily board), `survival/{board}/scores/{uid}` (`<course>-r<rev>` or `weekly-<Monday>-r1`), `nicknames/{id}`.
+- **Firestore layout:** `users/{uid}` (nickname, bests), `users/{uid}/rounds`, `users/{uid}/daily/{day}` (Monochrome: `{day}-mono`), `dailies/{day}/scores/{uid}` (daily board; Monochrome: `{day}-mono`), `survival/{board}/scores/{uid}` (`<course>-r<rev>`, `weekly-<Monday>-r1` or `weekly-mono-<Monday>-r1`), `nicknames/{id}`. `dailyKey` and `weeklyId` (`daily.js`) name them for the browser and the server alike.
 - **Offline and guests:** rounds finished signed out or offline wait in a localStorage queue and are sent on sign-in. The Firebase SDK loads only when Color Golf opens or the browser was signed in before.
 - **Testing:** `npm run emulators` + `npm run dev:cloud` runs everything against a throwaway demo project. Tester accounts (`tester: true` on `users/{uid}`, set by hand) open every course and a test-a-hole picker, and send nothing.
 

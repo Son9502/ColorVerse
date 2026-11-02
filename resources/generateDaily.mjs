@@ -6,21 +6,26 @@
 // only new ones are built: run it again with a later --until to extend the list. After a rotation
 // change, --weekdays rebuilds those days in place (0 = Sunday … 6 = Saturday), only from --from on
 // if given, so days already played keep their holes.
-// Run: npm run daily [-- --until 2028-12-31] [--weekdays 5,6 [--from YYYY-MM-DD]]
+// --mono builds the Monochrome daily holes (v1.8.6) into daily-mono.json instead: the same rotation
+// from other seeds, so a Monochrome player gets a hole of their own.
+// Run: npm run daily [-- --until 2028-12-31] [--weekdays 5,6 [--from YYYY-MM-DD]] [--mono]
 //
 // Days are independent, so they're built in parallel (one worker thread per spare CPU core).
 
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { availableParallelism } from "node:os";
-import { Worker, isMainThread, parentPort } from "node:worker_threads";
+import { Worker, isMainThread, parentPort, workerData } from "node:worker_threads";
 import { rng, buildHole } from "../src/golf/holeMaker.js";
 import { WEEK, DAILY_HUES, addDays, daysBetween, weekday, daySeed } from "../src/golf/daily.js";
 
-const START = "2026-10-28"; // the first daily hole (v1.3)
+const MONO = isMainThread ? process.argv.includes("--mono") : workerData.mono;
+const START = MONO ? "2026-11-02" : "2026-10-28"; // the first daily hole (v1.3; Monochrome v1.8.6)
+const FILE = MONO ? "daily-mono.json" : "daily.json";
+const MONO_SEED = 100000000; // added to a Monochrome day's seed
 
 // The day's hole, from its date alone
 function dailyHole(key) {
-    const seed = daySeed(key);
+    const seed = daySeed(key) + (MONO ? MONO_SEED : 0);
     const { par, perfect, difficulty, plan = null, windPlan = null } = WEEK[weekday(key)];
     return buildHole(
         { rand: rng(seed), hazardRand: rng(seed * 7919), windRand: rng(seed * 104729) },
@@ -33,9 +38,9 @@ if (!isMainThread) {
 } else {
     const untilArg = process.argv.indexOf("--until");
     const until = untilArg > 0 ? process.argv[untilArg + 1] : "2028-12-31";
-    const out = new URL("../src/golf/daily.json", import.meta.url);
+    const out = new URL(`../src/golf/${FILE}`, import.meta.url);
     const existing = existsSync(out) ? JSON.parse(readFileSync(out)) : { start: START, holes: [] };
-    if (existing.start !== START) throw new Error(`daily.json starts ${existing.start}, expected ${START}`);
+    if (existing.start !== START) throw new Error(`${FILE} starts ${existing.start}, expected ${START}`);
 
     const weekdaysArg = process.argv.indexOf("--weekdays");
     const rebuild = new Set(weekdaysArg > 0 ? process.argv[weekdaysArg + 1].split(",").map(Number) : []);
@@ -60,7 +65,7 @@ if (!isMainThread) {
     let done = 0;
     const threads = Math.max(1, Math.min(availableParallelism() - 1, todo.length));
     await Promise.all(Array.from({ length: threads }, () => new Promise((resolve, reject) => {
-        const worker = new Worker(new URL(import.meta.url));
+        const worker = new Worker(new URL(import.meta.url), { workerData: { mono: MONO } });
         const feed = () => {
             if (next < todo.length) worker.postMessage(todo[next++]);
             else worker.terminate().then(resolve);
@@ -77,5 +82,5 @@ if (!isMainThread) {
         feed();
     })));
     save();
-    console.log(`Wrote ${holes.length} daily holes (${START} to ${addDays(START, holes.length - 1)}) to src/golf/daily.json`);
+    console.log(`Wrote ${holes.length} daily holes (${START} to ${addDays(START, holes.length - 1)}) to src/golf/${FILE}`);
 }
