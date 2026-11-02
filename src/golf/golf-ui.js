@@ -12,6 +12,7 @@ import { windFor } from "./rules.js";
 import { termify, setupTerms } from "./terms.js";
 import * as cloud from "../cloud/cloud.js";
 import { lastPointerType } from "../pointer.js";
+import { runTour } from "../welcome.js";
 
 // ----------------------------------
 // Color Golf screen
@@ -25,6 +26,31 @@ const BEST_KEY = "colorverse.golf.best.v2"; // v2: courses regenerated in v1.1.1
 const DAILY_KEY = "colorverse.golf.daily.v1"; // { "2026-10-28": { strokes, par, perfect, time, pickedUp, pro } }
 const WEEKLY_KEY = "colorverse.golf.weekly.v1"; // best runs: { "<Monday>": { survived, strokes, toPar, time, pro } }
 const PRO_KEY = "colorverse.golf.pro";
+// First visit (v1.8.6): "1" once the player has answered "First time playing?"; COACH_KEY is "1"
+// while the walk through a first hole is still to come
+const GOLF_WELCOMED_KEY = "colorverse.golf.welcomed";
+const COACH_KEY = "colorverse.golf.coach";
+
+// The walk through the golf screen, then through the first hole of the first course
+// (welcome.js: runTour; `touch` is the text on a touch screen)
+const MENU_TOUR = [
+    { target: ".golf-intro", title: "Color Golf", text: "Make your color match the target in as few strokes as you can. Each stroke plays a harmony swatch, and the swatch shows where the ball lands." },
+    { target: "#golf-daily", title: "Daily hole", text: "One hole a day, the same for everyone. Your first try is your score, with a leaderboard for the day." },
+    { target: "#golf-weekly", title: "Weekly Gauntlet", text: "Nine holes, new each Monday. Finish a hole over par and the run ends. It opens once you've unlocked The Obsidian Gauntlet." },
+    { target: "#golf-practice", title: "Practice", text: "Endless random holes at the difficulty you pick. Nothing is saved, so it's the place to experiment." },
+    { target: "#golf-courses .golf-course", title: "Courses", text: "18-hole courses, from gentle to wild; a good round on one unlocks the next. Start with Prism Point: we'll walk you through your first hole." },
+];
+const HOLE_TOUR = [
+    { target: ".golf-swatches", title: "You and the target", text: "Make the left color (You) match the right one (Target). Every hole starts from a tee color." },
+    { target: "#ui-canvas", title: "The map", text: "Your ball, the flag and your trail on the color shape. It turns to follow the ball." },
+    { target: "#ui-container", title: "Your clubs", text: "Each row is a club. Long shots jump far round the hue wheel, Analogous moves a little, and the wedges (Tints, Shades, Tones, Saturate) change lightness and saturation. Each swatch shows where that shot lands: double-click one to play it.",
+        touch: "Each row is a club. Long shots jump far round the hue wheel, Analogous moves a little, and the wedges (Tints, Shades, Tones, Saturate) change lightness and saturation. Each swatch shows where that shot lands: tap one to play it." },
+    { target: "#putter", title: "The putter", text: "Small nudges to hue, saturation or lightness, for when you're close." },
+    { target: ".golf-meter", title: "How close you are", text: "The bar fills as you get closer. \"On the green\" means two putts or fewer will hole it." },
+    { target: ".golf-stats", title: "Strokes and undo", text: "Par is the score to beat; the perfect score (shown once you finish) is the fewest strokes possible. You get 5 undos a round." },
+    { target: "#golf-hole-info", title: "Hole info", text: "The hole's length, any hazards, and how many tee shots keep the perfect score alive. Underlined words explain themselves: hover or click one.",
+        touch: "The hole's length, any hazards, and how many tee shots keep the perfect score alive. Underlined words explain themselves: tap one." },
+];
 
 const ROW_NAMES = {
     "complementary": "Complementary", "split-complementary": "Split-comp.", "triadic": "Triadic",
@@ -676,6 +702,10 @@ export function setupGolf() {
         document.body.classList.remove("golf-pro");
         mergeLongShots(true);
         document.dispatchEvent(new CustomEvent("golfshowcase", { detail: "menu" })); // 3d-mode.js: the full-color surface, turning
+        if (load(GOLF_WELCOMED_KEY, null) !== 1) { // first visit: offer the walk-through
+            $("golf-welcome").hidden = false;
+            $("golf-welcome-tour").focus();
+        }
         // A layer typed but not jumped to would leave its preview over the map: clear the box (3d-mode.js hides it)
         const layerBox = $("layer-input");
         if (layerBox.value) {
@@ -950,6 +980,11 @@ export function setupGolf() {
             const number = round.firstHole + holeIndex + 1; // test rounds can start partway
             title = `${mode === "test" ? "Test · " : ""}Hole ${number} · Par ${hole.par}`;
             info = [round.course.name, `${number <= 9 ? "Front" : "Back"} 9`, length, summary, line, pro, round.survival && "Survival", mode === "test" && "not saved"];
+        }
+        // A first-timer's first course: walk through the hole once it's drawn
+        if (mode === "course" && holeIndex === 0 && load(COACH_KEY, 0) === 1) {
+            save(COACH_KEY, 0);
+            setTimeout(() => runTour(HOLE_TOUR, () => {}), 600);
         }
         $("golf-hole-title").textContent = title;
         $("golf-hole-info").innerHTML = termify(info.filter(Boolean).join(" · ")); // gimmick words explain themselves (terms.js)
@@ -1447,6 +1482,19 @@ export function setupGolf() {
         else if (mode === "daily") {
             if (confirm("Leave today's hole? It counts as a pick-up.")) openSetup();
         } else if (confirm("Quit this round? It won't be saved.")) openSetup();
+    });
+
+    // First visit: "Show me around" tours this screen and leaves the first hole's walk-through to come
+    const answerWelcome = (coach) => {
+        $("golf-welcome").hidden = true;
+        save(GOLF_WELCOMED_KEY, 1);
+        save(COACH_KEY, coach ? 1 : 0);
+        if (coach) runTour(MENU_TOUR, () => {});
+    };
+    $("golf-welcome-tour").addEventListener("click", () => answerWelcome(true));
+    $("golf-welcome-skip").addEventListener("click", () => answerWelcome(false));
+    $("golf-welcome").addEventListener("keydown", (event) => {
+        if (event.key === "Escape") answerWelcome(false);
     });
 
     $("golf-play").addEventListener("click", openSetup);

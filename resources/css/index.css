@@ -928,11 +928,13 @@ Above the loader (9999) so it can show while textures load
 
 /* ID selectors so this beats #welcome { display: flex } */
 #welcome[hidden],
+#golf-welcome[hidden],
 #tour[hidden] {
     display: none;
 }
 
-#welcome {
+#welcome,
+#golf-welcome {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2135,6 +2137,15 @@ body.color-names .swatch-row {
         font-size: 1.4rem;
     }
 
+    /* The ? panel: against the screen, not inside the short 3-D view (which would cut off its end) */
+    #help-panel {
+        position: fixed;
+        top: 60px;
+        left: 12px;
+        width: calc(100vw - 24px);
+        max-height: calc(100svh - 72px);
+    }
+
     #ui-canvas {
         order: 1;
         flex: none;
@@ -2183,6 +2194,10 @@ body.color-names .swatch-row {
 
     #ui-info {
         overflow-y: auto;
+    }
+
+    #help-panel {
+        max-height: calc(100svh - 60px);
     }
 
     #ui-info > * {

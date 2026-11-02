@@ -873,6 +873,11 @@
                         <dt>Mini shape</dt>
                         <dd>Bottom-right; shows the current orientation and where the picked color sits</dd>
                     </dl>
+
+                    <h3>Color Golf</h3>
+                    <p>A mini-game (⛳ Color Golf, top of the panel): make a color match a target in as few strokes
+                        as you can, playing the harmonies as clubs. Courses unlock as you score well, with a daily
+                        hole and a weekly Gauntlet on top. It has its own ? with the rules.</p>
                 </div>
             </div>
             <!-- Loading Text-->
@@ -891,6 +896,18 @@
         </div>
     </div>
     <!-- First-visit welcome (welcome.js) -->
+    <!-- Color Golf, first visit (golf-ui.js): offer a walk through the menu and the first hole -->
+    <div id="golf-welcome" class="overlay" hidden>
+        <div class="welcome-card" role="dialog" aria-modal="true" aria-labelledby="golf-welcome-title">
+            <h2 id="golf-welcome-title">First time playing Color Golf?</h2>
+            <p>Make a color match a target in as few strokes as you can, playing the harmonies as clubs.</p>
+            <p>We can show you around this screen, then walk you through your first hole.</p>
+            <div class="welcome-actions">
+                <button id="golf-welcome-skip" type="button" class="btn">I've played before</button>
+                <button id="golf-welcome-tour" type="button" class="btn btn-primary">Show me around</button>
+            </div>
+        </div>
+    </div>
     <div id="welcome" class="overlay" hidden>
         <div class="welcome-card" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
             <h2 id="welcome-title">Welcome to ColorVerse</h2>

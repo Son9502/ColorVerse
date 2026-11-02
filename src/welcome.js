@@ -41,6 +41,11 @@ const STEPS = [
         touch: "Every pick fills these rows. Tap any swatch to make it the new color, and use the sliders to fine-tune it.",
     },
     {
+        target: "#golf-play",
+        title: "Color Golf",
+        text: "A mini-game: make a color match a target in as few strokes as you can, playing the harmonies as clubs. Courses to unlock, a daily hole and a weekly Gauntlet.",
+    },
+    {
         target: "#help-button",
         title: "Need a reminder?",
         text: "The ? lists every control, and can replay this tour.",
@@ -55,6 +60,11 @@ const markWelcomed = () => {
     try { localStorage.setItem(STORAGE_KEY, "1"); } catch { /* ignore */ }
 };
 
+// Other parts of the page run their own tours with the same spotlight (Color Golf, v1.8.6):
+// runTour(steps, done), steps as in STEPS; `done` runs when it's finished or skipped
+let runTourImpl = null;
+export const runTour = (steps, done) => runTourImpl?.(steps, done);
+
 export function setupWelcome() {
     const welcome = document.getElementById("welcome");
     const tour = document.getElementById("tour");
@@ -67,6 +77,8 @@ export function setupWelcome() {
     const next = document.getElementById("tour-next");
 
     let step = 0;
+    let steps = STEPS;
+    let onEnd = markWelcomed;
 
     // ---- Welcome modal ----
     const closeWelcome = () => {
@@ -81,8 +93,11 @@ export function setupWelcome() {
 
     // ---- Tour ----
     const place = () => {
-        const target = document.querySelector(STEPS[step].target);
+        const target = document.querySelector(steps[step].target);
         if (!target) return;
+        // A target further down the page or panel: bring it to the middle, leaving room for the card
+        const first = target.getBoundingClientRect();
+        if (first.top < 0 || first.bottom > window.innerHeight) target.scrollIntoView({ block: "center", inline: "nearest" });
         const pad = 8;
         const r = target.getBoundingClientRect();
         // Clamp to the viewport so large targets (canvas, harmony list) stay fully visible
@@ -99,7 +114,8 @@ export function setupWelcome() {
             height: `${box.bottom - box.top}px`,
         });
 
-        // Card goes beside the target (right, then left), else inside its bottom edge
+        // Card goes beside the target (right, then left), else below or above it (phones), else
+        // inside its bottom edge (a target as big as the screen)
         const gap = 14;
         const cw = card.offsetWidth;
         const ch = card.offsetHeight;
@@ -109,38 +125,44 @@ export function setupWelcome() {
         else if (box.left - gap - cw >= 12) left = box.left - gap - cw;
         else {
             left = Math.min(Math.max(box.left + 12, 12), window.innerWidth - cw - 12);
-            top = Math.max(box.bottom - ch - 12, 12);
+            if (box.bottom + gap + ch <= window.innerHeight - 12) top = box.bottom + gap;
+            else if (box.top - gap - ch >= 12) top = box.top - gap - ch;
+            else top = Math.max(box.bottom - ch - 12, 12);
         }
         Object.assign(card.style, { left: `${left}px`, top: `${top}px` });
     };
 
     const render = () => {
-        const s = STEPS[step];
-        stepLabel.textContent = `Step ${step + 1} of ${STEPS.length}`;
+        const s = steps[step];
+        stepLabel.textContent = `Step ${step + 1} of ${steps.length}`;
         title.textContent = s.title;
         text.textContent = (touchScreen() && s.touch) || s.text;
         back.disabled = step === 0;
-        next.textContent = step === STEPS.length - 1 ? "Done" : "Next";
+        next.textContent = step === steps.length - 1 ? "Done" : "Next";
         place();
         next.focus();
     };
 
-    const startTour = () => {
+    const startTour = (list = STEPS, done = markWelcomed) => {
+        steps = list.filter(s => document.querySelector(s.target)?.getClientRects().length); // skip parts that aren't showing
+        onEnd = done;
+        if (!steps.length) return done();
         step = 0;
         tour.hidden = false;
         render();
     };
+    runTourImpl = startTour;
 
     const endTour = () => {
         tour.hidden = true;
-        markWelcomed();
+        onEnd();
     };
 
     back.addEventListener("click", () => {
         if (step > 0) { step--; render(); }
     });
     next.addEventListener("click", () => {
-        if (step < STEPS.length - 1) { step++; render(); }
+        if (step < steps.length - 1) { step++; render(); }
         else endTour();
     });
     document.getElementById("tour-skip").addEventListener("click", endTour);

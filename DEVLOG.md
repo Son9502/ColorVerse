@@ -35,6 +35,9 @@ The last expansion course, from the agreed v1.8 spec; implementation `[ai-assist
 - Help written for the device: on touch screens (`(hover: none) and (pointer: coarse)`) the ? panel, the tour and Color Golf's how-to say drag / pinch / tap, the layer slider and Done, and tap a swatch, instead of keys, Enter and double-click (`.for-touch` / `.for-mouse`, `touch` text on tour steps)
 - The golf menu shows the full-color surface (layer 0) turning slowly (`golfshowcase` events, `3d-mode.js`) instead of whatever exploring left (often the gray core); the end of a round keeps the last hole on the map beside the score card; leaving golf puts the explore layer back
 - Google sign-in failing on a phone pointed at the dev server turned out to be `auth/unauthorized-domain` (a computer's Wi-Fi address isn't one of the Firebase project's authorized domains); the sign-in box now says so, and says when the browser blocks the Google window, instead of "Couldn't sign in"
+- The ? panel scrolls to its end on phones (it was inside the 3-D view, 42% of the screen tall, which cut it off); it now sits against the screen
+- Color Golf is described in the ? panel and gets a step in the tour
+- First visit to Color Golf asks "First time playing Color Golf?": "Show me around" tours the golf screen (how it plays, daily, weekly, practice, courses), then walks through hole 1 of the first course (You and Target, the map, the clubs, the putter, the meter, strokes and undo, the hole info); "I've played before" skips both. `runTour` (`welcome.js`) runs any list of steps with the same spotlight, skipping targets that aren't showing, bringing a target to the middle of the screen and putting the card beside, below or above it
 - Leaderboards (daily, survival courses, weekly Gauntlet) are tables: rank, player with a Pro tag, then score or holes / strokes, and time, your row in bold (`showBoard`). Their toggles are outlined pills with an arrow
 
 **Verified**
