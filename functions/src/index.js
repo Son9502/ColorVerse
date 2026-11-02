@@ -3,9 +3,10 @@ import { initializeApp } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import courses from "../../src/golf/courses.json";
 import dailyList from "../../src/golf/daily.json";
+import weeklyList from "../../src/golf/weekly.json";
 import { replayRound } from "../../src/golf/replay.js";
 import { compareRounds, survivalBoard } from "../../src/golf/game.js";
-import { WEEK, daysBetween, weekday } from "../../src/golf/daily.js";
+import { WEEK, daysBetween, weekday, weekOf } from "../../src/golf/daily.js";
 import { courseLock } from "../../src/golf/unlocks.js";
 import { cleanNickname, nicknameId, nicknameProblem } from "../../src/cloud/nickname.js";
 
@@ -23,7 +24,8 @@ import { cleanNickname, nicknameId, nicknameProblem } from "../../src/cloud/nick
 //   dailies/{day}/scores/{uid}     the public leaderboard: { nickname, strokes, toPar, time, pro, at }
 //   nicknames/{id}                 who holds a nickname: { uid } (id from nicknameId, so it ignores case)
 //   survival/{board}/scores/{uid}  a survival course's all-time board (v1.8.6), one per course version
-//                                  (board "<course id>-r<rev>"): { nickname, survived, strokes, toPar, time, pro, at }
+//                                  (board "<course id>-r<rev>"; the weekly Gauntlet's "weekly-<Monday>-r1"):
+//                                  { nickname, survived, strokes, toPar, time, pro, at }
 //
 // Trust: strokes, penalties, pick-ups and holes come from the replay. The time taken, the Pro setting
 // (outside Expert, which is always Pro) and the undo limit are the browser's word.
@@ -55,6 +57,18 @@ function dailyHole(day) {
 }
 
 const expert = (difficulty) => difficulty === "Expert";
+
+// The weekly Gauntlet (v1.8.6) for the player's local date "YYYY-MM-DD": its Monday and nine holes.
+// Only the week that's on now counts (a day either side of UTC, as for the daily hole).
+function weeklyRound(day) {
+    if (typeof day !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(day)) throw bad("Bad day.");
+    if (Math.abs(daysBetween(utcToday(), day)) > 1) throw bad("That week's Gauntlet isn't on now.");
+    const week = weekOf(day);
+    const holes = weeklyList.weeks[daysBetween(weeklyList.start, week) / 7];
+    if (!holes) throw bad("No Gauntlet that week.");
+    return { week, holes, course: { id: `weekly-${week}`, survival: true } };
+}
+const GAUNTLET = courses.findIndex(c => c.survival); // the weekly Gauntlet opens with The Obsidian Gauntlet
 
 
 // First stroke of today's daily: the try is on record as a pick-up until it's finished,
@@ -92,8 +106,9 @@ export const setNickname = onCall(async (request) => {
         tx.set(claimRef, { uid });
         tx.set(userRef, { nickname }, { merge: true });
     });
-    await Promise.all(courses.filter(c => c.survival).map(course =>
-        db.doc(`survival/${survivalBoard(course)}/scores/${uid}`).update({ nickname }).catch(() => {}))); // not on the board
+    const boards = [...courses.filter(c => c.survival), { id: `weekly-${weekOf(utcToday())}` }].map(survivalBoard);
+    await Promise.all(boards.map(board =>
+        db.doc(`survival/${board}/scores/${uid}`).update({ nickname }).catch(() => {}))); // not on that board
     const ranked = await db.collection(`users/${uid}/daily`).where("ranked", "==", true).get();
     await Promise.all(ranked.docs.map(day =>
         db.doc(`dailies/${day.id}/scores/${uid}`).update({ nickname }).catch(() => {}))); // picked up: not listed
@@ -101,7 +116,8 @@ export const setNickname = onCall(async (request) => {
 });
 
 // A finished course round or daily hole: { kind: "course", courseId, rev, pro, holes } or
-// { kind: "daily", day, pro, guest, holes }, where holes is [{ clubs: [club ids], time }].
+// { kind: "daily", day, pro, guest, holes } or { kind: "weekly", day, pro, holes }, where holes is
+// [{ clubs: [club ids], time }]. The weekly Gauntlet (v1.8.6) goes by the player's local day.
 // A survival course's round (v1.8.6) may stop at the hole that ended it; its best and its place on
 // the course's board go by holes survived, then strokes, then time.
 export const submitRound = onCall(async (request) => {
@@ -172,6 +188,25 @@ export const submitRound = onCall(async (request) => {
             return { scored: true, ranked };
         });
         return { result, scored, ranked };
+    }
+
+    if (kind === "weekly") {
+        const { holes, course } = weeklyRound(request.data.day);
+        const { totals, over } = replay(holes, { survival: true });
+        if (totals.holes !== holes.length && !over) throw bad("Only full rounds count.");
+        const userRef = db.doc(`users/${uid}`);
+        const bests = (await userRef.get()).get("bests") ?? {};
+        if (courseLock(courses, GAUNTLET, { signedIn: true, bests })) throw bad("Unlock The Obsidian Gauntlet to play the weekly one.");
+        const record = { survived: totals.survived, strokes: totals.strokes, toPar: totals.toPar, time: totals.time };
+        const entryRef = db.doc(`survival/${survivalBoard(course)}/scores/${uid}`);
+        const isBest = await db.runTransaction(async (tx) => {
+            const [user, entry] = await Promise.all([tx.get(userRef), tx.get(entryRef)]);
+            tx.set(userRef.collection("rounds").doc(), { courseId: course.id, ...record, pro: !!pro, at: FieldValue.serverTimestamp() });
+            const better = !entry.exists || compareRounds(record, entry.data()) < 0;
+            if (better) tx.set(entryRef, { nickname: user.get("nickname") ?? "Player", ...record, pro: !!pro, at: FieldValue.serverTimestamp() });
+            return better;
+        });
+        return { totals, isBest };
     }
 
     throw bad("Unknown round kind.");

@@ -10,6 +10,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "courses": "node resources/generateCourses.mjs",
+    "weekly": "node resources/generateWeekly.mjs",
     "daily": "node resources/generateDaily.mjs",
     "practice": "node resources/generatePractice.mjs",
     "dev:cloud": "VITE_FIREBASE_EMULATORS=1 vite",

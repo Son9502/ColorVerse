@@ -23,11 +23,21 @@ The last expansion course, from the agreed v1.8 spec; implementation `[ai-assist
 - Score card: more than three of one hazard on a hole shows one dot and the count (a portal maze has twelve), so the column stays narrow (Violet Vortex too)
 - Unlock: the Gauntlet needs −4 or better on Hexflip Hollow (provisional)
 
+**Added after playtesting on a phone**
+- The Gauntlet plays easiest first: holes sorted by how many tee shots still leave par reachable (`parLine`, `holeMaker.js`), then by the perfect line (`easiestFirst`, `resources/gimmicks.mjs`). The holes are the same; the old hole 2 (par reachable from 7 tee shots) is now 16
+- Weekly Gauntlet: nine survival holes a week, the same for everyone, new each Monday by the player's local date (`WEEKLY_START`, `weekOf`, `daily.js`). `resources/generateWeekly.mjs` (`npm run weekly`) builds each week from its date into `weekly.json` (62 weeks, to 27 Dec 2027): every gimmick once plus three more at random, normal colors, easiest first. A card on the golf screen (best run this week, days until new holes, this week's top 10); no undos; opens with The Obsidian Gauntlet. Server: `kind: "weekly"` (only the week that's on now), each player's best on `survival/weekly-<Monday>-r1/scores/{uid}`
+- The gimmick plans (`BANS`, `WHIRL`, `skipFor`, `gimmickHole`) moved to `resources/gimmicks.mjs`, shared by both generators (Caddie Strike and Saffron Whirlwind regenerate byte for byte)
+- Survival's end message says what happened: "Over par on hole N, so the run ends here. Holes survived: …" (or "Picked up")
+- Layers on touch screens: a − / slider / + row under the layer box steps and drags through the layers live (the `[` `]` keys' job), and leaving the box (Done on a phone's number pad, which has no Enter) jumps to a typed layer
+- A layer typed but not jumped to no longer leaves its preview over the golf map: opening Color Golf clears the box
+
 **Verified**
 - Every hole: perfect matches the solver with its gimmick; the round plays the perfect route to the perfect score; think and golf-like checks pass; tees and pins all at lightness 15–50%; courses 1–11 unchanged byte for byte
 - `replayRound` (survival): a pick-up on hole 2 ends the round with 1 survived; a hole after it is refused; a perfect round is 18 survived, 49 strokes
 - Emulators: locked until the chain is unlocked; a round out on hole 3 saved (2 survived); a hole after the failure, and a round stopped without failing, refused; a worse round isn't a best; a second player's 6 survived ranks below 18; the board takes a new nickname
 - Headless Chrome: the card, "Survival" in the hole info, no undo, a pick-up ends the round ("0 of 18 holes survived"), the best on the card; no console errors
+- Weekly: all 62 weeks have every gimmick, no hole without its gimmick, easiest first, and a perfect round that replays (9 survived, perfect 25 in week 1). Emulators: locked until the Gauntlet is; a run out on hole 4 saved (3 survived); a worse run isn't a best; a past week refused. Phone-width Chrome: the card, a run, the result
+- Layers: slider, − / + and Done keep the canvas label and slider in step; a typed preview is gone once golf opens
 
 ---
 

@@ -97,10 +97,16 @@ export const create3DEnvironment = async (objectType = "cube") => {
     // --- UI Elements ---
     const threeDText = document.getElementById("layer-input");
     const canvasText = document.getElementById("ui-canvas-text");
+    const layerRange = document.getElementById("layer-range");
 
     let currentLayer = startLayer;
     threeDText.value = "";
-    canvasText.textContent = `Layer ${currentLayer}`;
+    // The layer shown over the canvas and on the slider, whatever changed it
+    const showLayer = (layer) => {
+        canvasText.textContent = `Layer ${layer}`;
+        layerRange.value = String(layer);
+    };
+    showLayer(currentLayer);
 
     // --- Layer Input Logic ---
     const validLayer = (input) => Number.isInteger(input) && input >= 0 && input <= 127;
@@ -141,13 +147,33 @@ export const create3DEnvironment = async (objectType = "cube") => {
             alert("Please enter a valid layer number between 0 and 127.");
             return;
         }
-
+        jumpTo(layerNum);
+    }, { signal });
+    const jumpTo = (layerNum) => {
         previewObject?.hide();
         currentLayer = layerNum;
         mainObject.peelTo(currentLayer);
         threeDText.value = "";
-        canvasText.textContent = `Layer ${currentLayer}`;
+        showLayer(currentLayer);
+    };
+    // A phone's number pad has no Enter: leaving the box (Done) with a valid layer jumps there too
+    threeDText.addEventListener("change", () => {
+        const layerNum = parseInt(threeDText.value);
+        if (validLayer(layerNum)) jumpTo(layerNum);
     }, { signal });
+
+    // Slider and − / + (the [ ] keys for touch screens): peel live, as the keys do
+    const stepTo = (layer) => {
+        mainObject.layerTarget = Math.max(0, Math.min(127, layer));
+        if (threeDText.value) {
+            threeDText.value = "";
+            previewObject?.hide();
+        }
+        showLayer(mainObject.layerTarget);
+    };
+    layerRange.addEventListener("input", () => stepTo(Number(layerRange.value)), { signal });
+    document.getElementById("layer-out").addEventListener("click", () => stepTo(mainObject.layerTarget - 1), { signal });
+    document.getElementById("layer-in").addEventListener("click", () => stepTo(mainObject.layerTarget + 1), { signal });
 
     // --- Color Space Toggle ---
     toggleColorSpace.addEventListener("click", async () => {
@@ -173,14 +199,8 @@ export const create3DEnvironment = async (objectType = "cube") => {
         const isTyping = activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA" || activeEl.isContentEditable;
         if (!isTyping) {
             if (faceMap[e.key] !== undefined) mainObject.rotateTo(faceMap[e.key]);
-            if (e.key === "]") {
-                mainObject.layerTarget = Math.min(127, mainObject.layerTarget + 1);
-                canvasText.textContent = `Layer ${mainObject.layerTarget}`;
-            }
-            if (e.key === "[") {
-                mainObject.layerTarget = Math.max(0, mainObject.layerTarget - 1);
-                canvasText.textContent = `Layer ${mainObject.layerTarget}`;
-            }
+            if (e.key === "]") stepTo(mainObject.layerTarget + 1);
+            if (e.key === "[") stepTo(mainObject.layerTarget - 1);
             if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
                 miniObject.activateFade();
             }
@@ -328,9 +348,7 @@ export const create3DEnvironment = async (objectType = "cube") => {
     document.addEventListener("basecolorclear", () => miniObject.clearHighlight(), { signal });
 
     // --- Color Golf map: ball, pin and trail on the shape (null state clears them) ---
-    const golfMap = new GolfMapView(mainObject, objectType, () => colorSpace, (layer) => {
-        canvasText.textContent = `Layer ${layer}`;
-    });
+    const golfMap = new GolfMapView(mainObject, objectType, () => colorSpace, showLayer);
     document.addEventListener("golfmapchange", (event) => golfMap.update(event.detail), { signal });
     golfMap.update(getMapState()); // a game may already be on (shape rebuilt or still loading)
 

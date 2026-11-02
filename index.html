@@ -98,7 +98,13 @@
                     <!-- Three-Dimension Content-->
                     <div id="info3D" class="dimension-info field">
                         <label for="layer-input" class="field-label">Layer</label>
-                        <input type="text" id="layer-input" inputmode="numeric" placeholder="0–127, Enter to jump">
+                        <input type="text" id="layer-input" inputmode="numeric" enterkeyhint="go" placeholder="0–127, Enter to jump">
+                        <!-- Step or drag through the layers (the [ ] keys' job, for touch screens too) -->
+                        <div class="layer-stepper">
+                            <button id="layer-out" type="button" aria-label="Previous layer (outward)">−</button>
+                            <input type="range" id="layer-range" min="0" max="127" step="1" aria-label="Layer: 0 is the outer surface, 127 the gray core">
+                            <button id="layer-in" type="button" aria-label="Next layer (inward)">+</button>
+                        </div>
                     </div>
                 </div>
                 <div id="ui-right">
@@ -288,6 +294,16 @@
                         <button id="golf-daily-play" class="btn btn-primary" type="button">Play</button>
                         <button id="golf-leaderboard-toggle" class="btn btn-link golf-leaderboard-toggle" type="button" aria-expanded="false" hidden>Today's leaderboard</button>
                         <ol id="golf-leaderboard" class="golf-leaderboard" hidden></ol>
+                    </div>
+                    <!-- Weekly Gauntlet (v1.8.6): nine survival holes, the same for everyone, new each Monday (golf/daily.js) -->
+                    <div id="golf-weekly" class="golf-course">
+                        <h3>Weekly Gauntlet <span id="golf-weekly-date" class="golf-sub"></span></h3>
+                        <span id="golf-weekly-info" class="golf-best"></span>
+                        <span class="golf-best">Nine holes of every gimmick, the same for everyone, new each Monday. Survival: finish a hole over par and the run ends. Your best run of the week counts.</span>
+                        <span id="golf-weekly-status" class="golf-best"></span>
+                        <button id="golf-weekly-play" class="btn btn-primary" type="button">Play</button>
+                        <button id="golf-weekly-board-toggle" class="btn btn-link golf-leaderboard-toggle" type="button" aria-expanded="false" hidden>This week's top 10</button>
+                        <ol id="golf-weekly-board" class="golf-leaderboard" hidden></ol>
                     </div>
 
                     <!-- Practice: endless random holes, nothing saved -->
@@ -819,8 +835,8 @@
                         <dt>Dimension</dt>
                         <dd>3-D now; 1-D and 2-D views are coming soon</dd>
                         <dt>Layer</dt>
-                        <dd>Type 0–127 to preview a layer, <kbd>Enter</kbd> to jump there. Layer 0 is the outer
-                            surface, 127 is the gray core</dd>
+                        <dd>Type 0–127 to preview a layer, <kbd>Enter</kbd> (or Done on a phone) to jump there, or
+                            drag the slider and tap − / + to step. Layer 0 is the outer surface, 127 is the gray core</dd>
                         <dt>Color Search</dt>
                         <dd>Find any of ~3,200 named colors. <kbd>Enter</kbd> completes the best match,
                             <kbd>Enter</kbd> again selects it. Or pick with <kbd>↑</kbd><kbd>↓</kbd> +

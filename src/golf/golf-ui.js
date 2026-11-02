@@ -5,7 +5,7 @@ import { IN_THE_HOLE, hslDistance, hslToHex } from "./oklab.js";
 import { harmonySets, selectBaseColor, clearBaseColor, addNameLabel } from "../harmony.js";
 import { describeColor, colorNamesOn } from "../color-names.js";
 import { setMapState } from "./mapState.js";
-import { WEEK, dateKey, daysBetween, dayLabel, weekday, streak } from "./daily.js";
+import { WEEK, dateKey, daysBetween, addDays, dayLabel, weekday, weekOf, streak } from "./daily.js";
 import { poolKey, PARS } from "./practice.js";
 import { courseLock, unlockToPar } from "./unlocks.js";
 import { windFor } from "./rules.js";
@@ -23,6 +23,7 @@ import { lastPointerType } from "../pointer.js";
 
 const BEST_KEY = "colorverse.golf.best.v2"; // v2: courses regenerated in v1.1.1, so older bests no longer apply
 const DAILY_KEY = "colorverse.golf.daily.v1"; // { "2026-10-28": { strokes, par, perfect, time, pickedUp, pro } }
+const WEEKLY_KEY = "colorverse.golf.weekly.v1"; // best runs: { "<Monday>": { survived, strokes, toPar, time, pro } }
 const PRO_KEY = "colorverse.golf.pro";
 
 const ROW_NAMES = {
@@ -161,6 +162,12 @@ function roundMessage({ strokes, perfect, toPar }) {
     return "Every round teaches the clubs. Try again?";
 }
 
+// The end of a survival round (v1.8.6): through every hole, or where it ended and how it ranks
+function survivalMessage({ survived, holes, strokes, toPar, perfect }, length, last) {
+    if (survived === length) return `Through the Gauntlet! ${strokes} strokes (${formatToPar(toPar)}).${strokes <= perfect ? " Perfect, too." : ""}`;
+    return `${last.pickedUp ? "Picked up" : "Over par"} on hole ${holes}, so the run ends here. Holes survived: ${survived}. Ties on holes survived go to fewer strokes, then the faster time.`;
+}
+
 // Saved in this browser only. localStorage can throw: fall back to nothing saved
 function load(key, fallback) {
     try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; }
@@ -224,6 +231,23 @@ function mergeCloudScores({ bests, daily }) {
 
 // A finished round as the score server wants it: the clubs played on each hole, to replay
 const playedHoles = (card) => card.map(({ clubs, time }) => ({ clubs, time: Math.round(time) }));
+
+// The weekly Gauntlet (v1.8.6): the week's nine holes (weekly.json loads on first use) as a
+// survival course, and this browser's best run each week
+let weeklyList = null;
+async function weeklyCourse(week) {
+    const { start, weeks } = await (weeklyList ??= import("./weekly.json").then(module => module.default));
+    const holes = weeks[daysBetween(start, week) / 7];
+    return holes ? { id: `weekly-${week}`, name: "Weekly Gauntlet", difficulty: "Expansion", survival: true, week, holes } : null;
+}
+const loadWeekly = () => load(scoped(WEEKLY_KEY), {});
+function saveWeekly(week, totals, pro) {
+    const weeks = loadWeekly();
+    if (weeks[week] && compareRounds(weeks[week], totals) <= 0) return false;
+    const { survived, strokes, toPar, time } = totals;
+    save(scoped(WEEKLY_KEY), { ...weeks, [week]: { survived, strokes, toPar, time, pro } });
+    return true;
+}
 
 // The daily list loads on first use (it's a few hundred kB), then stays
 let dailyList = null;
@@ -290,6 +314,7 @@ export function setupGolf() {
     let replayToken = 0; // bumped to stop a replay in progress
     let mode = "course"; // "course" | "daily" | "practice" | "test"
     let daily = null; // { day, scored, started } during a daily round
+    const GAUNTLET = courses.findIndex(course => course.survival); // the weekly Gauntlet opens with it
     let practice = null; // { settings, next } — the next practice hole, built while you play
 
     // The map is HSL during a game: the game's colors are HSL, and the RGB sphere doesn't reach
@@ -555,6 +580,7 @@ export function setupGolf() {
         }
         if (!setup.hidden) {
             renderDaily();
+            renderWeekly();
             renderCourses();
         }
     });
@@ -640,10 +666,17 @@ export function setupGolf() {
         document.body.classList.add("golf");
         document.body.classList.remove("golf-pro");
         mergeLongShots(true);
+        // A layer typed but not jumped to would leave its preview over the map: clear the box (3d-mode.js hides it)
+        const layerBox = $("layer-input");
+        if (layerBox.value) {
+            layerBox.value = "";
+            layerBox.dispatchEvent(new Event("input"));
+        }
         panel.hidden = false;
         clearBaseColor();
         putterBoxes.forEach(box => { box.style.backgroundColor = ""; });
         renderDaily();
+        renderWeekly();
         renderCourses();
         cloud.loadCloud(); // the account section needs the SDK now (no-op without a config)
         show(setup);
@@ -730,6 +763,45 @@ export function setupGolf() {
             : run ? `Streak ${run}: play today to keep it` : "Play today to start a streak";
         play.textContent = result ? "Replay" : "Play";
         play.disabled = false;
+    };
+
+    // Weekly Gauntlet card (v1.8.6): this week's nine holes, your best run, the lock, this week's top 10
+    let weekly = null; // the week's course during a weekly round
+    const renderWeekly = async () => {
+        const day = dateKey();
+        const week = weekOf(day);
+        const play = $("golf-weekly-play");
+        const toggle = $("golf-weekly-board-toggle");
+        $("golf-weekly-date").textContent = `· week of ${dayLabel(week)}`;
+        play.disabled = true;
+        const course = await weeklyCourse(week).catch(() => null);
+        if (!course) {
+            $("golf-weekly-info").textContent = "No Gauntlet this week. Check back after the next update.";
+            $("golf-weekly-status").textContent = "";
+            toggle.hidden = true;
+            return;
+        }
+        const par = course.holes.reduce((sum, hole) => sum + hole.par, 0);
+        const left = daysBetween(day, addDays(week, 7));
+        $("golf-weekly-info").innerHTML = termify(["Expansion", "Survival", `${course.holes.length} holes`, `par ${par}`, `new holes in ${left} day${left === 1 ? "" : "s"}`].join(" · "));
+        const best = loadWeekly()[week];
+        const locked = lockText(GAUNTLET) && "🔒 Unlock The Obsidian Gauntlet to play";
+        $("golf-weekly-status").textContent = locked || (best
+            ? `Your best this week: ${best.survived} of ${course.holes.length} holes, ${best.strokes} strokes, ${formatTime(best.time)}${best.pro ? ", Pro" : ""}`
+            : "No run yet this week");
+        play.textContent = best ? "Play again" : "Play";
+        play.disabled = !!locked;
+        toggle.hidden = !cloud.cloudAvailable;
+        const list = $("golf-weekly-board");
+        list.hidden = true;
+        toggle.setAttribute("aria-expanded", "false");
+        toggle.onclick = () => showSurvivalBoard(course, list, toggle);
+    };
+    const startWeekly = async () => {
+        const course = await weeklyCourse(weekOf(dateKey()));
+        if (!course || setup.hidden) return;
+        weekly = course;
+        startRound(course, "weekly");
     };
 
     const startDaily = async () => {
@@ -855,6 +927,9 @@ export function setupGolf() {
         if (mode === "daily") {
             title = `Daily hole · Par ${hole.par}`;
             info = [WEEK[weekday(daily.day)].name, dayLabel(daily.day), length, summary, line, pro, !daily.scored && "replay, not scored"];
+        } else if (mode === "weekly") {
+            title = `Weekly Gauntlet · Hole ${holeIndex + 1} · Par ${hole.par}`;
+            info = [`week of ${dayLabel(weekly.week)}`, length, summary, line, pro, "Survival"];
         } else if (mode === "practice") {
             const { holes, toPar } = round.totals();
             title = `Practice ${holeIndex + 1} · Par ${hole.par}`;
@@ -1149,6 +1224,16 @@ export function setupGolf() {
                 daily.scored ? `Streak ${run}` : "Replay, not scored"}`;
             $("golf-card").hidden = true;
             $("golf-again").textContent = "Color Golf menu";
+        } else if (mode === "weekly") {
+            const length = round.course.holes.length;
+            const isBest = !testing() && saveWeekly(weekly.week, totals, round.pro);
+            sendRound({ kind: "weekly", day: dateKey(), pro: round.pro, holes: playedHoles(round.card) });
+            $("golf-round-title").textContent = `Weekly Gauntlet: ${totals.survived} of ${length} holes survived`;
+            $("golf-round-message").textContent = survivalMessage(totals, length, round.card.at(-1));
+            $("golf-round-message").hidden = false;
+            $("golf-round-info").textContent = `${totals.strokes} strokes (${formatToPar(totals.toPar)}) · Par ${totals.par} · ${formatTime(totals.time)}${pro}${isBest ? " · Your best this week!" : ""}`;
+            $("golf-card").hidden = true;
+            $("golf-again").textContent = "Color Golf menu";
         } else if (mode === "test") {
             const first = round.firstHole + 1;
             $("golf-round-title").textContent = `Test: ${round.course.name}, holes ${first}–${first + totals.holes - 1}`;
@@ -1163,9 +1248,7 @@ export function setupGolf() {
             $("golf-round-title").textContent = round.survival
                 ? `${round.course.name}: ${totals.survived} of ${length} holes survived`
                 : `${round.course.name}: ${totals.strokes} (${formatToPar(totals.toPar)})`;
-            $("golf-round-message").textContent = !round.survival ? roundMessage(totals)
-                : totals.survived === length ? `Through the Gauntlet! ${totals.strokes} strokes (${formatToPar(totals.toPar)}).${totals.strokes <= totals.perfect ? " Perfect, too." : ""}`
-                : `Out on hole ${totals.holes}. The Gauntlet ranks holes survived first, then strokes, then time.`;
+            $("golf-round-message").textContent = round.survival ? survivalMessage(totals, length, round.card.at(-1)) : roundMessage(totals);
             $("golf-round-message").hidden = false;
             $("golf-round-info").textContent =
                 `${round.survival ? `${totals.strokes} strokes (${formatToPar(totals.toPar)}) · ` : ""}Par ${totals.par} · Perfect ${totals.perfect} · ${formatTime(totals.time)}${pro}${isBest ? ` · New ${round.pro ? "Pro " : ""}best!` : ""}`;
@@ -1357,6 +1440,7 @@ export function setupGolf() {
 
     $("golf-play").addEventListener("click", openSetup);
     $("golf-daily-play").addEventListener("click", startDaily);
+    $("golf-weekly-play").addEventListener("click", startWeekly);
     $("golf-practice-play").addEventListener("click", startPractice);
     $("golf-quit-setup").addEventListener("click", exitGolf);
     $("golf-again").addEventListener("click", openSetup);

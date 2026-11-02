@@ -25,6 +25,7 @@
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { rng, buildHole, yardsBetween, expertPerfect } from "../src/golf/holeMaker.js";
+import { skipFor, BANS, WHIRL, gimmickHole, easiestFirst } from "./gimmicks.mjs";
 
 // [par, perfect] per hole. Par 3s and 4s are birdie-able; par 5s mix birdie and eagle chances.
 // One ace (perfect 1) per course, on the back nine's second par 3.
@@ -46,7 +47,6 @@ const VORTEX_HOLES = [
     "tutorial", "trap", "blackHoles", "chain", "maze", "blackHoles", "trap", "maze", "blackHoles",
     "trap", "chain", "blackHoles", "maze", "chain", "blackHoles", "ace", "trap", "blackHoles",
 ];
-const skipFor = (perfect) => Math.min(2, 5 - perfect);
 const VORTEX_PLAN = {
     tutorial: (perfect) => ({ skip: skipFor(perfect), tutorial: true }),
     trap: (perfect) => ({ skip: skipFor(perfect), trap: true }),
@@ -72,19 +72,7 @@ const MIRROR_PLAN = {
     ace: {},
 };
 
-// Caddie Strike (v1.8.2): each hole bans some clubs (hole.rules, rules.js), and is built so the ban
-// costs at least a stroke. Club types: Driver = Complementary, Wood = Split-comp., Hybrids = Triadic,
-// Tetradic, Double-comp., Iron = Analogous, Wedges = Tints, Shades, Tones, Saturate.
-const BANS = {
-    noLong: { name: "No Driver or Woods", ban: ["complementary", "split-complementary"] },
-    noHybrids: { name: "No Hybrids", ban: ["triadic", "tetradic", "double-complementary"] },
-    noWedges: { name: "No Wedges", ban: ["tints", "shades", "tones", "saturate"] },
-    noTintsShades: { name: "No Tints or Shades", ban: ["tints", "shades"] },
-    noPutter: { name: "No putter", ban: ["putter"] },
-    noLongIron: { name: "No Driver, Woods or Iron", ban: ["complementary", "split-complementary", "analogous"] },
-    noWoodsWedges: { name: "No Woods or Wedges", ban: ["split-complementary", "tints", "shades", "tones", "saturate"] },
-    hybridsIrons: { name: "Hybrids, Iron and putter only", ban: ["complementary", "split-complementary", "tints", "shades", "tones", "saturate"] },
-};
+// Caddie Strike (v1.8.2): each hole's ban, from BANS (gimmicks.mjs), built so it costs at least a stroke.
 // "No putter" is only on par 4s and 5s: on a par 3 the putter never saves a stroke. A wedges-only ban
 // was dropped (wedge moves go in any order, so it leaves far too many perfect lines), and so was
 // "No Iron" (one short row rarely costs a stroke). With the think check (v1.8.2), "No Wedges" works
@@ -97,8 +85,7 @@ const CADDIE_HOLES = [
 
 // Saffron Whirlwind (v1.8.3): every hole's wind turns each stroke in a cycle of 2–3 (holeMaker.js:
 // makeWindHole), much stronger than Ember Dunes' breezes; the tutorial's is two winds, neither calm. No water or black
-// holes: their penalty strokes would turn the wind too, which the solver doesn't follow.
-const WHIRL = { hue: [12, 24], light: [6, 10] };
+// holes: their penalty strokes would turn the wind too, which the solver doesn't follow. Strengths: WHIRL (gimmicks.mjs).
 // Par 5s all perfect 3 (eagle holes), for Saffron Whirlwind and Scarlet Roulette: three strokes of
 // turning wind, or with four extra hue shifts, reach nearly every color, so a pin that truly needs
 // four is too rare to find
@@ -114,21 +101,15 @@ const EAGLE_LAYOUT = [FRONT, BACK].map(nine => nine.map(([par, perfect]) => [par
 // enough that two strokes is within reach, unlike the roulette's hue shifts.
 
 // The Obsidian Gauntlet (v1.8.6): a survival course (finish a hole over par and the round ends) in
-// dark colors (lightness 15–50%), cycling through the six gimmicks, three holes each, every one built
-// as on its own course. Bans suit the hole (par 5s only take two of them); the ace is a wind hole.
+// dark colors (lightness 15–50%), three holes of each gimmick, every one built as on its own course,
+// then played easiest first (gimmicks.mjs: easiestFirst). Bans suit the hole (par 5s only take two of
+// them); the ace is a wind hole.
 const GAUNTLET_HOLES = [
     { portals: { trap: true } }, { mirrors: {} }, { rules: BANS.noHybrids }, { turning: {} }, { roulette: {} }, { flip: {} },
     { portals: { chain: true } }, { mirrors: { chain: true } }, { rules: BANS.noTintsShades }, { turning: {} }, { roulette: {} }, { flip: {} },
     { portals: { maze: true } }, { mirrors: { decoy: true } }, { rules: BANS.hybridsIrons }, { turning: {} }, { roulette: {} }, { flip: {} },
 ];
-const gauntletHole = (i, perfect) => {
-    const [kind, plan] = Object.entries(GAUNTLET_HOLES[i])[0];
-    if (kind === "portals" || kind === "mirrors") return { [kind]: { ...plan, skip: skipFor(perfect) } };
-    if (kind === "turning") return { turning: { strengths: WHIRL } };
-    if (kind === "roulette") return { roulette: { skip: 1 } };
-    if (kind === "flip") return { flip: { skip: 2 } };
-    return { rules: plan };
-};
+const gauntletHole = (i, perfect) => gimmickHole(GAUNTLET_HOLES[i], perfect);
 
 // "Make you think" (v1.8.2, holeMaker.js: thinks): on each hole but the ace, none of this many tee
 // shots closest to the pin keeps the perfect score, and a perfect route plays like golf (putts only
@@ -232,6 +213,7 @@ const courses = COURSES.map(({ id, name, seed, rev, hues, sats, lights, survival
         console.log(`${name} hole ${i + 1}: par ${par}, perfect ${hole.perfect}, ${Math.round(yardsBetween(hole.tee, hole.target))} yds, ${summary}`);
         return hole;
     });
+    if (survival) holes.splice(0, holes.length, ...easiestFirst(holes)); // a survival round gets harder as it goes
     return { id, name, ...(rev && { rev }), hues, difficulty, ...(survival && { survival }), ...(gimmick && { gimmick }), ...(tutorial && { tutorial }), holes };
 }).filter(Boolean);
 

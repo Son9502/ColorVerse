@@ -138,6 +138,7 @@ const birdieLineCount = (hole, perfect, map, wind = null, copies = true) => {
 // The perfect line, shown in the game: first shots that keep the perfect score reachable, out of the
 // 38 distinct clubs (and the hole's roulette or flips). The generator's birdie-line bands count every
 // club, copies included, so the courses don't change.
+export const parLine = (hole) => birdieLineCount(hole, hole.par, hazardMap(hole.hazards ?? []), hole.wind ?? null, false); // par reachable (v1.8.6: ordering a survival round)
 export const perfectLine = (hole, copies = false) => birdieLineCount(hole, hole.perfect, hazardMap(hole.hazards ?? []), hole.wind ?? null, copies);
 
 // "Make you think" (v1.8.2): none of the `count` tee shots that end up closest to the pin (after any

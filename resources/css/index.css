@@ -161,6 +161,31 @@ input:checked+.slider:before {
     display: none;
 }
 
+/* Layer stepper: − [slider] + under the layer box */
+.layer-stepper {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.layer-stepper input[type="range"] {
+    flex: 1;
+    min-width: 0;
+    accent-color: #333;
+}
+
+.layer-stepper button {
+    flex: none;
+    width: 32px;
+    height: 32px; /* big enough to tap */
+    border: 1px solid #d6d6d6;
+    border-radius: 6px;
+    background: #fff;
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
 .hidden {
     display: none !important;
 }
@@ -1213,7 +1238,8 @@ body.golf .square:hover {
     grid-row: 1 / span 3;
 }
 
-#golf-daily-play {
+#golf-daily-play,
+#golf-weekly-play {
     grid-row: 1 / span 4; /* one more line than the others: what the daily hole is */
 }
 
