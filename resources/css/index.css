@@ -190,6 +190,20 @@ input:checked+.slider:before {
     display: none !important;
 }
 
+/* Help written for the device: touch screens (no hover, a finger for a pointer) get .for-touch,
+   everything else .for-mouse. Only ever hides, so each element keeps its own display (a grid list) */
+@media not ((hover: none) and (pointer: coarse)) {
+    .for-touch {
+        display: none !important;
+    }
+}
+
+@media (hover: none) and (pointer: coarse) {
+    .for-mouse {
+        display: none !important;
+    }
+}
+
 /* -----------------------------------------------
 Color Info Section
 ----------------------------------------------- */

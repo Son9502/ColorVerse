@@ -152,8 +152,9 @@
                         <button class="btn btn-link golf-help-toggle" type="button">Close</button>
                     </div>
                     <p>Make <strong>You</strong> match the <strong>Target</strong> in as few strokes as you can.
-                        A stroke is a double-click on any swatch below (a tap on a touch screen, or <kbd>Enter</kbd> on a
-                        swatch reached with <kbd>Tab</kbd> and the arrow keys). On Expert, tap once to aim and again to play.
+                        <span class="for-mouse">A stroke is a double-click on any swatch below (or <kbd>Enter</kbd> on a
+                        swatch reached with <kbd>Tab</kbd> and the arrow keys).</span><span class="for-touch">A stroke is a
+                        tap on any swatch below. On Expert, tap once to aim and again to play.</span>
                         Each row is a club:</p>
                     <dl>
                         <dt>Driver</dt><dd>Complementary: the longest hue jump, straight across the wheel</dd>
@@ -180,7 +181,7 @@
                         </div>
                     </div>
                     <p class="golf-intro">Get from the tee color to the target in as few strokes as you can.
-                        Double-click (or tap) a harmony swatch to play it; the putter row makes small nudges.</p>
+                        <span class="for-mouse">Double-click</span><span class="for-touch">Tap</span> a harmony swatch to play it; the putter row makes small nudges.</p>
                     <p id="golf-test-mode" class="golf-test-mode" hidden>Test mode: every course is unlocked, and rounds aren't sent to your account.</p>
                     <!-- Account (v1.6): shown only when Firebase is configured (src/cloud/config.js) -->
                     <div id="golf-account" class="golf-account" hidden>
@@ -809,7 +810,18 @@
                     <button id="replay-tour" type="button">Replay the tour</button>
 
                     <h3>3-D controls</h3>
-                    <dl>
+                    <!-- Touch screens (no hover, coarse pointer) see their own list; index.css: .for-touch -->
+                    <dl class="for-touch">
+                        <dt>Drag (one finger)</dt>
+                        <dd>Rotate the object</dd>
+                        <dt>Pinch</dt>
+                        <dd>Zoom in / out</dd>
+                        <dt>Tap</dt>
+                        <dd>Pick the color under your finger</dd>
+                        <dt>Layer slider, − / +</dt>
+                        <dd>Peel through the layers (in the panel, under Layer)</dd>
+                    </dl>
+                    <dl class="for-mouse">
                         <dt>Drag or <kbd>←</kbd><kbd>↑</kbd><kbd>→</kbd><kbd>↓</kbd></dt>
                         <dd>Rotate the object (one finger on a touch screen)</dd>
                         <dt>Scroll or pinch</dt>
@@ -835,23 +847,29 @@
                         <dt>Dimension</dt>
                         <dd>3-D now; 1-D and 2-D views are coming soon</dd>
                         <dt>Layer</dt>
-                        <dd>Type 0–127 to preview a layer, <kbd>Enter</kbd> (or Done on a phone) to jump there, or
-                            drag the slider and tap − / + to step. Layer 0 is the outer surface, 127 is the gray core</dd>
+                        <dd><span class="for-mouse">Type 0–127 to preview a layer, <kbd>Enter</kbd> to jump there, or
+                            drag the slider and click − / + to step.</span><span class="for-touch">Type 0–127 to preview a
+                            layer and tap Done to jump there, or drag the slider and tap − / + to step.</span> Layer 0 is
+                            the outer surface, 127 is the gray core</dd>
                         <dt>Color Search</dt>
-                        <dd>Find any of ~3,200 named colors. <kbd>Enter</kbd> completes the best match,
+                        <dd><span class="for-mouse">Find any of ~3,200 named colors. <kbd>Enter</kbd> completes the best match,
                             <kbd>Enter</kbd> again selects it. Or pick with <kbd>↑</kbd><kbd>↓</kbd> +
-                            <kbd>Enter</kbd>. Click the empty box to see your last 10 searches</dd>
+                            <kbd>Enter</kbd>. Click the empty box to see your last 10 searches</span><span class="for-touch">Find
+                            any of ~3,200 named colors and tap a match to select it. Tap the empty box to see your last 10
+                            searches</span></dd>
                         <dt>Color details</dt>
                         <dd>Replaces Color Search once a color is selected: hex, RGB, and HSL values, with the
-                            active color space bold and listed first. <kbd>← Search</kbd>, <kbd>Esc</kbd>, or
-                            clicking empty canvas goes back</dd>
+                            active color space bold and listed first. <kbd>← Search</kbd><span class="for-mouse">, <kbd>Esc</kbd>,
+                            or clicking empty canvas goes back</span><span class="for-touch"> or tapping empty canvas goes
+                            back</span></dd>
                         <dt>Sliders</dt>
                         <dd>Fine-tune the selected color: H/S/L when the HSL toggle is on, R/G/B when it's
                             off. Each track previews what that slider will do</dd>
                         <dt>Harmonies</dt>
-                        <dd>Complementary, triadic, analogous, tints, shades, tones, saturate and more. Double-click a swatch
-                            (tap on a touch screen) to make it the selected color, or reach it with <kbd>Tab</kbd> and
-                            the arrow keys and press <kbd>Enter</kbd>; click ▾ to collapse a row</dd>
+                        <dd>Complementary, triadic, analogous, tints, shades, tones, saturate and more. <span class="for-mouse">Double-click
+                            a swatch to make it the selected color, or reach it with <kbd>Tab</kbd> and the arrow keys and
+                            press <kbd>Enter</kbd>; click ▾ to collapse a row</span><span class="for-touch">Tap a swatch to
+                            make it the selected color; tap ▾ to collapse a row</span></dd>
                         <dt>Mini shape</dt>
                         <dd>Bottom-right; shows the current orientation and where the picked color sits</dd>
                     </dl>

@@ -3,16 +3,20 @@
 // ----------------------------------
 const STORAGE_KEY = "colorverse.welcomed";
 
+// `touch`: the step's text on a touch screen (no hover, a finger for a pointer), where it differs
+const touchScreen = () => window.matchMedia("(hover: none) and (pointer: coarse)").matches;
 const STEPS = [
     {
         target: "#ui-canvas",
         title: "The color space, in 3-D",
         text: "Drag or use the arrow keys to rotate, scroll or pinch to zoom, and double-click to reset the view.",
+        touch: "Drag with one finger to rotate, and pinch to zoom.",
     },
     {
         target: "#info3D",
         title: "Peel it layer by layer",
         text: "The shape is 128 nested layers, from the full-color surface (0) to the gray core (127). Press [ and ] or type a layer here.",
+        touch: "The shape is 128 nested layers, from the full-color surface (0) to the gray core (127). Drag the slider, tap − / +, or type a layer here.",
     },
     {
         target: "#hsltoggle",
@@ -28,11 +32,13 @@ const STEPS = [
         target: "#color-search",
         title: "Pick a color",
         text: "Click anywhere on the shape, or search ~3,200 named colors. Enter completes the best match; Enter again selects it.",
+        touch: "Tap anywhere on the shape, or search ~3,200 named colors and tap a match.",
     },
     {
         target: "#ui-container",
         title: "Explore its harmonies",
-        text: "Every pick fills these rows. Double-click (or tap) any swatch to make it the new color, and use the sliders to fine-tune it.",
+        text: "Every pick fills these rows. Double-click any swatch to make it the new color, and use the sliders to fine-tune it.",
+        touch: "Every pick fills these rows. Tap any swatch to make it the new color, and use the sliders to fine-tune it.",
     },
     {
         target: "#help-button",
@@ -112,7 +118,7 @@ export function setupWelcome() {
         const s = STEPS[step];
         stepLabel.textContent = `Step ${step + 1} of ${STEPS.length}`;
         title.textContent = s.title;
-        text.textContent = s.text;
+        text.textContent = (touchScreen() && s.touch) || s.text;
         back.disabled = step === 0;
         next.textContent = step === STEPS.length - 1 ? "Done" : "Next";
         place();
