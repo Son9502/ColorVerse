@@ -286,6 +286,11 @@ const AUTH_ERRORS = {
     "auth/invalid-email": "That doesn't look like an email address.",
     "auth/too-many-requests": "Too many tries. Wait a minute, then try again.",
     "auth/network-request-failed": "Couldn't reach the server. Check your connection and try again.",
+    // Google sign-in only works on the domains the Firebase project allows (e.g. not a computer's
+    // Wi-Fi address while testing on a phone)
+    "auth/unauthorized-domain": "Google sign-in isn't allowed on this address. Use email instead, or open the site from its usual address.",
+    "auth/popup-blocked": "Your browser blocked the Google window. Allow pop-ups for this site, then try again.",
+    "auth/operation-not-supported-in-this-environment": "Google sign-in doesn't work in this browser. Use email instead, or open the site in Safari or Chrome.",
 };
 
 // Closeness meter wording; only updated after a stroke
