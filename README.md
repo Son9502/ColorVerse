@@ -60,7 +60,7 @@ In HSL, saturation also decreases toward the core, so inner layers converge on g
 - **Phones and accessibility** (v1.7): a one-column phone layout, a landscape layout with the hole, swatches and map side by side, touch play (tap, drag, pinch), keyboard play (Tab, arrows, Enter) and color names for every swatch
 - **Color Golf** (v1.1+): get from a tee color to a target color in as few strokes as possible. Harmony rows are clubs (the Driver, Woods and Hybrids share one Long shots row in golf), a putter row nudges, and par comes from a solver that knows the best route. Sand, water and black-hole hazards, wind, yardage (OKLab distance × 1000), a live score card, a Monochrome switch (gray swatches, You and Target in color), and the 3-D shape as a map with a ball, flag, trail and hazard footprints
   - **17 courses**: five themed courses from Beginner to Expert (Prism Point, Ember Dunes, Verdant Pines, Cobalt Bay, Royal Indigo), then a v1.8 expansion pack of seven, each built around one gimmick: portals (Violet Vortex), mirrors (Silverglass Greens), club bans (Caddie Strike), turning wind (Saffron Whirlwind), a spinning roulette swatch (Scarlet Roulette), hex-digit flips (Hexflip Hollow) and survival (The Obsidian Gauntlet: go over par and the run ends), plus five **Monochrome** courses behind the Monochrome switch: the first five's holes with the swatches and map in gray, so each shot is judged by its lightness (Ash Point, Cinder Dunes, Slate Pines, Graphite Bay, Royal Onyx)
-  - **Daily hole** with streaks and a leaderboard, a **weekly Gauntlet** (nine survival holes, new each Monday, with its own board) and endless **practice**
+  - **Daily hole** with streaks and a leaderboard, a **weekly Gauntlet** (nine survival holes, new each Monday, with its own board) and endless **practice**; with the Monochrome switch on, the daily hole and the Gauntlet are their own (different holes, streaks and boards)
   - **Accounts** (v1.6, Firebase): scores saved across devices, courses unlocked in a chain by scoring well, server-checked rounds (the server replays every stroke), nicknames and top-10 leaderboards
   - A first-time walk-through of the golf screen and the first hole, and highlighted words that explain each gimmick
 
@@ -181,6 +181,7 @@ See [MVP.md](MVP.md#roadmap-post-v1) for details.
 - [x] **v1.6:** Accounts + score database: cloud bests, daily streaks, leaderboards, server-checked scores
 - [x] **v1.7:** Mobile and accessibility: phone layout, tap to play, keyboard play, color names
 - [x] **v1.8:** Color Golf expansion pack: seven gimmick courses, survival, a weekly Gauntlet, landscape phones and a first-time walk-through
+- [x] **v1.8.6:** Monochrome (was Pro): five gray courses, a Monochrome daily hole and weekly Gauntlet; a bigger hole on Beginner and Standard; 3 strokes of unlock grace
 - [ ] **v2.0:** 1-D mode (single-channel gradient line) and 2-D mode (square/circle planes), with the picked color shared across dimensions
 - [ ] **v2.1:** Color Golf on a 2-D map (hue wheel or square slice)
 - [ ] **v2.2:** More 3-D shapes: HSL cylinder, HSV cone/bicone
