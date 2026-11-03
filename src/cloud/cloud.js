@@ -180,9 +180,9 @@ const call = async (name, data) => {
 };
 
 // First stroke of today's daily: put the try on record (best effort; offline it waits for the finish)
-export function startDaily(day, pro) {
+export function startDaily(day, pro, mono = false) {
     if (!user) return;
-    call("startDaily", { day, pro }).catch(() => {});
+    call("startDaily", { day, pro, mono }).catch(() => {}); // mono: the Monochrome daily hole (v1.8.6)
 }
 
 // A finished course round or daily hole (the payload submitRound expects). Sent now if signed in,

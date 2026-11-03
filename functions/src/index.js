@@ -4,9 +4,11 @@ import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import courses from "../../src/golf/courses.json";
 import dailyList from "../../src/golf/daily.json";
 import weeklyList from "../../src/golf/weekly.json";
+import dailyMonoList from "../../src/golf/daily-mono.json";
+import weeklyMonoList from "../../src/golf/weekly-mono.json";
 import { replayRound } from "../../src/golf/replay.js";
 import { compareRounds, survivalBoard } from "../../src/golf/game.js";
-import { WEEK, daysBetween, weekday, weekOf } from "../../src/golf/daily.js";
+import { daysBetween, weekOf, dailyKey, weeklyId } from "../../src/golf/daily.js";
 import { courseLock } from "../../src/golf/unlocks.js";
 import { cleanNickname, nicknameId, nicknameProblem } from "../../src/cloud/nickname.js";
 
@@ -22,13 +24,14 @@ import { cleanNickname, nicknameId, nicknameProblem } from "../../src/cloud/nick
 //   users/{uid}/rounds/{id}        every course round: { courseId, rev, pro, strokes, toPar, time, at }
 //   users/{uid}/daily/{day}        the day's scored try: { par, perfect, strokes, time, pickedUp, pro, final, ranked }
 //   dailies/{day}/scores/{uid}     the public leaderboard: { nickname, strokes, toPar, time, pro, at }
+//                                  (Monochrome, v1.8.6: its own hole, try and board under "<day>-mono", daily.js: dailyKey)
 //   nicknames/{id}                 who holds a nickname: { uid } (id from nicknameId, so it ignores case)
 //   survival/{board}/scores/{uid}  a survival course's all-time board (v1.8.6), one per course version
 //                                  (board "<course id>-r<rev>"; the weekly Gauntlet's "weekly-<Monday>-r1"):
 //                                  { nickname, survived, strokes, toPar, time, pro, at }
 //
-// Trust: strokes, penalties, pick-ups and holes come from the replay. The time taken, the Pro setting
-// (outside Expert, which is always Pro) and the undo limit are the browser's word.
+// Trust: strokes, penalties, pick-ups and holes come from the replay. The time taken, the Monochrome
+// setting (the `pro` field, from when it was Pro) and the undo limit are the browser's word.
 //
 // Daily hole: one try per account per day, and only a try started while signed in (startDaily on
 // its first stroke) is ranked. A guest's try sent on sign-in ({ guest: true }) counts as the day's
@@ -47,26 +50,28 @@ const utcToday = () => new Date().toISOString().slice(0, 10);
 
 // The daily hole for "YYYY-MM-DD", and whether that day is live now (it's the player's local date,
 // so a day either side of UTC counts). Earlier days can still be synced (streaks), never later ones.
-function dailyHole(day) {
+// `mono`: the Monochrome daily hole (v1.8.6), a different hole from its own list.
+function dailyHole(day, mono = false) {
     if (typeof day !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(day)) throw bad("Bad day.");
     const offset = daysBetween(utcToday(), day);
     if (offset > 1) throw bad("That day hasn't started yet.");
-    const hole = dailyList.holes[daysBetween(dailyList.start, day)];
+    const list = mono ? dailyMonoList : dailyList;
+    const hole = list.holes[daysBetween(list.start, day)];
     if (!hole) throw bad("No daily hole that day.");
     return { hole, live: offset >= -1 };
 }
 
-const expert = (difficulty) => difficulty === "Expert";
 
 // The weekly Gauntlet (v1.8.6) for the player's local date "YYYY-MM-DD": its Monday and nine holes.
 // Only the week that's on now counts (a day either side of UTC, as for the daily hole).
-function weeklyRound(day) {
+function weeklyRound(day, mono = false) {
     if (typeof day !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(day)) throw bad("Bad day.");
     if (Math.abs(daysBetween(utcToday(), day)) > 1) throw bad("That week's Gauntlet isn't on now.");
     const week = weekOf(day);
-    const holes = weeklyList.weeks[daysBetween(weeklyList.start, week) / 7];
+    const list = mono ? weeklyMonoList : weeklyList; // Monochrome: its own nine holes (v1.8.6)
+    const holes = list.weeks[daysBetween(list.start, week) / 7];
     if (!holes) throw bad("No Gauntlet that week.");
-    return { week, holes, course: { id: `weekly-${week}`, survival: true } };
+    return { week, holes, course: { id: weeklyId(week, mono), survival: true } };
 }
 const GAUNTLET = courses.findIndex(c => c.survival); // the weekly Gauntlet opens with The Obsidian Gauntlet
 
@@ -76,8 +81,9 @@ const GAUNTLET = courses.findIndex(c => c.survival); // the weekly Gauntlet open
 export const startDaily = onCall(async (request) => {
     const uid = signedIn(request);
     const day = request.data?.day;
-    const { hole } = dailyHole(day);
-    const ref = db.doc(`users/${uid}/daily/${day}`);
+    const mono = !!request.data?.mono;
+    const { hole } = dailyHole(day, mono);
+    const ref = db.doc(`users/${uid}/daily/${dailyKey(day, mono)}`);
     await db.runTransaction(async (tx) => {
         if ((await tx.get(ref)).exists) return;
         tx.set(ref, {
@@ -106,7 +112,8 @@ export const setNickname = onCall(async (request) => {
         tx.set(claimRef, { uid });
         tx.set(userRef, { nickname }, { merge: true });
     });
-    const boards = [...courses.filter(c => c.survival), { id: `weekly-${weekOf(utcToday())}` }].map(survivalBoard);
+    const week = weekOf(utcToday());
+    const boards = [...courses.filter(c => c.survival), { id: weeklyId(week, false) }, { id: weeklyId(week, true) }].map(survivalBoard);
     await Promise.all(boards.map(board =>
         db.doc(`survival/${board}/scores/${uid}`).update({ nickname }).catch(() => {}))); // not on that board
     const ranked = await db.collection(`users/${uid}/daily`).where("ranked", "==", true).get();
@@ -139,7 +146,7 @@ export const submitRound = onCall(async (request) => {
         const survival = !!course.survival;
         const { totals, over } = replay(course.holes, { survival });
         if (totals.holes !== course.holes.length && !over) throw bad("Only full rounds count.");
-        const isPro = !!pro || expert(course.difficulty);
+        const isPro = !!pro; // Monochrome (was Pro): no course is forced into it (v1.8.6)
         const key = isPro ? `${course.id}:pro` : course.id;
         const record = { strokes: totals.strokes, toPar: totals.toPar, time: totals.time, rev: course.rev ?? 1, ...(survival && { survived: totals.survived }) };
 
@@ -165,11 +172,12 @@ export const submitRound = onCall(async (request) => {
 
     if (kind === "daily") {
         const day = request.data.day;
-        const { hole, live } = dailyHole(day);
+        const mono = !!request.data.mono; // Monochrome: its own hole, try and board (v1.8.6)
+        const { hole, live } = dailyHole(day, mono);
         const { card } = replay([hole]);
         const result = card[0];
-        const isPro = !!pro || expert(WEEK[weekday(day)].difficulty);
-        const ref = db.doc(`users/${uid}/daily/${day}`);
+        const isPro = !!pro;
+        const ref = db.doc(`users/${uid}/daily/${dailyKey(day, mono)}`);
         const userRef = db.doc(`users/${uid}`);
         const guest = request.data.guest !== false;
         const { scored, ranked } = await db.runTransaction(async (tx) => {
@@ -180,7 +188,7 @@ export const submitRound = onCall(async (request) => {
             const saved = { par: result.par, perfect: result.perfect, strokes: result.strokes, time: result.time, pickedUp: result.pickedUp, pro: isPro, final: true, ranked };
             tx.set(ref, { ...saved, at: FieldValue.serverTimestamp() });
             if (live && ranked && !result.pickedUp) {
-                tx.set(db.doc(`dailies/${day}/scores/${uid}`), {
+                tx.set(db.doc(`dailies/${dailyKey(day, mono)}/scores/${uid}`), {
                     nickname: user.get("nickname") ?? "Player", strokes: result.strokes, toPar: result.strokes - result.par,
                     time: result.time, pro: isPro, at: FieldValue.serverTimestamp(),
                 });
@@ -191,7 +199,7 @@ export const submitRound = onCall(async (request) => {
     }
 
     if (kind === "weekly") {
-        const { holes, course } = weeklyRound(request.data.day);
+        const { holes, course } = weeklyRound(request.data.day, !!request.data.mono);
         const { totals, over } = replay(holes, { survival: true });
         if (totals.holes !== holes.length && !over) throw bad("Only full rounds count.");
         const userRef = db.doc(`users/${uid}`);

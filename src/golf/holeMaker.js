@@ -2,7 +2,7 @@ import { searchFrom, parFor, pathTo, reachesWithin } from "./solver.js";
 import { CLUBS, COPIES, STANDARD_CLUBS, allStrikes, strike, mirrorOf, roundHSL, encode, decode } from "./clubs.js";
 import { hazardMap, isWedge, WEDGES } from "./hazards.js";
 import { clubMask, ruleAllows, windFor, windOptions } from "./rules.js";
-import { hslDistance, IN_THE_HOLE, ON_THE_GREEN } from "./oklab.js";
+import { hslDistance, ON_THE_GREEN, CUP, IN_THE_HOLE, cupSize, usingCup } from "./oklab.js";
 
 // ----------------------------------
 // Color Golf hole builder
@@ -66,7 +66,7 @@ function nudge(rand, hsl, min, max) {
 // Swatches from the tee that look almost like the target but miss the hole
 const lipOuts = (tee, target) => allStrikes(tee).filter(hsl => {
     const d = hslDistance(hsl, target);
-    return d >= IN_THE_HOLE && d < ON_THE_GREEN;
+    return d >= cupSize() && d < ON_THE_GREEN;
 }).length;
 
 // Candidate target for a hole. Par 3s are built next to a tee swatch so there's a lip-out
@@ -76,8 +76,8 @@ function candidateTarget(rand, tee, par, perfect, hues, sats, lights) {
     const swatches = allStrikes(tee);
     const base = swatches[Math.floor(rand() * swatches.length)];
     return perfect === 1
-        ? nudge(rand, base, 0, IN_THE_HOLE * 0.75) // ace swatch lands in the hole
-        : nudge(rand, base, IN_THE_HOLE, ON_THE_GREEN); // that swatch lips out
+        ? nudge(rand, base, 0, cupSize() * 0.75) // ace swatch lands in the hole
+        : nudge(rand, base, cupSize(), ON_THE_GREEN); // that swatch lips out
 }
 
 // `think` (v1.8.2): see thinks(); checked here before hazards as a quick filter, and again on the finished hole
@@ -135,16 +135,21 @@ const birdieLineCount = (hole, perfect, map, wind = null, copies = true) => {
     return count;
 };
 
+// A hole's size for the checks below: its own (`cup`), or the one being built (buildHole) for a
+// hole still being made; IN_THE_HOLE otherwise
+const sizeOf = (hole) => hole.cup ?? cupSize();
+
 // The perfect line, shown in the game: first shots that keep the perfect score reachable, out of the
 // 38 distinct clubs (and the hole's roulette or flips). The generator's birdie-line bands count every
 // club, copies included, so the courses don't change.
-export const parLine = (hole) => birdieLineCount(hole, hole.par, hazardMap(hole.hazards ?? []), hole.wind ?? null, false); // par reachable (v1.8.6: ordering a survival round)
-export const perfectLine = (hole, copies = false) => birdieLineCount(hole, hole.perfect, hazardMap(hole.hazards ?? []), hole.wind ?? null, copies);
+export const parLine = (hole) => usingCup(sizeOf(hole), () => birdieLineCount(hole, hole.par, hazardMap(hole.hazards ?? []), hole.wind ?? null, false)); // par reachable (v1.8.6: ordering a survival round)
+export const perfectLine = (hole, copies = false) => usingCup(sizeOf(hole), () => birdieLineCount(hole, hole.perfect, hazardMap(hole.hazards ?? []), hole.wind ?? null, copies));
 
 // "Make you think" (v1.8.2): none of the `count` tee shots that end up closest to the pin (after any
 // portal or mirror, counting only clubs the hole allows) keeps the perfect score, so the obvious
 // swatch is never the answer and the perfect route goes another way first. Not on the ace.
-export function thinks(hole, count) {
+export const thinks = (hole, count) => usingCup(sizeOf(hole), () => thinksAt(hole, count));
+function thinksAt(hole, count) {
     if (hole.perfect <= 1) return true;
     const map = hazardMap(hole.hazards ?? []);
     const options = { ...windOptions(hole), played: 1, rules: hole.rules ?? null };
@@ -160,7 +165,8 @@ export function thinks(hole, count) {
 
 // Whether a perfect route plays like golf (v1.8.2): the putter only near the pin, no Driver or Woods
 // into the hole (solver.js: `golf`)
-export function playsLikeGolf(hole) {
+export const playsLikeGolf = (hole) => usingCup(sizeOf(hole), () => playsLikeGolfAt(hole));
+function playsLikeGolfAt(hole) {
     const options = { ...windOptions(hole), rules: hole.rules ?? null, golf: hole.target };
     return parFor(searchFrom(hole.tee, hole.perfect, hazardMap(hole.hazards ?? []), options), hole.target)?.par === hole.perfect;
 }
@@ -461,7 +467,7 @@ export function makeMirrorHole(rand, { par, perfect, hues, sats, lights, band, c
         // The pin: `after` strokes from the last reflection (on it, when that's 0)
         let pins;
         if (after === 0) {
-            pins = [nudge(rand, last, 0, IN_THE_HOLE * 0.75)].filter(pin => pin && fits(pin));
+            pins = [nudge(rand, last, 0, cupSize() * 0.75)].filter(pin => pin && fits(pin));
         } else {
             const search = searchFrom(last, after);
             pins = search.reached.filter(code => search.dist[code] === after).map(decode).filter(fits);
@@ -518,7 +524,7 @@ export function makeBanHole(rand, { par, perfect, hues, sats, lights, band, rule
         };
         // Colors first reached in exactly `perfect` strokes (the ace: a swatch, nudged inside the hole)
         let pins = search.reached.filter(code => search.dist[code] === perfect).map(decode);
-        if (perfect === 1) pins = pins.map(pin => nudge(rand, pin, 0, IN_THE_HOLE * 0.75)).filter(Boolean);
+        if (perfect === 1) pins = pins.map(pin => nudge(rand, pin, 0, cupSize() * 0.75)).filter(Boolean);
         pins = pins.filter(fits);
         for (let n = 0; n < 12 && pins.length; n++) {
             const target = pins.splice(Math.floor(rand() * pins.length), 1)[0];
@@ -565,7 +571,7 @@ export function makeWindHole(rand, { par, perfect, hues, sats, lights, band, thi
             return inRange(pin, hues, sats, lights) && yards >= LENGTH[par][0] && yards <= LENGTH[par][1] && hslDistance(tee, pin) >= ON_THE_GREEN * 2;
         };
         let pins = search.reached.filter(code => search.dist[code] === perfect).map(decode);
-        if (perfect === 1) pins = pins.map(pin => nudge(rand, pin, 0, IN_THE_HOLE * 0.75)).filter(Boolean);
+        if (perfect === 1) pins = pins.map(pin => nudge(rand, pin, 0, cupSize() * 0.75)).filter(Boolean);
         pins = pins.filter(fits);
         for (let n = 0; n < 12 && pins.length; n++) {
             const target = pins.splice(Math.floor(rand() * pins.length), 1)[0];
@@ -624,7 +630,7 @@ function makeExtraClubHole(rand, { par, perfect, hues, sats, lights, band, think
             return inRange(pin, hues, sats, lights) && yards >= LENGTH[par][0] && yards <= LENGTH[par][1] && hslDistance(tee, pin) >= ON_THE_GREEN * 2;
         };
         let pins = search.reached.filter(code => search.dist[code] === perfect).map(decode);
-        if (perfect === 1) pins = pins.map(pin => nudge(rand, pin, 0, IN_THE_HOLE * 0.75)).filter(Boolean);
+        if (perfect === 1) pins = pins.map(pin => nudge(rand, pin, 0, cupSize() * 0.75)).filter(Boolean);
         pins = pins.filter(fits);
         for (let n = 0; n < 12 && pins.length; n++) {
             const target = pins.splice(Math.floor(rand() * pins.length), 1)[0];
@@ -646,6 +652,12 @@ function makeExtraClubHole(rand, { par, perfect, hues, sats, lights, band, think
 // route that plays like golf); 0 skips it (Prism Point, the daily holes and practice). The other
 // options are buildOnce's.
 export function buildHole(rands, options) {
+    const size = CUP[options.difficulty] ?? IN_THE_HOLE; // v1.8.6: bigger on Beginner and Standard
+    const hole = usingCup(size, () => buildChecked(rands, options));
+    if (size !== IN_THE_HOLE) hole.cup = size;
+    return hole;
+}
+function buildChecked(rands, options) {
     const { think = 0, log = () => {} } = options;
     for (let attempt = 0; ; attempt++) {
         const hole = buildOnce(rands, options);

@@ -25,3 +25,6 @@ functions/lib/
 
 # Emulator logs
 *-debug.log
+
+# Claude Code runtime files (agent definitions in .claude/agents are kept)
+.claude/*.lock

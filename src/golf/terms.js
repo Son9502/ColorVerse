@@ -15,13 +15,13 @@ const TERMS = {
     wind: { title: "Wind", text: "Drifts every full shot by the same amount; putts aren't affected. Swatches show where a calm shot lands, so aim off.", example: "Wind +6° hue: Triadic +120° lands at +126°." },
     roulette: { title: "Roulette", text: "A swatch that spins through four hue shifts set for the hole, one a second: a stroke plays whichever is showing. With the keyboard, Tab into the row for all four.", example: "The wheel shows +95° when you tap: the ball moves 95° round the hue wheel." },
     flip: { title: "Flip", text: "Moves your color's hex digits left by 1 to 5 places, a full shot. Flips 2 and 4 turn the hue about 120°; 1, 3 and 5 jump somewhere new.", example: "#A23432 flipped by 1 is #23432A; by 2, #3432A2." },
+    monochrome: { title: "Monochrome", text: "The swatches show only their lightness, and the map is gray; You and Target keep their colors, so you know what you're after but must judge each shot by how light it is. The Monochrome switch lists the Monochrome courses (the first five's holes, with bests and unlocks of their own) and plays daily, weekly and practice holes this way.", example: "A red and a green of equal lightness look like the same gray." },
     survival: { title: "Survival", text: "Finish a hole over par (or pick up) and the round ends. Ranked by holes survived, then strokes, then time, on an all-time top 10. No undos.", example: "Par, birdie, par, bogey: the round ends on hole 4 with 3 holes survived." },
     turning: { title: "Turning wind", text: "The wind changes every stroke, in the cycle shown, then starts again; putts aren't affected. Swatches show where a calm shot lands.", example: "−10° hue → +4% light: stroke 1 drifts −10° hue, stroke 2 brightens 4%, stroke 3 drifts −10° again." },
     line: { title: "Perfect line", text: "How many of the 38 first shots can still make the perfect score. Fewer means a harder hole.", example: "\"Perfect line 2 of 38\": only two swatches from the tee keep the perfect score alive." },
-    pro: { title: "Pro", text: "Swatches show only the club, not the color, so you play on color theory alone. Expert always plays Pro; Pro scores are kept separately.", example: "You see \"+120°\" instead of the color it lands on." },
-    beginner: { title: "Beginner", text: "Plenty of ways to make the perfect score (6 or more first shots), and the swatch closest to the pin is often right.", example: "Prism Point." },
-    standard: { title: "Standard", text: "3–6 first shots make the perfect score, and the two swatches closest to the pin never do: look further.", example: "Ember Dunes, Verdant Pines." },
-    expert: { title: "Expert", text: "1–3 first shots make the perfect score and the three closest swatches never do. Played Pro, with no yardage until you're on the green, and par is perfect on par 3s and 4s.", example: "Cobalt Bay, Royal Indigo." },
+    beginner: { title: "Beginner", text: "Plenty of ways to make the perfect score (6 or more first shots), and the swatch closest to the pin is often right. A bigger hole: a near match drops.", example: "Prism Point." },
+    standard: { title: "Standard", text: "3–6 first shots make the perfect score, and the two swatches closest to the pin never do: look further. A bigger hole than Expert's: a near match drops.", example: "Ember Dunes, Verdant Pines." },
+    expert: { title: "Expert", text: "1–3 first shots make the perfect score and the three closest swatches never do. No yardage until you're on the green, and par is perfect on par 3s and 4s.", example: "Cobalt Bay, Royal Indigo." },
     expansion: { title: "Expansion", text: "Each course adds a twist and is built so it matters; the three swatches closest to the pin never make the perfect score. Unlocked one after another from Royal Indigo.", example: "Violet Vortex's portals, Silverglass Greens' mirrors." },
 };
 
@@ -29,8 +29,8 @@ const TERMS = {
 const PHRASES = [
     [/\b[Bb]lack holes?\b/, "blackhole"], [/\b[Bb]unkers?\b/, "sand"], [/\b[Ll]akes?\b/, "water"],
     [/\b[Pp]ortals?\b/, "portal"], [/\b[Mm]irrors?\b/, "mirror"], [/\bCaddie strike\b/, "ban"], [/\bbans\b/, "ban"], [/\broulette\b/, "roulette"], [/\b[Ff]lip clubs?\b/, "flip"], [/\bFlip row\b/, "flip"],
-    [/\bSurvival\b/, "survival"], [/\bWind \(per stroke\)/, "turning"], [/\b[Tt]urning wind\b/, "turning"], [/\bwind turns\b/, "turning"], [/\b[Ww]ind\b/, "wind"],
-    [/\b[Pp]erfect line\b/, "line"], [/\bPro\b/, "pro"],
+    [/\bSurvival\b/, "survival"], [/\bMonochrome\b/, "monochrome"], [/\bWind \(per stroke\)/, "turning"], [/\b[Tt]urning wind\b/, "turning"], [/\bwind turns\b/, "turning"], [/\b[Ww]ind\b/, "wind"],
+    [/\b[Pp]erfect line\b/, "line"],
     [/\bBeginner\b/, "beginner"], [/\bStandard\b/, "standard"], [/\bExpert\b/, "expert"], [/\bExpansion\b/, "expansion"],
 ];
 const ANY = new RegExp(PHRASES.map(([re]) => re.source).join("|"), "g");

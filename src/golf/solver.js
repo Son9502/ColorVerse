@@ -1,5 +1,5 @@
 import { CLUBS, STATE_COUNT, allStrikes, encode, decode } from "./clubs.js";
-import { hslToOklab, oklabDistance, IN_THE_HOLE } from "./oklab.js";
+import { hslToOklab, oklabDistance, cupSize } from "./oklab.js";
 import { isWedge } from "./hazards.js";
 import { clubMask } from "./rules.js";
 
@@ -92,7 +92,7 @@ export function searchFrom(tee, maxDepth = 7, hazards = null, { avoidHazards = f
                 const toNode = nodeOf(to, turns, depth);
                 if (seenAt[toNode] !== UNSEEN) return;
                 if (blocked && rough(hazards, landing, hsl, to, avoidHazards)) return;
-                if (pin && LONG_CLUB[clubIndex] && oklabDistance(hslToOklab(hsl), pin) < IN_THE_HOLE) return;
+                if (pin && LONG_CLUB[clubIndex] && oklabDistance(hslToOklab(hsl), pin) < cupSize()) return;
                 seenAt[toNode] = depth;
                 parent[toNode] = node;
                 club[toNode] = clubIndex;
@@ -108,11 +108,11 @@ export function searchFrom(tee, maxDepth = 7, hazards = null, { avoidHazards = f
     return { tee, dist, parent, club, reached, turns };
 }
 
-// Par for `target`: fewest strokes to land anywhere in the hole (OKLab distance < IN_THE_HOLE).
+// Par for `target`: fewest strokes to land anywhere in the hole (OKLab distance < the hole size: oklab.js cupSize).
 // Returns { par, end } where `end` is the state the best path finishes on, or null if out of reach.
 // The generators ask this of the same search for hundreds of targets, so each reached state's
 // OKLab color is computed once per search and kept with it.
-export function parFor(search, target, tolerance = IN_THE_HOLE) {
+export function parFor(search, target, tolerance = cupSize()) {
     const goal = hslToOklab(target);
     const lab = (search.lab ??= labsOf(search.reached));
     let best = null;
@@ -138,7 +138,8 @@ const scratch = new Map(); // a seen table per cycle length
 export function reachesWithin(from, target, maxDepth, hazards = null, { avoidHazards = false, wind = null, cycle = null, played = 0, roulette = null, flip = false, rules = null } = {}) {
     const allowed = clubMask(rules);
     const goal = hslToOklab(target);
-    const inHole = (hsl) => oklabDistance(hslToOklab(hsl), goal) < IN_THE_HOLE;
+    const size = cupSize();
+    const inHole = (hsl) => oklabDistance(hslToOklab(hsl), goal) < size;
     if (inHole(from)) return true;
     const blocked = hazards && !hazards.empty;
     const turns = cycle?.length ?? 1;

@@ -1,13 +1,13 @@
 import courses from "./courses.json";
 import { GolfRound, scoreName, compareRounds, survivalBoard, UNDOS_PER_ROUND, UNDOS_DAILY } from "./game.js";
 import { PUTTER, ROULETTE_SLOTS, FLIPS, STANDARD_CLUBS, COPIES, strike } from "./clubs.js";
-import { IN_THE_HOLE, hslDistance, hslToHex } from "./oklab.js";
+import { cupOf, hslDistance, hslToHex } from "./oklab.js";
 import { harmonySets, selectBaseColor, clearBaseColor, addNameLabel } from "../harmony.js";
 import { describeColor, colorNamesOn } from "../color-names.js";
 import { setMapState } from "./mapState.js";
-import { WEEK, dateKey, daysBetween, addDays, dayLabel, weekday, weekOf, streak } from "./daily.js";
+import { WEEK, dateKey, daysBetween, addDays, dayLabel, weekday, weekOf, streak, dailyKey, weeklyId } from "./daily.js";
 import { poolKey, PARS } from "./practice.js";
-import { courseLock, unlockToPar } from "./unlocks.js";
+import { courseLock, unlockToPar, unlockedBy } from "./unlocks.js";
 import { windFor } from "./rules.js";
 import { termify, setupTerms } from "./terms.js";
 import * as cloud from "../cloud/cloud.js";
@@ -18,9 +18,9 @@ import { runTour } from "../welcome.js";
 // Color Golf screen
 // ----------------------------------
 // body.golf hides the explore controls (search, sliders, help) and shows the putter row;
-// 3d-mode.js and dropdown.js skip canvas picking and Esc while it's set. body.golf-pro hides the
-// swatch colors in a Pro round. Three ways to play: a course (18 holes), the daily hole, practice.
-// Expert (any mode) is always Pro and hides the yardage until you're on the green.
+// 3d-mode.js and dropdown.js skip canvas picking and Esc while it's set. body.golf-mono shows the
+// swatches and the map in gray in a Monochrome round. Ways to play: a course, the daily hole, the weekly
+// Gauntlet, practice. Expert (any mode) hides the yardage until you're on the green.
 
 const BEST_KEY = "colorverse.golf.best.v2"; // v2: courses regenerated in v1.1.1, so older bests no longer apply
 const DAILY_KEY = "colorverse.golf.daily.v1"; // { "2026-10-28": { strokes, par, perfect, time, pickedUp, pro } }
@@ -43,7 +43,7 @@ const MENU_TOUR = [
 const HOLE_TOUR = [
     { target: ".golf-swatches", title: "You and the target", text: "Make the left color (You) match the right one (Target). Every hole starts from a tee color." },
     { target: "#ui-canvas", title: "The map", text: "Your ball, the flag and your trail on the color shape. It turns to follow the ball." },
-    { target: "#ui-container", title: "Your clubs", text: "Each row is a club. Long shots jump far round the hue wheel, Analogous moves a little, and the wedges (Tints, Shades, Tones, Saturate) change lightness and saturation. Each swatch shows where that shot lands: double-click one to play it.",
+    { target: "#ui-container", title: "Your clubs", text: "Each row is a club. Long shots jump far round the hue wheel, Analogous moves a little, and the wedges (Tints, Shades, Tones, Saturate) change lightness and saturation. Each swatch shows where that shot lands: click one to play it.",
         touch: "Each row is a club. Long shots jump far round the hue wheel, Analogous moves a little, and the wedges (Tints, Shades, Tones, Saturate) change lightness and saturation. Each swatch shows where that shot lands: tap one to play it." },
     { target: "#putter", title: "The putter", text: "Small nudges to hue, saturation or lightness, for when you're close." },
     { target: ".golf-meter", title: "How close you are", text: "The bar fills as you get closer. \"On the green\" means two putts or fewer will hole it." },
@@ -67,8 +67,14 @@ const HUE_SHIFTS = {
 let rouletteShifts = null;
 const shiftText = (shift) => `${shift > 0 ? "+" : "−"}${Math.abs(shift)}°`;
 
-// "Tints 60%", "Triadic +120°", "Putter Sat +", "Roulette +95°", "Flip ← 3"
+// The rows golf shows as one Long shots row (v1.8.5), named there by club type and shift, all one
+// way round: "Hybrid +60°", "Wood +150°", "Driver +180°", "Hybrid +240°" (Triadic −120°)
+const LONG_ROWS = new Set(["complementary", "split-complementary", "triadic", "tetradic", "double-complementary"]);
+const longShift = (row, index) => (HUE_SHIFTS[row][index] + 360) % 360;
+
+// "Tints 60%", "Wood +150°", "Analogous −20°", "Putter Sat +", "Roulette +95°", "Flip ← 3"
 function clubName({ row, index }) {
+    if (LONG_ROWS.has(row)) return `${CLUB_TYPES[row]} +${longShift(row, index)}°`;
     if (row === "putter") return `Putt ${PUTTER[index].label}`;
     if (row === "flip") return `Flip ← ${index + 1}`;
     if (row === "roulette") return `Roulette ${shiftText(rouletteShifts?.[index] ?? 0)}`;
@@ -100,6 +106,7 @@ function proLabel({ row, index }) {
     if (row === "putter") return PUTTER[index].label;
     if (row === "roulette") return clubName({ row, index }).slice("Roulette ".length);
     if (row === "flip") return `← ${index + 1}`;
+    if (LONG_ROWS.has(row)) return `+${longShift(row, index)}°`;
     return clubName({ row, index }).slice(ROW_NAMES[row].length + 1);
 }
 
@@ -108,7 +115,7 @@ function proLabel({ row, index }) {
 let solver = null;
 let solverRequest = 0;
 const pendingRoutes = new Map();
-function solveRoute({ tee, target, perfect, hazards = [], wind = null, rules = null }) {
+function solveRoute({ tee, target, perfect, hazards = [], wind = null, rules = null, cup }) {
     if (!solver) {
         solver = new Worker(new URL("./solver-worker.js", import.meta.url), { type: "module" });
         solver.onmessage = ({ data }) => {
@@ -121,7 +128,7 @@ function solveRoute({ tee, target, perfect, hazards = [], wind = null, rules = n
     const id = ++solverRequest;
     return new Promise((resolve, reject) => {
         pendingRoutes.set(id, { resolve, reject });
-        solver.postMessage({ id, tee, target, perfect, hazards, wind, rules });
+        solver.postMessage({ id, tee, target, perfect, hazards, wind, rules, cup });
     });
 }
 
@@ -227,9 +234,13 @@ function saveBest(course, pro, totals) {
     return true;
 }
 
-// Daily results by date. The first stroke of a scored try saves a pick-up (double par), which
-// finishing the hole replaces, so quitting or reloading can't buy a second try.
+// Daily results by date (Monochrome's under "<day>-mono", daily.js: dailyKey). The first stroke of a
+// scored try saves a pick-up (double par), which finishing the hole replaces, so quitting or
+// reloading can't buy a second try.
 const loadDaily = () => load(scoped(DAILY_KEY), {});
+// One mode's results by plain date, for its streak
+const dailyResults = (mono) => Object.fromEntries(Object.entries(loadDaily()).flatMap(([key, result]) =>
+    key.endsWith("-mono") === mono ? [[mono ? key.slice(0, -5) : key, result]] : []));
 function saveDaily(day, result) {
     save(scoped(DAILY_KEY), { ...loadDaily(), [day]: result });
 }
@@ -259,13 +270,16 @@ function mergeCloudScores({ bests, daily }) {
 const playedHoles = (card) => card.map(({ clubs, time }) => ({ clubs, time: Math.round(time) }));
 
 // The weekly Gauntlet (v1.8.6): the week's nine holes (weekly.json loads on first use) as a
-// survival course, and this browser's best run each week
-let weeklyList = null;
-async function weeklyCourse(week) {
-    const { start, weeks } = await (weeklyList ??= import("./weekly.json").then(module => module.default));
+// survival course, and this browser's best run each week. Monochrome has its own (weekly-mono.json),
+// with its own best (under "<Monday>-mono") and board.
+const weeklyLists = {};
+async function weeklyCourse(week, mono) {
+    const file = mono ? import("./weekly-mono.json") : import("./weekly.json");
+    const { start, weeks } = await (weeklyLists[mono] ??= file.then(module => module.default));
     const holes = weeks[daysBetween(start, week) / 7];
-    return holes ? { id: `weekly-${week}`, name: "Weekly Gauntlet", difficulty: "Expansion", survival: true, week, holes } : null;
+    return holes ? { id: weeklyId(week, mono), name: "Weekly Gauntlet", difficulty: "Expansion", survival: true, week, mono, holes } : null;
 }
+const weeklyBestKey = (week, mono) => (mono ? `${week}-mono` : week);
 const loadWeekly = () => load(scoped(WEEKLY_KEY), {});
 function saveWeekly(week, totals, pro) {
     const weeks = loadWeekly();
@@ -275,11 +289,11 @@ function saveWeekly(week, totals, pro) {
     return true;
 }
 
-// The daily list loads on first use (it's a few hundred kB), then stays
-let dailyList = null;
-const loadDailyList = () => (dailyList ??= import("./daily.json").then(module => module.default));
-async function todaysHole(day = dateKey()) {
-    const { start, holes } = await loadDailyList();
+// The daily list loads on first use (it's a few hundred kB), then stays; Monochrome's is its own
+const dailyLists = {};
+async function todaysHole(day = dateKey(), mono = false) {
+    const file = mono ? import("./daily-mono.json") : import("./daily.json");
+    const { start, holes } = await (dailyLists[mono] ??= file.then(module => module.default));
     return holes[daysBetween(start, day)] ?? null;
 }
 
@@ -393,9 +407,8 @@ export function setupGolf() {
         const wrapper = harmonySets[row][index].box.closest(".square-wrapper");
         const caption = document.createElement("span");
         caption.className = "long-shift";
-        caption.textContent = `+${(HUE_SHIFTS[row][index] + 360) % 360}°`; // all one way round, in order (Triadic −120° is +240°)
+        caption.textContent = proLabel({ row, index }); // all one way round, in order (Triadic −120° is +240°)
         wrapper.prepend(caption);
-        wrapper.title = `${CLUB_TYPES[row]}: ${clubName({ row, index })}`;
         return { wrapper, parent: wrapper.parentElement, next: wrapper.nextElementSibling };
     });
     const longRows = [...new Set(LONG_SHOTS.map(([row]) => harmonySets[row][0].box.closest(".colors-row")))];
@@ -618,7 +631,7 @@ export function setupGolf() {
 
     // Daily leaderboard: today's top 10 (showBoard)
     $("golf-leaderboard-toggle").addEventListener("click", (event) => showBoard($("golf-leaderboard"), event.currentTarget,
-        () => cloud.dailyLeaderboard(dateKey()),
+        () => cloud.dailyLeaderboard(dailyKey(dateKey(), proSwitch.checked)), // the board for the switch's mode
         [["Score", e => `${e.strokes} (${formatToPar(e.toPar)})`], ["Time", e => formatTime(e.time)]],
         "No scores yet today. Be the first!"));
 
@@ -646,7 +659,7 @@ export function setupGolf() {
                 row(["#", "Player", ...columns.map(([heading]) => heading)], "th"),
                 ...top.map((entry, i) => {
                     const tr = row([String(i + 1), entry.nickname, ...columns.map(([, cell]) => cell(entry))], "td", entry.uid === me ? "me" : "");
-                    if (entry.pro) tr.children[1].append(Object.assign(document.createElement("span"), { className: "golf-board-pro", textContent: "Pro" }));
+                    if (entry.pro) tr.children[1].append(Object.assign(document.createElement("span"), { className: "golf-board-pro", textContent: "Mono" }));
                     return tr;
                 }),
             );
@@ -661,11 +674,17 @@ export function setupGolf() {
         [["Holes", e => `${e.survived}/${course.holes.length}`], ["Strokes", e => String(e.strokes)], ["Time", e => formatTime(e.time)]],
         "No rounds yet. Be the first!");
 
-    // Pro: the switch on the setup screen applies to the next round and picks which bests are shown
+    // Monochrome (v1.8.6, was Pro; still "pro" in storage and on the server): the switch picks the
+    // courses listed (the Monochrome five or the color ones) and plays daily, weekly and practice in gray
     const proSwitch = $("golf-pro");
     proSwitch.checked = load(PRO_KEY, false);
+    // The golf menu's shape turns gray with the switch on (index.css: golf-mono-switch)
+    document.body.classList.toggle("golf-mono-switch", proSwitch.checked);
     proSwitch.addEventListener("change", () => {
         save(PRO_KEY, proSwitch.checked);
+        document.body.classList.toggle("golf-mono-switch", proSwitch.checked);
+        renderDaily(); // the switch picks which daily hole and weekly Gauntlet the cards show
+        renderWeekly();
         renderCourses();
         settingsSummary();
     });
@@ -675,7 +694,7 @@ export function setupGolf() {
         const account = cloud.currentAccount();
         $("golf-settings-summary").textContent = [
             account && `signed in as ${account.nickname ?? account.email}`,
-            proSwitch.checked ? "Clubs (Pro)" : "Colors",
+            proSwitch.checked ? "Monochrome" : "Color",
             colorNamesOn() && "color names on",
         ].filter(Boolean).join(" · ");
     };
@@ -699,7 +718,7 @@ export function setupGolf() {
         exploringSpace ??= spaceToggle.checked;
         setSpaceToggle(true);
         document.body.classList.add("golf");
-        document.body.classList.remove("golf-pro");
+        document.body.classList.remove("golf-mono");
         mergeLongShots(true);
         document.dispatchEvent(new CustomEvent("golfshowcase", { detail: "menu" })); // 3d-mode.js: the full-color surface, turning
         if (load(GOLF_WELCOMED_KEY, null) !== 1) { // first visit: offer the walk-through
@@ -728,8 +747,9 @@ export function setupGolf() {
         stopTimer();
         round = null;
         setMapState(null);
-        document.body.classList.remove("golf", "golf-pro", "golf-menu");
+        document.body.classList.remove("golf", "golf-mono", "golf-menu");
         mergeLongShots(false);
+        for (const box of clubs.keys()) box.closest(".square-wrapper")?.removeAttribute("title"); // golf's club names
         document.dispatchEvent(new CustomEvent("golfshowcase", { detail: "explore" })); // back to the explore layer
         if (exploringSpace !== null) setSpaceToggle(exploringSpace);
         exploringSpace = null;
@@ -743,23 +763,27 @@ export function setupGolf() {
         if (!cloud.cloudAvailable || testing()) return null;
         const lock = courseLock(courses, index, { signedIn: !!owner, bests: load(scoped(BEST_KEY), {}) });
         if (lock === "account") return "Sign in to unlock";
-        if (lock === "score") return `Score ${formatToPar(unlockToPar(courses[index]))} or better on ${courses[index - 1].name} to unlock`;
+        if (lock === "score") return `Score ${formatToPar(unlockToPar(courses[index]))} or better on ${unlockedBy(courses, index).name} to unlock`;
         return null;
     };
 
     const renderCourses = () => {
-        $("golf-courses").replaceChildren(...courses.map((course, index) => {
+        // Monochrome on: only the Monochrome courses; off: only the color ones
+        $("golf-courses-title").textContent = proSwitch.checked ? "Monochrome courses" : "Courses";
+        $("golf-courses").replaceChildren(...courses.flatMap((course, index) => {
+            if (!!course.mono !== proSwitch.checked) return [];
             const [from, to] = course.hues;
             const span = ((to - from + 359) % 360) + 1;
-            const stops = Array.from({ length: 7 }, (_, i) => `hsl(${(from + (span * i) / 6) % 360}, 75%, 50%)`);
+            const stops = course.mono
+                ? ["#f2f2f2", "#111"] // Monochrome: a gray ramp
+                : Array.from({ length: 7 }, (_, i) => `hsl(${(from + (span * i) / 6) % 360}, 75%, 50%)`);
             const par = course.holes.reduce((sum, hole) => sum + hole.par, 0);
             const length = course.holes.reduce((sum, hole) => sum + yards(hole.tee, hole.target), 0);
-            const pro = proSwitch.checked || isExpert(course.difficulty);
-            const record = bestFor(course, pro);
+            const record = bestFor(course, false); // a Monochrome course keeps its bests under its own id
             const locked = lockText(index);
             const bestText = !record ? ""
-                : course.survival ? ` · ${pro ? "Pro best" : "best"} ${record.survived} of ${course.holes.length} holes, ${record.strokes} strokes, ${formatTime(record.time)}`
-                : ` · ${pro ? "Pro best" : "best"} ${record.strokes} (${formatToPar(record.toPar)}), ${formatTime(record.time)}`;
+                : course.survival ? ` · best ${record.survived} of ${course.holes.length} holes, ${record.strokes} strokes, ${formatTime(record.time)}`
+                : ` · best ${record.strokes} (${formatToPar(record.toPar)}), ${formatTime(record.time)}`;
 
             const item = document.createElement("li");
             item.className = locked ? "golf-course locked" : "golf-course";
@@ -776,7 +800,7 @@ export function setupGolf() {
             item.querySelector("button.btn-primary").addEventListener("click", () => startRound(course));
             item.querySelector(".golf-leaderboard-toggle")?.addEventListener("click", (event) =>
                 showSurvivalBoard(course, item.querySelector(".golf-leaderboard"), event.currentTarget));
-            return item;
+            return [item];
         }));
     };
 
@@ -787,20 +811,24 @@ export function setupGolf() {
         const { name, difficulty } = WEEK[weekday(day)];
         $("golf-daily-date").textContent = `· ${dayLabel(day)}`;
         play.disabled = true;
-        const hole = await todaysHole(day).catch(() => null);
+        const mono = proSwitch.checked; // Monochrome: its own hole, result, streak and board
+        $("golf-daily-title").textContent = mono ? "Monochrome daily hole" : "Daily hole";
+        $("golf-leaderboard").hidden = true;
+        $("golf-leaderboard-toggle").setAttribute("aria-expanded", "false");
+        const hole = await todaysHole(day, mono).catch(() => null);
         if (!hole) {
             $("golf-daily-info").textContent = "No daily hole today. Check back after the next update.";
             $("golf-daily-status").textContent = "";
             return;
         }
         const summary = hazardSummary(hole.hazards);
-        $("golf-daily-info").innerHTML = termify([name, difficulty, isExpert(difficulty) && "Pro", `par ${hole.par}`, `${yards(hole.tee, hole.target)} yds`, summary, hole.wind && "wind"]
+        $("golf-daily-info").innerHTML = termify([name, difficulty, `par ${hole.par}`, `${yards(hole.tee, hole.target)} yds`, summary, hole.wind && "wind"]
             .filter(Boolean).join(" · "));
-        const results = loadDaily();
+        const results = dailyResults(mono);
         const result = results[day];
         const run = streak(results, day);
         $("golf-daily-status").textContent = result
-            ? `Today: ${result.pickedUp ? "picked up" : scoreName(result.strokes, result.par)} (${result.strokes})${result.pro ? ", Pro" : ""} · streak ${run}`
+            ? `Today: ${result.pickedUp ? "picked up" : scoreName(result.strokes, result.par)} (${result.strokes}) · streak ${run}`
             : run ? `Streak ${run}: play today to keep it` : "Play today to start a streak";
         play.textContent = result ? "Replay" : "Play";
         play.disabled = false;
@@ -813,9 +841,11 @@ export function setupGolf() {
         const week = weekOf(day);
         const play = $("golf-weekly-play");
         const toggle = $("golf-weekly-board-toggle");
+        const mono = proSwitch.checked; // Monochrome: its own nine holes, best and board
         $("golf-weekly-date").textContent = `· week of ${dayLabel(week)}`;
+        $("golf-weekly-title").textContent = mono ? "Monochrome weekly Gauntlet" : "Weekly Gauntlet";
         play.disabled = true;
-        const course = await weeklyCourse(week).catch(() => null);
+        const course = await weeklyCourse(week, mono).catch(() => null);
         if (!course) {
             $("golf-weekly-info").textContent = "No Gauntlet this week. Check back after the next update.";
             $("golf-weekly-status").textContent = "";
@@ -825,10 +855,10 @@ export function setupGolf() {
         const par = course.holes.reduce((sum, hole) => sum + hole.par, 0);
         const left = daysBetween(day, addDays(week, 7));
         $("golf-weekly-info").innerHTML = termify(["Expansion", "Survival", `${course.holes.length} holes`, `par ${par}`, `new holes in ${left} day${left === 1 ? "" : "s"}`].join(" · "));
-        const best = loadWeekly()[week];
+        const best = loadWeekly()[weeklyBestKey(week, mono)];
         const locked = lockText(GAUNTLET) && "🔒 Unlock The Obsidian Gauntlet to play";
         $("golf-weekly-status").textContent = locked || (best
-            ? `Your best this week: ${best.survived} of ${course.holes.length} holes, ${best.strokes} strokes, ${formatTime(best.time)}${best.pro ? ", Pro" : ""}`
+            ? `Your best this week: ${best.survived} of ${course.holes.length} holes, ${best.strokes} strokes, ${formatTime(best.time)}`
             : "No run yet this week");
         play.textContent = best ? "Play again" : "Play";
         play.disabled = !!locked;
@@ -839,7 +869,7 @@ export function setupGolf() {
         toggle.onclick = () => showSurvivalBoard(course, list, toggle);
     };
     const startWeekly = async () => {
-        const course = await weeklyCourse(weekOf(dateKey()));
+        const course = await weeklyCourse(weekOf(dateKey()), proSwitch.checked);
         if (!course || setup.hidden) return;
         weekly = course;
         startRound(course, "weekly");
@@ -847,10 +877,12 @@ export function setupGolf() {
 
     const startDaily = async () => {
         const day = dateKey();
-        const hole = await todaysHole(day);
+        const mono = proSwitch.checked;
+        const hole = await todaysHole(day, mono);
         if (!hole || setup.hidden) return; // none today, or left the setup screen meanwhile
-        daily = { day, scored: !loadDaily()[day] && !testing(), started: false }; // a tester's daily is never scored
-        startRound({ id: "daily", name: "Daily hole", difficulty: WEEK[weekday(day)].difficulty, holes: [hole] }, "daily");
+        daily = { day, mono, key: dailyKey(day, mono), started: false };
+        daily.scored = !loadDaily()[daily.key] && !testing(); // a tester's daily is never scored
+        startRound({ id: "daily", name: mono ? "Monochrome daily hole" : "Daily hole", difficulty: WEEK[weekday(day)].difficulty, holes: [hole] }, "daily");
     };
 
     // Practice: the first hole comes from the starter pool; each next one is built while you play
@@ -919,8 +951,12 @@ export function setupGolf() {
         round.firstHole = from;
         taught = new Set();
         round.expert = isExpert(course.difficulty);
-        round.pro = proSwitch.checked || round.expert;
-        document.body.classList.toggle("golf-pro", round.pro);
+        // Monochrome (v1.8.6): a Monochrome course, or daily / weekly / practice with the switch on.
+        // `pro` files the scores apart (a Monochrome course has its own id, so it needn't)
+        round.mono = !!course.mono || (!["course", "test"].includes(mode) && proSwitch.checked);
+        round.pro = round.mono && !course.mono;
+        round.hidesColor = round.mono; // no hex values or color names for the swatches
+        document.body.classList.toggle("golf-mono", round.mono);
         $("golf-card-toggle").hidden = mode !== "course";
         $("golf-card-toggle").setAttribute("aria-expanded", "false");
         liveCard.hidden = true;
@@ -962,7 +998,7 @@ export function setupGolf() {
         const { hole, holeIndex } = round;
         const length = !round.expert && `${yards(hole.tee, hole.target)} yds`; // Expert: no yardage
         const summary = hazardSummary(hole.hazards);
-        const pro = round.pro && "Pro";
+        const pro = round.mono && "Monochrome";
         const firstShots = STANDARD_CLUBS.length - COPIES.size + (hole.rules?.roulette ? ROULETTE_SLOTS : 0) + (hole.rules?.flip ? FLIPS : 0);
         const line = hole.lines !== undefined && `perfect line ${hole.lines} of ${firstShots}`;
         let title, info;
@@ -1008,7 +1044,6 @@ export function setupGolf() {
     // Current color, swatches (harmonies + putter), strokes, undo and the meter
     const renderPosition = (lie) => {
         const { current } = round;
-        aim(null);
         $("golf-you").style.backgroundColor = css(current);
         selectBaseColor(css(current), "", "golf", current);
         putterBoxes.forEach((box, index) => {
@@ -1054,23 +1089,20 @@ export function setupGolf() {
             if (mirror) {
                 const reflected = round.hazards.land(landing);
                 const out = yards(reflected, round.hole.target);
-                const hex = round.pro ? "" : ` (${hslToHex(reflected)})`;
+                const hex = round.hidesColor ? "" : ` (${hslToHex(reflected)})`;
                 warps = round.expert ? ", lands on a mirror" : `, lands on a mirror: flips to${hex} ${out} yds from the pin`;
                 wrapper.dataset.mirror = round.expert ? "Mirror" : `⇄ ${out} yds`;
-                wrapper.style.setProperty("--reflect", round.pro ? "transparent" : css(reflected));
-                wrapper.title = warps.slice(2);
+                wrapper.style.setProperty("--reflect", css(reflected)); // gray in Monochrome (index.css)
             }
             if (portal) {
                 const out = yards(portal.exit, round.hole.target);
-                const hex = round.pro ? "" : ` at ${hslToHex(portal.exit)}`;
+                const hex = round.hidesColor ? "" : ` at ${hslToHex(portal.exit)}`;
                 warps = round.expert ? `, lands in a portal${hex}` : `, lands in a portal: comes out${hex}, ${out} yds from the pin`;
                 wrapper.dataset.portal = round.expert ? "Portal" : `→ ${out} yds`;
-                wrapper.style.setProperty("--exit", round.pro ? "transparent" : css(portal.exit));
-                wrapper.title = warps.slice(2);
-            } else if (wrapper?.title && !mirror) {
-                wrapper.title = "";
+                wrapper.style.setProperty("--exit", css(portal.exit));
             }
-            box.setAttribute("aria-label", (round.pro ? clubName(club) : `${clubName(club)}, ${box.dataset.name}`) + warps);
+            if (wrapper) wrapper.title = clubName(club) + (warps ? `: ${warps.slice(2)}` : ""); // the club, then where a warp leaves you
+            box.setAttribute("aria-label", (round.hidesColor ? clubName(club) : `${clubName(club)}, ${box.dataset.name}`) + warps);
         }
 
         $("golf-strokes").textContent = round.strokes;
@@ -1106,7 +1138,7 @@ export function setupGolf() {
             return;
         }
         // Full bar at the hole's edge, empty at 0.4 (about as far as two colors get)
-        const closeness = Math.max(0, Math.min(1, 1 - (lie.distance - IN_THE_HOLE) / 0.4));
+        const closeness = Math.max(0, Math.min(1, 1 - (lie.distance - cupOf(round.hole)) / 0.4));
         fill.style.width = `${(lie.holed ? 1 : closeness) * 100}%`;
         label.textContent = lieLabel(lie);
     };
@@ -1161,7 +1193,7 @@ export function setupGolf() {
         else if (lie?.landed === "blackhole") note.textContent = "Black hole! +1 stroke, back to the tee.";
         else if (lie?.landed === "mirror") {
             const landing = round.trail.at(-1); // where it landed, before the flip
-            note.textContent = round.pro ? "Mirror! Your color's hex flipped." : `Mirror! Your color's hex flipped: ${hslToHex(landing)} → ${hslToHex(round.current)}.`;
+            note.textContent = round.hidesColor ? "Mirror! Your color's hex flipped." : `Mirror! Your color's hex flipped: ${hslToHex(landing)} → ${hslToHex(round.current)}.`;
         }
         else if (round.inSand && !round.holeDone) {
             note.textContent = round.sandWedge
@@ -1257,15 +1289,15 @@ export function setupGolf() {
         replayToken++;
         $("golf-wind-badge").hidden = true;
         const totals = round.totals();
-        const pro = round.pro ? " · Pro" : "";
+        const pro = round.pro ? " · Monochrome" : "";
         if (mode === "daily") {
             const { clubs, ...result } = round.card[0];
             if (daily.scored) {
-                saveDaily(daily.day, { ...result, pro: round.pro });
-                sendRound({ kind: "daily", day: daily.day, pro: round.pro, holes: playedHoles(round.card) });
+                saveDaily(daily.key, { ...result, pro: round.pro });
+                sendRound({ kind: "daily", day: daily.day, mono: daily.mono, pro: round.pro, holes: playedHoles(round.card) });
             }
-            const run = streak(loadDaily(), daily.day);
-            $("golf-round-title").textContent = `Daily hole: ${result.pickedUp ? "Picked up" : scoreName(result.strokes, result.par)}`;
+            const run = streak(dailyResults(daily.mono), daily.day);
+            $("golf-round-title").textContent = `${daily.mono ? "Monochrome daily hole" : "Daily hole"}: ${result.pickedUp ? "Picked up" : scoreName(result.strokes, result.par)}`;
             $("golf-round-message").hidden = true;
             $("golf-round-info").textContent = `${result.strokes} strokes · Par ${result.par} · Perfect ${result.perfect} · ${formatTime(result.time)}${pro} · ${
                 daily.scored ? `Streak ${run}` : "Replay, not scored"}`;
@@ -1273,9 +1305,9 @@ export function setupGolf() {
             $("golf-again").textContent = "Color Golf menu";
         } else if (mode === "weekly") {
             const length = round.course.holes.length;
-            const isBest = !testing() && saveWeekly(weekly.week, totals, round.pro);
-            sendRound({ kind: "weekly", day: dateKey(), pro: round.pro, holes: playedHoles(round.card) });
-            $("golf-round-title").textContent = `Weekly Gauntlet: ${totals.survived} of ${length} holes survived`;
+            const isBest = !testing() && saveWeekly(weeklyBestKey(weekly.week, weekly.mono), totals, round.pro);
+            sendRound({ kind: "weekly", day: dateKey(), mono: weekly.mono, pro: round.pro, holes: playedHoles(round.card) });
+            $("golf-round-title").textContent = `${weekly.mono ? "Monochrome weekly Gauntlet" : "Weekly Gauntlet"}: ${totals.survived} of ${length} holes survived`;
             $("golf-round-message").textContent = survivalMessage(totals, length, round.card.at(-1));
             $("golf-round-message").hidden = false;
             $("golf-round-info").textContent = `${totals.strokes} strokes (${formatToPar(totals.toPar)}) · Par ${totals.par} · ${formatTime(totals.time)}${pro}${isBest ? " · Your best this week!" : ""}`;
@@ -1417,29 +1449,19 @@ export function setupGolf() {
         timer = null;
     }
 
-    // ---- Strokes: double-click a swatch (mouse), tap it (touch), or Enter / Space (keyboard) ----
+    // ---- Strokes: click or tap a swatch, or Enter / Space (keyboard) (v1.8.6: one click on every device) ----
     // Listeners use the capture phase, so harmony.js's explore-mode choosing never sees them.
-    // Touch on Expert: the first tap aims (the swatch is outlined), a second tap on it plays, since
-    // Expert swatches are blank and a stray tap would cost a stroke.
-    let aimed = null; // square aimed at with a first tap
-    const aim = (square) => {
-        aimed?.closest(".square-wrapper")?.classList.remove("golf-aimed");
-        aimed = square;
-        aimed?.closest(".square-wrapper")?.classList.add("golf-aimed");
-    };
     const ui = $("ui-container");
     const inGame = () => document.body.classList.contains("golf");
     ui.addEventListener("dblclick", (event) => {
-        if (!inGame()) return;
-        event.stopPropagation();
-        if (lastPointerType() !== "touch") playSwatch(event.target.closest(".square"));
+        if (inGame()) event.stopPropagation(); // a double-click is two clicks, already played; keep explore's handler out
     }, { capture: true });
     ui.addEventListener("click", (event) => {
         const square = event.target.closest(".square");
-        if (!inGame() || !(clubs.has(square) || square === wheel) || lastPointerType() !== "touch") return;
+        if (!inGame() || !(clubs.has(square) || square === wheel)) return;
         event.stopPropagation();
-        if (round?.expert && aimed !== square) aim(square);
-        else playSwatch(square);
+        if (event.detail > 1 && lastPointerType() !== "touch") return; // a habitual double-click plays once
+        playSwatch(square);
     }, { capture: true });
     ui.addEventListener("keydown", (event) => {
         const square = event.target.closest?.(".square");
@@ -1459,8 +1481,8 @@ export function setupGolf() {
             // Today's try has started: it counts as a pick-up unless the hole is finished
             daily.started = true;
             const { par, perfect } = round.hole;
-            saveDaily(daily.day, { par, perfect, strokes: par * 2, time: 0, pickedUp: true, pro: round.pro });
-            cloud.startDaily(daily.day, round.pro);
+            saveDaily(daily.key, { par, perfect, strokes: par * 2, time: 0, pickedUp: true, pro: round.pro });
+            cloud.startDaily(daily.day, round.pro, daily.mono);
         }
         renderPosition(lie);
         if (round.holeDone) endHole();

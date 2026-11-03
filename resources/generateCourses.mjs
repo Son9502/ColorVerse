@@ -125,17 +125,17 @@ const THINK = { Beginner: 0, Standard: 2, Expert: 3, Expansion: 3 };
 // `rev` counts regenerations, so bests from older holes aren't shown.
 const COURSES = [
     {
-        id: "prism", name: "Prism Point", seed: 1, hues: [0, 360], difficulty: "Beginner", // full spectrum
+        id: "prism", name: "Prism Point", seed: 1, rev: 2, hues: [0, 360], difficulty: "Beginner", // full spectrum
         hazards: (i, par) => (i >= 9 && par >= 4 && i % 2 === 0 ? { greenside: 1 } : null), // a few bunkers on the back 9
         wind: null, // calm
     },
     {
-        id: "ember", name: "Ember Dunes", seed: 2, rev: 3, hues: [345, 60], difficulty: "Standard", layout: [EMBER_FRONT, BACK], // par 73, reds, oranges, yellows
+        id: "ember", name: "Ember Dunes", seed: 2, rev: 4, hues: [345, 60], difficulty: "Standard", layout: [EMBER_FRONT, BACK], // par 73, reds, oranges, yellows
         hazards: (i, par, perfect) => (perfect === 1 ? null : { greenside: par === 5 ? 2 : 1, route: i % 3 === 0 ? 1 : 0 }), // the sand course
         wind: { hue: [4, 8], light: [2, 4] }, // steady breezes
     },
     {
-        id: "verdant", name: "Verdant Pines", seed: 3, rev: 3, hues: [75, 165], difficulty: "Standard", layout: [FRONT_35, VERDANT_BACK], // par 70, greens
+        id: "verdant", name: "Verdant Pines", seed: 3, rev: 4, hues: [75, 165], difficulty: "Standard", layout: [FRONT_35, VERDANT_BACK], // par 70, greens
         hazards: (i, par, perfect) => (perfect > 1 && i % 3 === 1 ? { greenside: 1 } : null), // light sand
         wind: { hue: [2, 4] }, // light
     },
@@ -195,6 +195,17 @@ const COURSES = [
     },
 ];
 
+// Monochrome (v1.8.6): gray copies of courses 1–5, the same holes played with every color in grayscale
+// (swatches, You and Target, the map), so lightness is the only clue. Copied from their color twins on
+// every run (same rev, so regenerating a twin regenerates its copy); their own unlock chain (`after`).
+const MONO = [
+    { id: "ash", name: "Ash Point", from: "prism", after: "prism" },
+    { id: "cinder", name: "Cinder Dunes", from: "ember", after: "ash" },
+    { id: "slate", name: "Slate Pines", from: "verdant", after: "cinder" },
+    { id: "graphite", name: "Graphite Bay", from: "cobalt", after: "slate" },
+    { id: "onyx", name: "Royal Onyx", from: "indigo", after: "graphite" },
+];
+
 const only = process.argv.slice(2); // optional: course ids to generate (others are kept from the current file)
 const existing = only.length ? JSON.parse(readFileSync(new URL("../src/golf/courses.json", import.meta.url))) : [];
 
@@ -216,6 +227,14 @@ const courses = COURSES.map(({ id, name, seed, rev, hues, sats, lights, survival
     if (survival) holes.splice(0, holes.length, ...easiestFirst(holes)); // a survival round gets harder as it goes
     return { id, name, ...(rev && { rev }), hues, difficulty, ...(survival && { survival }), ...(gimmick && { gimmick }), ...(tutorial && { tutorial }), holes };
 }).filter(Boolean);
+for (const { id, name, from, after } of MONO) {
+    const twin = courses.find(course => course.id === from);
+    courses.push({
+        id, name, ...(twin.rev && { rev: twin.rev }), hues: twin.hues, difficulty: twin.difficulty, mono: true, after,
+        gimmick: `Monochrome: ${twin.name}'s holes with the swatches in gray. Judge each shot by its lightness.`,
+        holes: twin.holes,
+    });
+}
 
 const out = new URL("../src/golf/courses.json", import.meta.url);
 // One hole per line, so course changes read clearly in a diff

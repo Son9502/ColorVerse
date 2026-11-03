@@ -57,7 +57,7 @@ Someone can open ColorVerse, explore RGB and HSL as an interactive **3-D** color
 | **v1.5** | Engine cleanup: Three.js r128 → npm package; delete ShaderCache ✅ (v1.5.0) | Ends the r128 API gaps before v2.0's new renderers |
 | **v1.6** | Accounts + score database, daily leaderboard, account-only courses 4–5 ✅ (v1.6.0–v1.6.2; Firebase project `colorverse-9efa3`) | Gives the daily hole real stakes; the only backend work, best done before the codebase grows |
 | **v1.7** | Mobile and accessibility ✅ (v1.7.0) | Golf needs double-clicks, drags and color vision today; fix that before adding more views |
-| **v1.8** | Expansion pack: 7 account-only courses (portals, mirror greens, club bans, turning wind, roulette, flip, survival) | Reuses accounts, unlocks and the generator; new rules stay solver-exact |
+| **v1.8** | Expansion pack: 7 account-only courses (portals, mirror greens, club bans, turning wind, roulette, flip, survival) and a weekly Gauntlet ✅ (v1.8.0–v1.8.6) | Reuses accounts, unlocks and the generator; new rules stay solver-exact |
 | **v2.0** | 1-D and 2-D modes + shared color across dimensions | Delivers the "multi-dimensional" promise; new renderers and shared state |
 | **v2.1** | Golf in 2-D | A flat map shows a whole hole at once (no far side of a sphere) |
 | **v2.2** | More 3-D shapes: HSL cylinder, HSV cone / bicone | Reuses the 3-D pipeline |
@@ -227,7 +227,7 @@ Seven account-only courses after Royal Indigo, each built around one gimmick, th
 - **Solver:** Portals, mirrors, bans, roulette and flip depend only on the color, so the search is unchanged in kind. Turning wind adds "which shot in the cycle" to the state: memory × the cycle length (2–3), so the search stays exact.
 - **Generator:** `generateCourses.mjs` gains a placement step per gimmick (portals on or across the hazard-free perfect route, mirror regions near the tee or the green, bans chosen so the perfect route must change, wind cycles and roulette sets kept only if the hole passes the usual checks). Every hole is re-checked: perfect under par, finishable within par, birdie line in range, and the gimmick must matter (the perfect route with it differs from the one without).
 - **Map:** portals as a ring with a swirl icon and a dotted line to the exit; mirror regions as a silver patch with a ⇄ icon (the same footprint tracing as hazards); wind badge shows now → next.
-- **Survival on the server:** a round may end early (the first hole over par); bests compare holes survived first. A `survival/{uid}` best per player feeds the top 10.
+- **Survival on the server:** a round may end early (the first hole over par); bests compare holes survived first. Each player's best on a board (`survival/{course}-r{rev}/scores/{uid}`, or `weekly-<Monday>-r1` for the weekly Gauntlet) feeds its top 10.
 - **Help:** each course's card says its gimmick in a line, and "How to play" gains a section per gimmick.
 
 **Done:** v1.8.0 Violet Vortex: 17 portal holes and the ace. Par 72, perfect 51; the perfect route always warps.
@@ -249,9 +249,15 @@ Seven account-only courses after Royal Indigo, each built around one gimmick, th
 
 **Done:** v1.8.4 Scarlet Roulette: 18 roulette holes (330°–20°), par 72, perfect 49. A Roulette row's wheel spins through four hue shifts set per hole, one a second, and a stroke plays the one showing; keyboard players get the four as separate swatches. Changed from the spec's intent: the roulette is the way to the perfect score, not to par (a hue shift can save one stroke at most).
 
-**Done:** v1.8.6 The Obsidian Gauntlet: 18 holes in dark colors (lightness 15–50%), three of each gimmick in turn, par 72, perfect 49. Survival: finishing a hole over par (or picking up) ends the round; no undos. Bests and an all-time top 10 per course version (`survival/{course}-r{rev}/scores/{uid}`) rank holes survived, then strokes, then time. Unlocked by −4 or better on Hexflip Hollow (provisional). Holes play easiest first. A weekly Gauntlet (nine survival holes, new each Monday, `weekly.json`) has its own board each week.
-
 **Done:** v1.8.5 Hexflip Hollow: 18 flip holes (full spectrum), par 72, perfect 49. A Flip row of five swatches moves the color's hex digits left by 1–5 places. Without the flips each hole is two strokes longer, so par needs one on the par 3s and 4s (the spec's "way to par", which the roulette couldn't reach).
+- **Long shots:** a club audit found three clubs that always land where another does (Tetradic and Double-comp. +180°, Double-comp. +240°). In golf the Driver, Woods and Hybrids share one row of eight distinct shifts, +60° to +270°, and the perfect line counts out of 38 (42 with a roulette, 43 with flips). The copies stay in the club list, so recorded rounds replay.
+
+**Done:** v1.8.6 The Obsidian Gauntlet: 18 holes in dark colors (lightness 15–50%), three of each gimmick in turn, par 72, perfect 49. Survival: finishing a hole over par (or picking up) ends the round; no undos. Bests and an all-time top 10 per course version (`survival/{course}-r{rev}/scores/{uid}`) rank holes survived, then strokes, then time. Unlocked by −4 or better on Hexflip Hollow (provisional). Holes play easiest first (by how many tee shots still leave par reachable).
+- **Weekly Gauntlet:** nine survival holes, the same for everyone, new each Monday (the player's local date). Every gimmick once plus three more, easiest first, built ahead into `weekly.json` (to 27 Dec 2027; `npm run weekly -- --until …` extends it). Unlimited tries, best run counts, one board per week; opens with The Obsidian Gauntlet.
+- **Monochrome (replaces Pro):** a switch that lists Ash Point, Cinder Dunes, Slate Pines, Graphite Bay and Royal Onyx (the holes of courses 1–5) and plays daily, weekly and practice in Monochrome: the swatches and the map in gray, so each shot is judged by its lightness, with You and Target in their real colors. Their own bests and unlock chain from Prism Point. No course is forced into it (Expert keeps no yardage and Expert par, in color).
+- **Monochrome daily and weekly:** a Monochrome daily hole and weekly Gauntlet of their own (different holes, `daily-mono.json` and `weekly-mono.json`), with their own try, streak and leaderboards; the switch picks which the cards show.
+- **One click plays** a swatch on every device. Unlock scores got 3 strokes of grace.
+- **Phones and first visits (from playtesting):** a landscape layout (hole, swatches and map side by side), a layer slider with − / +, help and tour text written for touch, a ? panel that scrolls to its end, leaderboards as tables, the golf menu showing the full-color surface turning, and a first-time walk-through of the golf screen and the first hole.
 
 **Order:** one course per release, each playable and committed before the next: v1.8.0 hole rules + Portals (Violet Vortex), v1.8.1 Mirror greens (Silverglass Greens), v1.8.2 Club bans (Caddie Strike), v1.8.3 Turning wind (Saffron Whirlwind), v1.8.4 Roulette (Scarlet Roulette), v1.8.5 Flip (Hexflip Hollow), v1.8.6 Survival (The Obsidian Gauntlet).
 
@@ -264,10 +270,13 @@ Developed on the `feature/1d-2d` branch.
 - **Shared state across dimensions:** a color picked in one dimension stays highlighted when you switch to another.
 
 ### Before v2.0: Housekeeping
-- Run the remaining v1 live checks (first load under 3 s, 10 shape switches).
-- Merge `main` into `feature/1d-2d`, which has drifted far behind.
-- Playtest Expert by hand: its difficulty has only been measured by the solver.
-- Playtest Verdant Pines and Cobalt Bay and tune `UNLOCK_TO_PAR` (v1.6) before the expansion pack builds on it.
+1. **Merge and deploy:** merge `feature/expansion` into `main`; once GitHub Pages has deployed, run `npm run deploy:cloud` (score server, Firestore rules, the survival leaderboard index, which takes a few minutes to build). Until then the live site can't save rounds and the boards don't load.
+2. **Live-site check on a phone** (private tab, so it's a first visit): the first-time golf walk-through, a Monochrome round, the Monochrome daily and weekly, and one saved round. (Landscape play and Google sign-in in Safari: checked.)
+3. **Play and tune** `UNLOCK_TO_PAR` (`unlocks.js`): the color chain (Cobalt Bay −5, Royal Indigo +5, the expansion courses +7, 0, +1, −3, −1, −1, −1) and the Monochrome chain (Ash Point −6, then 0, 0, 0, +8: the roughest, since the simulated player can't judge grayscale).
+4. **Playtest Expert** (Cobalt Bay, Royal Indigo) by hand: measured only by the solver, and par equals the perfect score on most holes. Check the bigger 0.03 hole on Beginner and Standard feels right.
+5. Run the remaining v1 live checks (first load under 3 s, 10 shape switches).
+6. **Merge `main` into `feature/1d-2d`** before any v2.0 work: about 85 commits behind, with big changes to the panel, the 3-D view, the CSS and the help. Expect conflicts in `index.html`, `index.css` and `3d-mode.js`.
+- **Calendar (not a blocker):** the weekly Gauntlet holes, color and Monochrome, run out after the week of 27 Dec 2027 (`npm run weekly -- --until …` and with `--mono`), the daily holes at the end of 2028 (`npm run daily -- --until …` and with `--mono`).
 
 ### v1.7: Mobile and Accessibility ✓
 - **Phone layout:** under 760 px wide the page is one column: title, then the 3-D view (42% of the screen, staying at the top while the rest scrolls), then the controls or golf panel, then the harmonies. Bigger swatches (40 px). The viewport meta tag is in place, so phones no longer show the desktop page shrunk.

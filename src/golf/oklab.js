@@ -4,6 +4,25 @@
 // Equal distances look roughly equally different anywhere in the space, unlike RGB or HSL.
 
 export const IN_THE_HOLE = 0.02; // looks the same side by side
+
+// The hole's size by difficulty (v1.8.6): bigger on Beginner and Standard, so a near match drops.
+// A hole built bigger carries `cup`; a hole without one is IN_THE_HOLE (older holes, Expert, expansion).
+export const CUP = { Beginner: 0.03, Standard: 0.03, Expert: IN_THE_HOLE, Expansion: IN_THE_HOLE };
+export const cupOf = (hole) => hole?.cup ?? IN_THE_HOLE;
+
+// The size the solver and the hole builder use right now: building or checking a hole is synchronous,
+// so usingCup(size, fn) sets it for the duration (holeMaker.js; the solver worker per request)
+let cup = IN_THE_HOLE;
+export const cupSize = () => cup;
+export function usingCup(size, fn) {
+    const before = cup;
+    cup = size;
+    try {
+        return fn();
+    } finally {
+        cup = before;
+    }
+}
 export const ON_THE_GREEN = 0.05; // close, but you can tell them apart (lip-outs; the game's "on the green" is 2 putts or fewer, see game.js)
 
 // CSS hsl() -> sRGB 0–1 (same formula the browser uses for the swatches)

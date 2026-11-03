@@ -152,14 +152,13 @@
                         <button class="btn btn-link golf-help-toggle" type="button">Close</button>
                     </div>
                     <p>Make <strong>You</strong> match the <strong>Target</strong> in as few strokes as you can.
-                        <span class="for-mouse">A stroke is a double-click on any swatch below (or <kbd>Enter</kbd> on a
+                        <span class="for-mouse">A stroke is a click on any swatch below (or <kbd>Enter</kbd> on a
                         swatch reached with <kbd>Tab</kbd> and the arrow keys).</span><span class="for-touch">A stroke is a
-                        tap on any swatch below. On Expert, tap once to aim and again to play.</span>
+                        tap on any swatch below.</span>
                         Each row is a club:</p>
                     <dl>
-                        <dt>Driver</dt><dd>Complementary: the longest hue jump, straight across the wheel</dd>
-                        <dt>Wood</dt><dd>Split-comp.: long jumps, just either side of the driver</dd>
-                        <dt>Hybrids</dt><dd>Triadic, Tetradic, Double-comp.: big jumps around the hue wheel</dd>
+                        <dt>Long shots</dt><dd>Big jumps around the hue wheel, by how far: the Driver (+180°, straight
+                            across), the Woods (+150°, +210°, just either side) and the Hybrids (+60°, +90°, +120°, +240°, +270°)</dd>
                         <dt>Iron</dt><dd>Analogous: short hue moves</dd>
                         <dt>Wedges</dt><dd>Tints, Shades, Tones, Saturate: lighter, darker, grayer or more vivid, 20–100%. Easy to over- or undershoot.
                             The only clubs out of a bunker; an Expert bunker allows just the one it names</dd>
@@ -181,7 +180,7 @@
                         </div>
                     </div>
                     <p class="golf-intro">Get from the tee color to the target in as few strokes as you can.
-                        <span class="for-mouse">Double-click</span><span class="for-touch">Tap</span> a harmony swatch to play it; the putter row makes small nudges.</p>
+                        <span class="for-mouse">Click</span><span class="for-touch">Tap</span> a harmony swatch to play it; the putter row makes small nudges.</p>
                     <p id="golf-test-mode" class="golf-test-mode" hidden>Test mode: every course is unlocked, and rounds aren't sent to your account.</p>
                     <!-- Account (v1.6): shown only when Firebase is configured (src/cloud/config.js) -->
                     <div id="golf-account" class="golf-account" hidden>
@@ -244,7 +243,7 @@
                                     <p id="golf-nickname-error" class="golf-error" role="alert" hidden></p>
                                 </form>
                             </div>
-                        <!-- Pro: Clubs hides the swatch colors (always on for Expert) -->
+                        <!-- Monochrome (v1.8.6, was Pro): gray swatches, the Monochrome courses -->
                         <!-- Color names (v1.7): the same setting as on the explore screen -->
                         <div class="field">
                             <span class="field-label">Color names</span>
@@ -256,20 +255,20 @@
                                 </label>
                                 <span>On</span>
                             </div>
-                            <span class="golf-sub">Names every color in words ("dark muted teal"), for anyone who finds colors hard to tell apart. Pro still hides the swatches' colors.</span>
+                            <span class="golf-sub">Names every color in words ("dark muted teal"), for anyone who finds colors hard to tell apart. Monochrome still hides the swatches' names.</span>
                         </div>
 
                         <div id="golf-swatch-mode" class="field">
-                            <span class="field-label">Swatches</span>
+                            <span class="field-label">Monochrome</span>
                             <div class="space-toggle">
-                                <span class="mode-colors">Colors</span>
+                                <span class="mode-colors">Color</span>
                                 <label class="switch">
-                                    <input type="checkbox" id="golf-pro" aria-label="Pro: show club names instead of colors">
+                                    <input type="checkbox" id="golf-pro" aria-label="Monochrome: swatches show only their lightness">
                                     <span class="slider"></span>
                                 </label>
-                                <span class="mode-clubs">Clubs (Pro)</span>
+                                <span class="mode-clubs">Monochrome</span>
                             </div>
-                            <span class="golf-sub">Clubs shows only each club (e.g. "+120°", "60%"). Expert always plays with Clubs; Pro scores are kept separately.</span>
+                            <span class="golf-sub">The swatches show only their lightness and the map turns gray (You and Target keep their colors). The courses become the Monochrome five (the first five's holes); daily, weekly and practice play this way too, with their scores kept apart.</span>
                         </div>
                         </div>
                     </details>
@@ -288,7 +287,7 @@
                     </div>
                     <!-- Daily hole: the same for everyone, one scored try (golf/daily.js) -->
                     <div id="golf-daily" class="golf-course">
-                        <h3>Daily hole <span id="golf-daily-date" class="golf-sub"></span></h3>
+                        <h3><span id="golf-daily-title">Daily hole</span> <span id="golf-daily-date" class="golf-sub"></span></h3>
                         <span id="golf-daily-info" class="golf-best"></span>
                         <span class="golf-best">The same hole for everyone, new each day (Ace Sunday to Championship Saturday). Your first try is your score: leaving after a stroke is a pick-up.</span>
                         <span id="golf-daily-status" class="golf-best"></span>
@@ -298,7 +297,7 @@
                     </div>
                     <!-- Weekly Gauntlet (v1.8.6): nine survival holes, the same for everyone, new each Monday (golf/daily.js) -->
                     <div id="golf-weekly" class="golf-course">
-                        <h3>Weekly Gauntlet <span id="golf-weekly-date" class="golf-sub"></span></h3>
+                        <h3><span id="golf-weekly-title">Weekly Gauntlet</span> <span id="golf-weekly-date" class="golf-sub"></span></h3>
                         <span id="golf-weekly-info" class="golf-best"></span>
                         <span class="golf-best">Nine holes of every gimmick, the same for everyone, new each Monday. Survival: finish a hole over par and the run ends. Your best run of the week counts.</span>
                         <span id="golf-weekly-status" class="golf-best"></span>
@@ -328,7 +327,7 @@
                         <button id="golf-practice-play" class="btn btn-primary" type="button">Play</button>
                     </div>
 
-                    <h3 class="golf-section-title">Courses</h3>
+                    <h3 id="golf-courses-title" class="golf-section-title">Courses</h3>
                     <ul id="golf-courses"></ul>
                     </div>
                 </div>
