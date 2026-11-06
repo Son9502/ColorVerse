@@ -13,6 +13,7 @@
     "weekly": "node resources/generateWeekly.mjs",
     "daily": "node resources/generateDaily.mjs",
     "practice": "node resources/generatePractice.mjs",
+    "simulate": "node resources/simulatePlayers.mjs",
     "dev:cloud": "VITE_FIREBASE_EMULATORS=1 vite",
     "emulators": "npm --prefix functions run build && npm run firebase -- emulators:start --project demo-colorverse",
     "deploy:cloud": "npm run firebase -- deploy --only functions,firestore",

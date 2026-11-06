@@ -121,6 +121,7 @@ Other scripts:
 | `npm run daily -- --until YYYY-MM-DD [--mono]` | Extend the daily holes (`daily.json`, or the Monochrome ones in `daily-mono.json`; currently to 2028) |
 | `npm run weekly -- --until YYYY-MM-DD [--mono]` | Extend the weekly Gauntlet (`weekly.json`, or `weekly-mono.json`; currently to 27 Dec 2027) |
 | `npm run practice` | Rebuild the practice starter pool |
+| `npm run simulate -- [report\|fit]` | Simulated players: pass rates for every unlock by skill level (`report`), or the bot settings closest to your own scores (`fit`, from `MY_SCORES` in the script) |
 
 ## Deployment
 
