@@ -901,10 +901,17 @@ Help Button + Popover (top-left of canvas)
     to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Fade-in 3D canvas only when ready */
+/* Fade-in 3D canvas only when ready; the Monochrome switch fades it to gray and back (v1.8.6) */
 #ui-canvas canvas {
     opacity: 0;
-    transition: opacity 0.25s ease;
+    filter: grayscale(0);
+    transition: opacity 0.25s ease, filter 1.5s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #ui-canvas canvas {
+        transition: opacity 0.25s ease;
+    }
 }
 
 /* -----------------------------------------------
