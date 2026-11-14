@@ -9,6 +9,32 @@ Each entry is tagged with how it was produced:
 
 ---
 
+## Milestone 32 — Resume a round; Monochrome holes of their own (v1.8.7) `[ai-assisted]`
+**2026-11-14**
+
+The progress saver was written by the developer, step by step with AI guidance and review (design: save after each stroke, courses only for now, Resume / Start over on the card, Restart for courses and practice, no hole reset). The Monochrome holes, docs and the simulated players' clean-up `[ai-assisted]`.
+
+**Added**
+- `src/golf/resume.js`: a round in progress is saved as the clubs played, not its state (`snapshot`: course id and rev, each finished hole's clubs and time, this hole's clubs and elapsed time, undos left, to par, when). `restore` plays them again on a fresh `GolfRound` (the engine is deterministic, as in `replay.js`), so a reload can't take back a shot or top up undos, and the hole's clock carries on. A save from another course, an older `rev` or a club that no longer plays returns null
+- Golf panel: course rounds are saved after every stroke and undo (`keepProgress`, `colorverse.golf.resume.v1`, per account like bests and cleared on sign-out), and dropped when the round is finished or quit ("Quit this round? Your progress on it will be lost."). A save made between holes resumes on the next tee
+- Course card: "Saved · hole 7 of 18 · score +2 thru 6 · 2 h ago" with **Resume** and **Start over** stacked in the button column (`golf-course-actions`); a locked course, or a save from older holes, shows Play as before. A save that won't replay is cleared when Resume finds out
+- **Restart** next to Quit on courses and practice (not the daily, the weekly or a survival course): asks first when there's progress to lose; practice goes back to the session's first hole
+- `npm run check:resume` (`resources/checkResume.mjs`): plays every course with random clubs and undos, saving and restoring through JSON after each stroke, undo and finished hole (2,422 snapshots), plus three saves that must be refused
+- `npm run simulate -- [report|fit]` (`resources/simulatePlayers.mjs`): simulated players of three skill levels (look-ahead search, softmax shot choice, imperfect grayscale reading, memory of fake holes) give pass rates for every unlock, and `fit` finds the settings closest to the developer's own scores
+
+**Changed**
+- A finished round is recorded on its last stroke (`recordRound`): the best, the daily result, the weekly best and the copy sent to the server. Before, they were saved only on "See score card" / "See result", so a reload in between lost the round, and a finished daily stayed a pick-up. The round-end screen only shows what was recorded
+- **Monochrome courses get holes of their own:** each is built from its color twin's plan (difficulty, hues, layout, hazards, wind) with its own seed (101–105) instead of copying its holes, so a twin's lines can't be replayed from memory. Same par and perfect totals; no tee and pin in common with any color course; color courses unchanged byte for byte. `rev` up one (Ash Point 3, Cinder Dunes 5, Slate Pines 5, Graphite Bay 4, Royal Onyx 5), so bests and unlocks from the copied holes no longer count. `generateCourses.mjs`: the course builder is a function (`buildCourse`). The setting, term, card line and README say so
+- The 3-D model fades to gray and back over 1.5 s with the Monochrome switch; the perfect route is drawn a little thicker, so it covers the player's path where they overlap
+- ESLint: `ignoreRestSiblings` (`const { clubs, ...result }` drops `clubs` on purpose); Node globals for `resources/` scripts
+
+**Verified**
+- `npm run check:resume`: 2,422 snapshots restored, 3 bad saves refused; after the Monochrome holes, still passing on all 17 courses
+- By hand (Firefox, dev server): the save in localStorage after strokes and undo; Resume between holes and mid-hole (same hole, color, strokes, undos and clock); Start over; the saved line; Restart; a refresh before "See score card" keeps the best
+- Monochrome holes: 90 holes passed the generator's checks (perfect, birdie line, hazards, wind); 12½ minutes for the two Expert courses and three others
+
+---
+
 ## Milestone 31 — Survival: The Obsidian Gauntlet (v1.8.6) `[ai-assisted]`
 **2026-11-01**
 

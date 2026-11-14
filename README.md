@@ -61,6 +61,7 @@ In HSL, saturation also decreases toward the core, so inner layers converge on g
 - **Color Golf** (v1.1+): get from a tee color to a target color in as few strokes as possible. Harmony rows are clubs (the Driver, Woods and Hybrids share one Long shots row in golf), a putter row nudges, and par comes from a solver that knows the best route. Sand, water and black-hole hazards, wind, yardage (OKLab distance × 1000), a live score card, a Monochrome switch (gray swatches, You and Target in color), and the 3-D shape as a map with a ball, flag, trail and hazard footprints
   - **17 courses**: five themed courses from Beginner to Expert (Prism Point, Ember Dunes, Verdant Pines, Cobalt Bay, Royal Indigo), then a v1.8 expansion pack of seven, each built around one gimmick: portals (Violet Vortex), mirrors (Silverglass Greens), club bans (Caddie Strike), turning wind (Saffron Whirlwind), a spinning roulette swatch (Scarlet Roulette), hex-digit flips (Hexflip Hollow) and survival (The Obsidian Gauntlet: go over par and the run ends), plus five **Monochrome** courses behind the Monochrome switch: built like the first five but with holes of their own, with the swatches and map in gray, so each shot is judged by its lightness (Ash Point, Cinder Dunes, Slate Pines, Graphite Bay, Royal Onyx)
   - **Daily hole** with streaks and a leaderboard, a **weekly Gauntlet** (nine survival holes, new each Monday, with its own board) and endless **practice**; with the Monochrome switch on, the daily hole and the Gauntlet are their own (different holes, streaks and boards)
+  - **Rounds resume** (v1.8.7): a course round in progress is saved after every stroke, so a reload, a dropped connection or a closed tab picks it up again (Resume or Start over on the course card); courses and practice can be restarted mid-round
   - **Accounts** (v1.6, Firebase): scores saved across devices, courses unlocked in a chain by scoring well, server-checked rounds (the server replays every stroke), nicknames and top-10 leaderboards
   - A first-time walk-through of the golf screen and the first hole, and highlighted words that explain each gimmick
 
@@ -122,6 +123,7 @@ Other scripts:
 | `npm run weekly -- --until YYYY-MM-DD [--mono]` | Extend the weekly Gauntlet (`weekly.json`, or `weekly-mono.json`; currently to 27 Dec 2027) |
 | `npm run practice` | Rebuild the practice starter pool |
 | `npm run simulate -- [report\|fit]` | Simulated players: pass rates for every unlock by skill level (`report`), or the bot settings closest to your own scores (`fit`, from `MY_SCORES` in the script) |
+| `npm run check:resume` | Check that a saved round restores exactly, at every stroke of every course (run after regenerating courses) |
 
 ## Deployment
 
@@ -183,6 +185,7 @@ See [MVP.md](MVP.md#roadmap-post-v1) for details.
 - [x] **v1.7:** Mobile and accessibility: phone layout, tap to play, keyboard play, color names
 - [x] **v1.8:** Color Golf expansion pack: seven gimmick courses, survival, a weekly Gauntlet, landscape phones and a first-time walk-through
 - [x] **v1.8.6:** Monochrome (was Pro): five gray courses, a Monochrome daily hole and weekly Gauntlet; a bigger hole on Beginner and Standard; 3 strokes of unlock grace
+- [x] **v1.8.7:** Resume a course round after a reload (Resume / Start over on the card, Restart in a round); Monochrome courses get holes of their own
 - [ ] **v2.0:** 1-D mode (single-channel gradient line) and 2-D mode (square/circle planes), with the picked color shared across dimensions
 - [ ] **v2.1:** Color Golf on a 2-D map (hue wheel or square slice)
 - [ ] **v2.2:** More 3-D shapes: HSL cylinder, HSV cone/bicone
