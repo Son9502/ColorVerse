@@ -15,6 +15,10 @@ const GOLD = 0xffc83d; // perfect-route replay
 const WHITE = new THREE.Color(0xffffff);
 const DECAL_LIFT = 0.006; // hazard footprints sit just above the texture, under the trail
 const TRAIL_RADIUS = 0.008; // path thickness
+// The perfect route is a little thicker, so where it follows the player's path it covers it completely
+// (two tubes of one size in one place flicker through each other). Over 1/cos 30° ≈ 1.155: a 6-sided
+// tube then holds the other whichever way round they're turned.
+const ROUTE_RADIUS = TRAIL_RADIUS * 1.25;
 
 const cssColor = ({ h, s, l }) => `hsl(${h}, ${s}%, ${l}%)`;
 
@@ -335,7 +339,7 @@ export class GolfMapView {
         this._trail([...state.trail, state.current], state.holed, 0xffffff);
         // Perfect-route replay (gold): tee → each stroke so far (→ the pin when it finishes)
         const replay = state.replay ?? [];
-        if (replay.length) this._trail(replay, state.replayHoled, GOLD);
+        if (replay.length) this._trail(replay, state.replayHoled, GOLD, ROUTE_RADIUS);
 
         // Holed: the ball has dropped, so only the path and the pin remain
         if (!state.holed) this.group.add(this._sprite(drawBall(state.current), lifted(current), 0.12, [0.5, 0.5]));
@@ -373,7 +377,7 @@ export class GolfMapView {
 
     // A path along the surface through `colors` (→ the pin if holed), with dots where strokes landed.
     // A portal landing (marked `warp`, v1.8) breaks the path: the ball jumps from there to the exit.
-    _trail(colors, holed, color) {
+    _trail(colors, holed, color, radius = TRAIL_RADIUS) {
         const lifted = (spot) => spot.point.clone().addScaledVector(spot.normal, LIFT);
         const stops = colors.map(hsl => lifted(this._locate(hsl)));
         if (holed) stops.push(lifted(this._locate(this._target)));
@@ -391,11 +395,11 @@ export class GolfMapView {
                 if (!point.equals(points[i])) path.add(new THREE.LineCurve3(points[i], point));
             });
             if (path.curves.length) this.group.add(new THREE.Mesh(
-                new THREE.TubeGeometry(path, points.length * 2, TRAIL_RADIUS, 6, false),
+                new THREE.TubeGeometry(path, points.length * 2, radius, 6, false),
                 new THREE.MeshBasicMaterial({ color }),
             ));
         }
-        stops.slice(0, holed ? -2 : -1).forEach(stop => this.group.add(this._dot(stop, color)));
+        stops.slice(0, holed ? -2 : -1).forEach(stop => this.group.add(this._dot(stop, color, radius)));
     }
 
     // Points from a to b that stay on the (lifted) surface instead of cutting through the shape
@@ -408,8 +412,8 @@ export class GolfMapView {
         });
     }
 
-    _dot(position, color = 0xffffff) {
-        const dot = new THREE.Mesh(new THREE.SphereGeometry(TRAIL_RADIUS * 2, 12, 12), new THREE.MeshBasicMaterial({ color }));
+    _dot(position, color = 0xffffff, radius = TRAIL_RADIUS) {
+        const dot = new THREE.Mesh(new THREE.SphereGeometry(radius * 2, 12, 12), new THREE.MeshBasicMaterial({ color }));
         dot.position.copy(position);
         return dot;
     }

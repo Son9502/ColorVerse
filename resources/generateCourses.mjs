@@ -195,22 +195,26 @@ const COURSES = [
     },
 ];
 
-// Monochrome (v1.8.6): gray copies of courses 1–5, the same holes played with every color in grayscale
-// (swatches, You and Target, the map), so lightness is the only clue. Copied from their color twins on
-// every run (same rev, so regenerating a twin regenerates its copy); their own unlock chain (`after`).
+// Monochrome (v1.8.6): courses 1–5 played with every color in grayscale (swatches, You and Target, the
+// map), so lightness is the only clue; their own unlock chain (`after`). Until v1.8.7 they were copies
+// of their color twins' holes, so a twin's lines could be replayed from memory. Now each is built from
+// its twin's plan (difficulty, hues, layout, hazards, wind) with a seed of its own: the same kind of
+// course, different holes. `rev` 1 higher than the copies had, so bests from the copied holes don't count.
 const MONO = [
-    { id: "ash", name: "Ash Point", from: "prism", after: "prism" },
-    { id: "cinder", name: "Cinder Dunes", from: "ember", after: "ash" },
-    { id: "slate", name: "Slate Pines", from: "verdant", after: "cinder" },
-    { id: "graphite", name: "Graphite Bay", from: "cobalt", after: "slate" },
-    { id: "onyx", name: "Royal Onyx", from: "indigo", after: "graphite" },
+    { id: "ash", name: "Ash Point", from: "prism", seed: 101, rev: 3, after: "prism" },
+    { id: "cinder", name: "Cinder Dunes", from: "ember", seed: 102, rev: 5, after: "ash" },
+    { id: "slate", name: "Slate Pines", from: "verdant", seed: 103, rev: 5, after: "cinder" },
+    { id: "graphite", name: "Graphite Bay", from: "cobalt", seed: 104, rev: 4, after: "slate" },
+    { id: "onyx", name: "Royal Onyx", from: "indigo", seed: 105, rev: 5, after: "graphite" },
 ];
 
 const only = process.argv.slice(2); // optional: course ids to generate (others are kept from the current file)
 const existing = only.length ? JSON.parse(readFileSync(new URL("../src/golf/courses.json", import.meta.url))) : [];
+const skipped = (id) => only.length && !only.includes(id);
+const kept = (id) => existing.find(course => course.id === id);
 
-const courses = COURSES.map(({ id, name, seed, rev, hues, sats, lights, survival, mix, difficulty, gimmick, tutorial, layout = [FRONT, BACK], hazards: planFor, layup, wind: windPlan, portals: portalsFor, mirrors: mirrorsFor, rules: rulesFor, turning: turningFor, roulette: rouletteFor, flip: flipFor }) => {
-    if (only.length && !only.includes(id)) return existing.find(course => course.id === id);
+// One course from its plan (an entry of COURSES, or a Monochrome course's twin with its own id, seed and rev)
+function buildCourse({ id, name, seed, rev, hues, sats, lights, survival, mix, difficulty, gimmick, tutorial, layout = [FRONT, BACK], hazards: planFor, layup, wind: windPlan, portals: portalsFor, mirrors: mirrorsFor, rules: rulesFor, turning: turningFor, roulette: rouletteFor, flip: flipFor }) {
     const rand = rng(seed);
     const hazardRand = rng(seed * 7919); // separate sequence: hazards don't change which holes are chosen
     const windRand = rng(seed * 104729); // and a third for wind
@@ -226,13 +230,20 @@ const courses = COURSES.map(({ id, name, seed, rev, hues, sats, lights, survival
     });
     if (survival) holes.splice(0, holes.length, ...easiestFirst(holes)); // a survival round gets harder as it goes
     return { id, name, ...(rev && { rev }), hues, difficulty, ...(survival && { survival }), ...(gimmick && { gimmick }), ...(tutorial && { tutorial }), holes };
-}).filter(Boolean);
-for (const { id, name, from, after } of MONO) {
-    const twin = courses.find(course => course.id === from);
+}
+
+const courses = COURSES.map(plan => (skipped(plan.id) ? kept(plan.id) : buildCourse(plan))).filter(Boolean);
+for (const { id, name, from, seed, rev, after } of MONO) {
+    if (skipped(id)) { // not asked for: keep it as it is
+        courses.push(...[kept(id)].filter(Boolean));
+        continue;
+    }
+    const twin = COURSES.find(plan => plan.id === from);
+    const { holes, ...course } = buildCourse({ ...twin, id, name, seed, rev });
     courses.push({
-        id, name, ...(twin.rev && { rev: twin.rev }), hues: twin.hues, difficulty: twin.difficulty, mono: true, after,
-        gimmick: `Monochrome: ${twin.name}'s holes with the swatches in gray. Judge each shot by its lightness.`,
-        holes: twin.holes,
+        ...course, mono: true, after,
+        gimmick: `Monochrome: a course like ${twin.name}, with holes of its own and the swatches in gray. Judge each shot by its lightness.`,
+        holes,
     });
 }
 
