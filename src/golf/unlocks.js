@@ -15,8 +15,8 @@ export const FREE_COURSES = 3;
 // Greens +6), well short of perfect, with extra room on the Expert courses (played Pro, no yardage).
 // Saffron Whirlwind (v1.8.3) asks −6 on Caddie Strike (planner −11). To tune once they've been played by hand.
 // Cobalt Bay went from −4 to −8 in v1.8.6, when Verdant Pines got the bigger Standard hole (planner −4 → −9).
-// Then every score got 3 strokes of grace (v1.8.6, after playtesting). The Monochrome chain (gray copies
-// of courses 1–5) starts from Prism Point; harder to read, so a little gentler than its color twin.
+// Then every score got 3 strokes of grace (v1.8.6, after playtesting). The Monochrome chain (courses 1–5's
+// kind, in gray) starts from Prism Point; harder to read, so a little gentler than its color twin.
 const UNLOCK_TO_PAR = {
     cobalt: -5, indigo: 5, vortex: 7, silverglass: 0, caddie: 1, saffron: -3, scarlet: -1, hexflip: -1, gauntlet: -1,
     ash: -6, cinder: 0, slate: 0, graphite: 0, onyx: 8,
