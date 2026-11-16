@@ -278,6 +278,13 @@ Developed on the `feature/1d-2d` branch.
 6. **Merge `main` into `feature/1d-2d`** before any v2.0 work: about 85 commits behind, with big changes to the panel, the 3-D view, the CSS and the help. Expect conflicts in `index.html`, `index.css` and `3d-mode.js`.
 - **Calendar (not a blocker):** the weekly Gauntlet holes, color and Monochrome, run out after the week of 27 Dec 2027 (`npm run weekly -- --until …` and with `--mono`), the daily holes at the end of 2028 (`npm run daily -- --until …` and with `--mono`).
 
+### Side project (any time, not a v2.0 blocker): Learning golfers
+Built on the simulated players (`resources/simulatePlayers.mjs`), which already play any course many times and report pass rates. A first machine-learning project for this codebase: the engine is deterministic and fast, there are about 41 moves (clubs), strokes are the score, a hole is a short episode, and the solver's perfect score is the ceiling to measure against.
+1. **Tune the heuristic weights automatically.** The bot's evaluation is set by hand: distance left plus a fixed penalty per stroke (`cupOf(hole) * 2`). Make its weights parameters (the stroke penalty, perhaps lightness and hue distance weighed apart) and search for the values that score best, by grid or random search like `fit`.
+2. **Train a reinforcement-learning agent.** Start with tabular Q-learning on one hole (state: the position, rounded, and strokes so far; action: a club; reward: −1 per stroke, penalties included), then function approximation so one agent plays any hole.
+3. **Compare** the hand-written bot, the tuned bot and the RL agent in `report`, as more profiles, each against the solver's perfect score: strokes over perfect, pass rates for every unlock, and where each one loses strokes (hazards, fake holes in Monochrome, wind).
+- Later, with shot logging on the server (it keeps only round totals today): imitation learning from real players' shots, a learned version of the bot's softmax shot choice.
+
 ### v1.7: Mobile and Accessibility ✓
 - **Phone layout:** under 760 px wide the page is one column: title, then the 3-D view (42% of the screen, staying at the top while the rest scrolls), then the controls or golf panel, then the harmonies. Bigger swatches (40 px). The viewport meta tag is in place, so phones no longer show the desktop page shrunk.
 - **Touch:** one finger drags to rotate, two fingers pinch to zoom (same limits as the wheel). A drag that ends over the shape no longer picks a color, on any device. Tap a swatch to choose it (explore) or play it (golf); on Expert the first tap aims (outlined, "Tap again") and a second tap on the same swatch plays, since its swatches are blank. Mice keep double-click; the double-click phones send after two taps is ignored.
